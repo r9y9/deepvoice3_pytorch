@@ -1,6 +1,7 @@
 deepvoice3_pytorch/version.py
 checkpoints*
 log
+generated
 
 # Created by https://www.gitignore.io
 
