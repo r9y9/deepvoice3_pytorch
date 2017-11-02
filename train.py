@@ -22,7 +22,7 @@ from util import audio
 from util.plot import plot_alignment
 from tqdm import tqdm, trange
 
-# The tacotron model
+# The deepvoice3 model
 from deepvoice3_pytorch import build_deepvoice3
 
 import torch
@@ -62,8 +62,8 @@ def _pad(seq, max_len):
                   mode='constant', constant_values=0)
 
 
-def _pad_2d(x, max_len):
-    x = np.pad(x, [(0, max_len - len(x)), (0, 0)],
+def _pad_2d(x, max_len, b_pad=0):
+    x = np.pad(x, [(b_pad, max_len - len(x) - b_pad), (0, 0)],
                mode="constant", constant_values=0)
     return x
 
@@ -134,16 +134,20 @@ def collate_fn(batch):
         max_target_len += r - max_target_len % r
         assert max_target_len % r == 0
 
+    # Set 0 for zero beginning padding
+    b_pad = 0
+    max_target_len += b_pad
+
     a = np.array([_pad(x[0], max_input_len) for x in batch], dtype=np.int)
     x_batch = torch.LongTensor(a)
 
     input_lengths = torch.LongTensor(input_lengths)
 
-    b = np.array([_pad_2d(x[1], max_target_len) for x in batch],
+    b = np.array([_pad_2d(x[1], max_target_len, b_pad=b_pad) for x in batch],
                  dtype=np.float32)
     mel_batch = torch.FloatTensor(b)
 
-    c = np.array([_pad_2d(x[2], max_target_len) for x in batch],
+    c = np.array([_pad_2d(x[2], max_target_len, b_pad=b_pad) for x in batch],
                  dtype=np.float32)
     y_batch = torch.FloatTensor(c)
 
@@ -159,15 +163,17 @@ def collate_fn(batch):
              for x in batch], dtype=np.int)
         frame_positions = torch.LongTensor(frame_positions)
     else:
-        frame_positions = torch.arange(
-            1, max_target_len // r + 1).long().unsqueeze(0).expand(
+        s, e = 1, max_target_len // r + 1
+        if b_pad > 0:
+            s, e = s - 1, e - 1
+        frame_positions = torch.arange(s, e).long().unsqueeze(0).expand(
             len(batch), max_target_len // r)
 
     return x_batch, input_lengths, mel_batch, y_batch, (text_positions, frame_positions)
 
 
 def save_alignment(path, attn):
-    plot_alignment(attn.T, path, info="tacotron, step={}".format(global_step))
+    plot_alignment(attn.T, path, info="deepvoice3, step={}".format(global_step))
 
 
 def save_spectrogram(path, linear_output):
@@ -202,7 +208,7 @@ def save_states(global_step, mel_outputs, linear_outputs, attn, y,
         for i, alignment in enumerate(attn):
             alignment_dir = join(checkpoint_dir, "alignment_layer{}".format(i + 1))
             os.makedirs(alignment_dir, exist_ok=True)
-            path = join(alignment_dir, "step{}_layer_{}_alignment.png".format(
+            path = join(alignment_dir, "step{:09d}_layer_{}_alignment.png".format(
                 global_step, i + 1))
             alignment = alignment[idx].cpu().data.numpy()
             save_alignment(path, alignment)
@@ -210,26 +216,26 @@ def save_states(global_step, mel_outputs, linear_outputs, attn, y,
         # Save averaged alignment
         alignment_dir = join(checkpoint_dir, "alignment_ave")
         os.makedirs(alignment_dir, exist_ok=True)
-        path = join(alignment_dir, "step{}_alignment.png".format(global_step))
+        path = join(alignment_dir, "step{:09d}_alignment.png".format(global_step))
         alignment = attn.mean(0)[idx].cpu().data.numpy()
         save_alignment(path, alignment)
     else:
         assert False
 
     # Predicted spectrogram
-    path = join(checkpoint_dir, "step{}_predicted_spectrogram.png".format(
+    path = join(checkpoint_dir, "step{:09d}_predicted_spectrogram.png".format(
         global_step))
     linear_output = linear_outputs[idx].cpu().data.numpy()
     save_spectrogram(path, linear_output)
 
     # Predicted audio signal
     signal = audio.inv_spectrogram(linear_output.T)
-    path = join(checkpoint_dir, "step{}_predicted.wav".format(
+    path = join(checkpoint_dir, "step{:09d}_predicted.wav".format(
         global_step))
     audio.save_wav(signal, path)
 
     # Target spectrogram
-    path = join(checkpoint_dir, "step{}_target_spectrogram.png".format(
+    path = join(checkpoint_dir, "step{:09d}_target_spectrogram.png".format(
         global_step))
     linear_output = y[idx].cpu().data.numpy()
     save_spectrogram(path, linear_output)
@@ -322,7 +328,7 @@ def train(model, data_loader, optimizer,
 
 def save_checkpoint(model, optimizer, step, checkpoint_dir, epoch):
     checkpoint_path = join(
-        checkpoint_dir, "checkpoint_step{}.pth".format(global_step))
+        checkpoint_dir, "checkpoint_step{:09d}.pth".format(global_step))
     torch.save({
         "state_dict": model.state_dict(),
         "optimizer": optimizer.state_dict(),

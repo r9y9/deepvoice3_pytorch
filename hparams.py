@@ -29,13 +29,13 @@ hparams = tf.contrib.training.HParams(
 
     # Training:
     batch_size=16,
-    adam_beta1=0.5,
-    adam_beta2=0.9,
-    initial_learning_rate=0.001,
+    adam_beta1=0.9,
+    adam_beta2=0.999,
+    initial_learning_rate=0.002,
     decay_learning_rate=True,
     nepochs=1000,
     weight_decay=0.0,
-    clip_thresh=10.0,
+    clip_thresh=0.2,
 
     # Save
     checkpoint_interval=1000,

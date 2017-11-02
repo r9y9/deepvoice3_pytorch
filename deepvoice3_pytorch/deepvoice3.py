@@ -18,12 +18,13 @@ def build_deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=4096, r=5,
         n_vocab, embed_dim, padding_idx=padding_idx,
         n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
         dropout=dropout,
-        convolutions=((64, 5),) * 7)
+        convolutions=((64, 5),) * 10)
     decoder = Decoder(
         embed_dim, in_dim=mel_dim, r=r, padding_idx=padding_idx,
         n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
         dropout=dropout,
-        convolutions=((128, 5),) * 5)
+        convolutions=((128, 5),) * 5,
+        attention=[False, False, False, False, True])
     converter = Converter(
         in_dim=mel_dim, out_dim=linear_dim, dropout=dropout,
         convolutions=((256, 5),) * 5)
@@ -56,11 +57,15 @@ class DeepVoice3(nn.Module):
         self.n_speakers = n_speakers
         self.speaker_embed_dim = speaker_embed_dim
 
+        self.use_text_pos_embedding_in_encoder = False
+
     def get_trainable_parameters(self):
         ''' Avoid updating the position encoding '''
         # return self.parameters()
         pe_query_param_ids = set(map(id, self.decoder.embed_query_positions.parameters()))
         pe_keys_param_ids = set(map(id, self.decoder.embed_keys_positions.parameters()))
+        # pe_encoder_ids = set(map(id, self.encoder.embed_text_positions.parameters()))
+
         freezed_param_ids = pe_query_param_ids | pe_keys_param_ids
         return (p for p in self.parameters() if id(p) not in freezed_param_ids)
 
@@ -74,8 +79,13 @@ class DeepVoice3(nn.Module):
             speaker_embed = None
 
         # (B, T, text_embed_dim)
-        encoder_outputs = self.encoder(
-            text_sequences, lengths=input_lengths, speaker_embed=speaker_embed)
+        if self.use_text_pos_embedding_in_encoder:
+            encoder_outputs = self.encoder(
+                text_sequences, text_positions=text_positions,
+                lengths=input_lengths, speaker_embed=speaker_embed)
+        else:
+            encoder_outputs = self.encoder(
+                text_sequences, lengths=input_lengths, speaker_embed=speaker_embed)
 
         # (B, T', mel_dim*r)
         mel_outputs, alignments = self.decoder(
@@ -92,16 +102,32 @@ class DeepVoice3(nn.Module):
 
         return mel_outputs, linear_outputs, alignments
 
+    def make_generation_fast_(self):
+
+        def remove_weight_norm(m):
+            try:
+                nn.utils.remove_weight_norm(m)
+            except ValueError:  # this module didn't have weight norm
+                return
+        self.apply(remove_weight_norm)
+
 
 class Encoder(nn.Module):
     def __init__(self, n_vocab, embed_dim, n_speakers, speaker_embed_dim,
-                 padding_idx=None, convolutions=((64, 5),) * 7, dropout=0.1):
+                 padding_idx=None, convolutions=((64, 5),) * 7,
+                 max_positions=512, dropout=0.1):
         super(Encoder, self).__init__()
         self.dropout = dropout
         self.num_attention_layers = None
 
         # Text input embeddings
         self.embed_tokens = Embedding(n_vocab, embed_dim, padding_idx)
+
+        # Text position embedding
+        self.embed_text_positions = Embedding(
+            max_positions, embed_dim, padding_idx)
+        self.embed_text_positions.weight.data = position_encoding_init(
+            max_positions, embed_dim)
 
         # Speaker embedding
         if n_speakers > 1:
@@ -127,11 +153,15 @@ class Encoder(nn.Module):
             in_channels = out_channels
         self.fc2 = Linear(in_channels, embed_dim)
 
-    def forward(self, text_sequences, lengths=None, speaker_embed=None):
+    def forward(self, text_sequences, text_positions=None, lengths=None,
+                speaker_embed=None):
         assert self.n_speakers == 1 or speaker_embed is not None
 
         # embed text_sequences
         x = self.embed_tokens(text_sequences)
+        if text_positions is not None:
+            x += self.embed_text_positions(text_positions)
+
         x = F.dropout(x, p=self.dropout, training=self.training)
 
         # embed speakers
@@ -174,8 +204,8 @@ class Encoder(nn.Module):
             keys += F.softsign(self.speaker_fc2(speaker_embed))
 
         # scale gradients (this only affects backward, not forward)
-        # if self.num_attention_layers is not None:
-        #     keys = grad_multiply(keys, 1.0 / (2.0 * self.num_attention_layers))
+        if self.num_attention_layers is not None:
+            keys = grad_multiply(keys, 1.0 / (2.0 * self.num_attention_layers))
 
         # add output to input embedding for attention
         values = (keys + input_embedding) * math.sqrt(0.5)
@@ -336,8 +366,8 @@ class Decoder(nn.Module):
         x = F.dropout(x, p=self.dropout, training=self.training)
 
         # project to size of convolution
-        x = self.relu(self.fc1(x))
-        # x = self.fc1(x)
+        #x = self.relu(self.fc1(x))
+        x = self.fc1(x)
 
         # B x T x C -> T x B x C
         x = x.transpose(0, 1)
@@ -424,7 +454,8 @@ class Decoder(nn.Module):
 
         self._is_inference_incremental = False
 
-    def _incremental_forward(self, encoder_out, text_positions):
+    def _incremental_forward(self, encoder_out, text_positions,
+                             initial_input=None, test_inputs=None):
         assert self._is_inference_incremental
 
         keys, values = encoder_out
@@ -440,29 +471,35 @@ class Decoder(nn.Module):
         outputs = []
         alignments = []
 
+        num_attention_layers = sum([layer is not None for layer in self.attention])
         t = 0
-        initial_input = Variable(
-            keys.data.new(B, 1, self.in_dim * self.r).zero_())
+        if initial_input is None:
+            initial_input = Variable(
+                keys.data.new(B, 1, self.in_dim * self.r).zero_())
         current_input = initial_input
         while True:
             frame_pos = Variable(keys.data.new(B, 1).zero_().add_(t + 1)).long()
             frame_pos_embed = self.embed_query_positions(frame_pos)
 
-            if t > 0:
-                current_input = outputs[-1]
-
-            x = F.dropout(current_input, p=self.dropout, training=self.training)
+            if test_inputs is not None:
+                if t >= test_inputs.size(1):
+                    break
+                current_input = test_inputs[:, t, :].unsqueeze(1)
+            else:
+                if t > 0:
+                    current_input = outputs[-1]
+            x = current_input
+            x = F.dropout(x, p=self.dropout, training=self.training)
 
             # project to size of convolution
-            x = self.relu(self.fc1(x))
-            # x = self.fc1(x)
+            # x = self.relu(self.fc1(x))
+            x = self.fc1(x)
 
             # temporal convolutions
             ave_alignment = None
             for proj, conv, attention in zip(
                     self.projections, self.convolutions, self.attention):
                 residual = x if proj is None else proj(x)
-
                 x = F.dropout(x, p=self.dropout, training=self.training)
                 x = conv.incremental_forward(x)
                 a, b = x.split(x.size(-1) // 2, dim=-1)
@@ -480,7 +517,7 @@ class Decoder(nn.Module):
                 # residual
                 x = (x + residual) * math.sqrt(0.5)
 
-            ave_alignment = ave_alignment.div_(len(self.attention))
+            ave_alignment = ave_alignment.div_(num_attention_layers)
 
             # project to mel
             output = self.fc2(x)
@@ -489,7 +526,7 @@ class Decoder(nn.Module):
             alignments += [ave_alignment]
 
             t += 1
-            if t > 10 and is_end_of_frames(output):
+            if t > 100 and is_end_of_frames(output):
                 break
             elif t > self.max_decoder_steps:
                 print("Warning! doesn't seems to be converged")
