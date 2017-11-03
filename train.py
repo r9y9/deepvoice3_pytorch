@@ -57,9 +57,9 @@ if use_cuda:
     cudnn.benchmark = False
 
 
-def _pad(seq, max_len):
+def _pad(seq, max_len, constant_values=0):
     return np.pad(seq, (0, max_len - len(seq)),
-                  mode='constant', constant_values=0)
+                  mode='constant', constant_values=constant_values)
 
 
 def _pad_2d(x, max_len, b_pad=0):
@@ -135,7 +135,8 @@ def collate_fn(batch):
         assert max_target_len % r == 0
 
     # Set 0 for zero beginning padding
-    b_pad = 0
+    # imitates initial decoder states
+    b_pad = r
     max_target_len += b_pad
 
     a = np.array([_pad(x[0], max_input_len) for x in batch], dtype=np.int)
@@ -151,25 +152,24 @@ def collate_fn(batch):
                  dtype=np.float32)
     y_batch = torch.FloatTensor(c)
 
-    # positions
+    # text positions
     text_positions = np.array([_pad(np.arange(1, len(x[0]) + 1), max_input_len)
                                for x in batch], dtype=np.int)
     text_positions = torch.LongTensor(text_positions)
 
-    use_pad_frame_positions = False
-    if use_pad_frame_positions:
-        frame_positions = np.array(
-            [_pad(np.arange(1, len(x[1]) // r + 1), max_target_len // r)
-             for x in batch], dtype=np.int)
-        frame_positions = torch.LongTensor(frame_positions)
-    else:
-        s, e = 1, max_target_len // r + 1
-        if b_pad > 0:
-            s, e = s - 1, e - 1
-        frame_positions = torch.arange(s, e).long().unsqueeze(0).expand(
-            len(batch), max_target_len // r)
+    # frame positions
+    s, e = 1, max_target_len // r + 1
+    if b_pad > 0:
+        s, e = s - 1, e - 1
+    frame_positions = torch.arange(s, e).long().unsqueeze(0).expand(
+        len(batch), max_target_len // r)
 
-    return x_batch, input_lengths, mel_batch, y_batch, (text_positions, frame_positions)
+    # done flags
+    done = np.array([_pad(np.zeros(len(x[1]) // r - 1), max_target_len // r, constant_values=1)
+                     for x in batch])
+    done = torch.FloatTensor(done)
+
+    return x_batch, input_lengths, mel_batch, y_batch, (text_positions, frame_positions), done
 
 
 def save_alignment(path, attn):
@@ -249,13 +249,15 @@ def train(model, data_loader, optimizer,
     if use_cuda:
         model = model.cuda()
     linear_dim = model.linear_dim
+    r = hparams.outputs_per_step
 
     criterion = nn.L1Loss()
+    binary_criterion = nn.BCELoss()
 
     global global_step, global_epoch
     while global_epoch < nepochs:
         running_loss = 0.
-        for step, (x, input_lengths, mel, y, positions) in tqdm(enumerate(data_loader)):
+        for step, (x, input_lengths, mel, y, positions, done) in tqdm(enumerate(data_loader)):
             # Decay learning rate
             current_lr = _learning_rate_decay(init_lr, global_step)
             for param_group in optimizer.param_groups:
@@ -273,28 +275,33 @@ def train(model, data_loader, optimizer,
 
             x, mel, y = x[indices], mel[indices], y[indices]
             text_positions, frame_positions = text_positions[indices], frame_positions[indices]
+            done = done[indices]
+            done = done.unsqueeze(-1) if done.dim() == 2 else done
 
             # Feed data
             x, mel, y = Variable(x), Variable(mel), Variable(y)
             text_positions = Variable(text_positions)
             frame_positions = Variable(frame_positions)
+            done = Variable(done)
             if use_cuda:
                 x, mel, y = x.cuda(), mel.cuda(), y.cuda()
                 text_positions = text_positions.cuda()
                 frame_positions = frame_positions.cuda()
+                done = done.cuda()
 
-            mel_outputs, linear_outputs, attn = model(
+            mel_outputs, linear_outputs, attn, done_hat = model(
                 x, mel,
                 text_positions=text_positions, frame_positions=frame_positions,
                 input_lengths=sorted_lengths)
 
             # Loss
-            mel_loss = criterion(mel_outputs, mel)
+            mel_loss = criterion(mel_outputs[:, :-r, :], mel[:, r:, :])
             n_priority_freq = int(3000 / (fs * 0.5) * linear_dim)
-            linear_loss = 0.5 * criterion(linear_outputs, y) \
-                + 0.5 * criterion(linear_outputs[:, :, :n_priority_freq],
-                                  y[:, :, :n_priority_freq])
-            loss = mel_loss + linear_loss
+            linear_loss = 0.5 * criterion(linear_outputs[:, :-r, :], y[:, r:, :]) \
+                + 0.5 * criterion(linear_outputs[:, :-r, :n_priority_freq],
+                                  y[:, r:, :n_priority_freq])
+            done_loss = binary_criterion(done_hat, done)
+            loss = mel_loss + linear_loss + done_loss
 
             if global_step > 0 and global_step % checkpoint_interval == 0:
                 save_states(
@@ -305,12 +312,14 @@ def train(model, data_loader, optimizer,
 
             # Update
             loss.backward()
-            grad_norm = torch.nn.utils.clip_grad_norm(
-                model.get_trainable_parameters(), clip_thresh)
+            if clip_thresh > 0:
+                grad_norm = torch.nn.utils.clip_grad_norm(
+                    model.get_trainable_parameters(), clip_thresh)
             optimizer.step()
 
             # Logs
             log_value("loss", float(loss.data[0]), global_step)
+            log_value("done_loss", float(done_loss.data[0]), global_step)
             log_value("mel loss", float(mel_loss.data[0]), global_step)
             log_value("linear loss", float(linear_loss.data[0]), global_step)
             log_value("gradient norm", grad_norm, global_step)
