@@ -18,15 +18,16 @@ def build_deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=4096, r=5,
         n_vocab, embed_dim, padding_idx=padding_idx,
         n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
         dropout=dropout,
-        convolutions=((64, 5),) * 10)
+        convolutions=((64, 5),) * 7)
+    decoder_hidden_dim = 128
     decoder = Decoder(
         embed_dim, in_dim=mel_dim, r=r, padding_idx=padding_idx,
         n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
         dropout=dropout,
-        convolutions=((128, 5),) * 5,
-        attention=[False, False, False, False, True])
+        convolutions=((decoder_hidden_dim, 5),) * 4,
+        attention=[False, False, False, True])
     converter = Converter(
-        in_dim=mel_dim, out_dim=linear_dim, dropout=dropout,
+        in_dim=decoder_hidden_dim // r, out_dim=linear_dim, dropout=dropout,
         convolutions=((256, 5),) * 5)
     model = DeepVoice3(
         encoder, decoder, converter, padding_idx=padding_idx,
@@ -88,7 +89,7 @@ class DeepVoice3(nn.Module):
                 text_sequences, lengths=input_lengths, speaker_embed=speaker_embed)
 
         # (B, T', mel_dim*r)
-        mel_outputs, alignments = self.decoder(
+        mel_outputs, alignments, done, decoder_states = self.decoder(
             encoder_outputs, mel_targets,
             text_positions=text_positions, frame_positions=frame_positions,
             speaker_embed=speaker_embed, lengths=input_lengths)
@@ -96,11 +97,12 @@ class DeepVoice3(nn.Module):
         # Reshape
         # (B, T, mel_dim)
         mel_outputs = mel_outputs.view(B, -1, self.mel_dim)
+        decoder_states = decoder_states.view(B, mel_outputs.size(1), -1)
 
         # (B, T, linear_dim)
-        linear_outputs = self.converter(mel_outputs)
+        linear_outputs = self.converter(decoder_states)
 
-        return mel_outputs, linear_outputs, alignments
+        return mel_outputs, linear_outputs, alignments, done
 
     def make_generation_fast_(self):
 
@@ -265,12 +267,12 @@ class AttentionLayer(nn.Module):
         return x, attn_scores
 
 
-def position_encoding_init(n_position, d_pos_vec):
+def position_encoding_init(n_position, d_pos_vec, position_rate=1.0):
     ''' Init the sinusoid position encoding table '''
 
     # keep dim 0 for padding token position encoding zero vector
     position_enc = np.array([
-        [pos / np.power(10000, 2 * i / d_pos_vec) for i in range(d_pos_vec)]
+        [position_rate * pos / np.power(10000, 2 * i / d_pos_vec) for i in range(d_pos_vec)]
         if pos != 0 else np.zeros(d_pos_vec) for pos in range(n_position)])
 
     position_enc[1:, 0::2] = np.sin(position_enc[1:, 0::2])  # dim 2i
@@ -324,10 +326,14 @@ class Decoder(nn.Module):
             in_channels = out_channels
         self.fc2 = Linear(in_channels, in_dim * r)
 
+        # decoder states -> Done binary flag
+        self.fc3 = Linear(in_channels, 1)
+
         self.relu = nn.ReLU(inplace=True)
 
         self._is_inference_incremental = False
         self.max_decoder_steps = 200
+        self.use_memory_mask = False
 
     def forward(self, encoder_out, inputs=None,
                 text_positions=None, frame_positions=None,
@@ -347,7 +353,7 @@ class Decoder(nn.Module):
 
         keys, values = encoder_out
 
-        if lengths is not None:
+        if self.use_memory_mask and lengths is not None:
             mask = get_mask_from_lengths(keys, lengths)
         else:
             mask = None
@@ -374,10 +380,11 @@ class Decoder(nn.Module):
 
         # temporal convolutions
         alignments = []
-        for proj, conv, attention in zip(
-                self.projections, self.convolutions, self.attention):
+        for idx, (proj, conv, attention) in enumerate(zip(
+                self.projections, self.convolutions, self.attention)):
             residual = x if proj is None else proj(x)
-            x = F.dropout(x, p=self.dropout, training=self.training)
+            if idx > 0:
+                x = F.dropout(x, p=self.dropout, training=self.training)
             x = conv(x)
             x = conv.remove_future_timesteps(x)
             a, b = x.split(x.size(-1) // 2, dim=-1)
@@ -399,10 +406,16 @@ class Decoder(nn.Module):
         # T x B x C -> B x T x C
         x = x.transpose(1, 0)
 
-        # project to mel-spectorgram
-        x = self.fc2(x)
+        # well, I'm not sure this is really necesasary
+        decoder_states = x
 
-        return x, torch.stack(alignments)
+        # project to mel-spectorgram
+        x = self.fc2(decoder_states)
+
+        # Done flag
+        done = F.sigmoid(self.fc3(decoder_states))
+
+        return x, torch.stack(alignments), done, decoder_states
 
     def incremental_inference(self, beam_size=None):
         """Context manager for incremental inference.
@@ -468,8 +481,10 @@ class Decoder(nn.Module):
         # transpose only once to speed up attention layers
         keys = keys.transpose(1, 2).contiguous()
 
+        decoder_states = []
         outputs = []
         alignments = []
+        dones = []
 
         num_attention_layers = sum([layer is not None for layer in self.attention])
         t = 0
@@ -497,10 +512,11 @@ class Decoder(nn.Module):
 
             # temporal convolutions
             ave_alignment = None
-            for proj, conv, attention in zip(
-                    self.projections, self.convolutions, self.attention):
+            for idx, (proj, conv, attention) in enumerate(zip(
+                    self.projections, self.convolutions, self.attention)):
                 residual = x if proj is None else proj(x)
-                x = F.dropout(x, p=self.dropout, training=self.training)
+                if idx > 0:
+                    x = F.dropout(x, p=self.dropout, training=self.training)
                 x = conv.incremental_forward(x)
                 a, b = x.split(x.size(-1) // 2, dim=-1)
                 x = a * F.sigmoid(b)
@@ -518,15 +534,21 @@ class Decoder(nn.Module):
                 x = (x + residual) * math.sqrt(0.5)
 
             ave_alignment = ave_alignment.div_(num_attention_layers)
+            decoder_state = x
 
-            # project to mel
-            output = self.fc2(x)
+            output = self.fc2(decoder_state)
+
+            # Done flag
+            done = F.sigmoid(self.fc3(decoder_state))
 
             outputs += [output]
+            decoder_states += [decoder_state]
             alignments += [ave_alignment]
+            dones += [done]
 
             t += 1
-            if t > 100 and is_end_of_frames(output):
+            print(t, done.data.view(-1)[0])  # for debug
+            if (done > 0.5).all() and t > 20:
                 break
             elif t > self.max_decoder_steps:
                 print("Warning! doesn't seems to be converged")
@@ -534,13 +556,15 @@ class Decoder(nn.Module):
 
         # Remove 1-element time axis
         alignments = list(map(lambda x: x.squeeze(1), alignments))
+        decoder_states = list(map(lambda x: x.squeeze(1), decoder_states))
         outputs = list(map(lambda x: x.squeeze(1), outputs))
 
         # Combine outputs for all time steps
         alignments = torch.stack(alignments).transpose(0, 1)
+        decoder_states = torch.stack(decoder_states).transpose(0, 1).contiguous()
         outputs = torch.stack(outputs).transpose(0, 1).contiguous()
 
-        return outputs, alignments
+        return outputs, alignments, dones, decoder_states
 
     def start_fresh_sequence(self):
         """Clear all state used for incremental generation.
