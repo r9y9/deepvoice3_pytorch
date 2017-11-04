@@ -565,7 +565,6 @@ class Decoder(nn.Module):
             dones += [done]
 
             t += 1
-            print(t, done.data.view(-1)[0])  # for debug
             if (done > 0.5).all() and t > self.min_decoder_steps:
                 break
             elif t > self.max_decoder_steps:
