@@ -236,7 +236,8 @@ class AttentionLayer(nn.Module):
         self.out_projection = Linear(embed_dim, conv_channels)
         self.dropout = dropout
 
-    def forward(self, query, encoder_out, mask=None):
+    def forward(self, query, encoder_out, mask=None, last_attended=None,
+                window_size=3):
         keys, values = encoder_out
         residual = query
 
@@ -244,11 +245,20 @@ class AttentionLayer(nn.Module):
         x = self.in_projection(query)
         x = torch.bmm(x, keys)
 
+        mask_value = -float("inf")
         if mask is not None:
             mask = mask.view(query.size(0), 1, -1)
-            x.data.masked_fill_(mask, -float("inf"))
+            x.data.masked_fill_(mask, mask_value)
+
+        if last_attended is not None:
+            if last_attended > 0:
+                x[:, :, :last_attended] = mask_value
+            ahead = last_attended + window_size
+            if ahead < x.size(-1):
+                x[:, :, ahead:] = mask_value
 
         # softmax over last dim
+        # (B, tgt_len, src_len)
         sz = x.size()
         x = F.softmax(x.view(sz[0] * sz[1], sz[2]), dim=1)
         x = x.view(sz)
@@ -335,6 +345,7 @@ class Decoder(nn.Module):
         self.max_decoder_steps = 200
         self.min_decoder_steps = 10
         self.use_memory_mask = False
+        self.force_monotonic_attention = True
 
     def forward(self, encoder_out, inputs=None,
                 text_positions=None, frame_positions=None,
@@ -485,6 +496,11 @@ class Decoder(nn.Module):
         outputs = []
         alignments = []
         dones = []
+        # intially set to zeros
+        if self.force_monotonic_attention:
+            last_attended = [0] * len(self.attention)
+        else:
+            last_attended = [None] * len(self.attention)
 
         num_attention_layers = sum([layer is not None for layer in self.attention])
         t = 0
@@ -523,7 +539,10 @@ class Decoder(nn.Module):
                 # attention
                 if attention is not None:
                     x = x + frame_pos_embed
-                    x, alignment = attention(x, (keys, values))
+                    x, alignment = attention(x, (keys, values),
+                                             last_attended=last_attended[idx])
+                    if self.force_monotonic_attention:
+                        last_attended[idx] = alignment.max(-1)[1].view(-1).data[0]
                     if ave_alignment is None:
                         ave_alignment = alignment
                     else:
