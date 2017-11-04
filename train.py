@@ -159,8 +159,8 @@ def collate_fn(batch):
 
     # frame positions
     s, e = 1, max_target_len // r + 1
-    if b_pad > 0:
-        s, e = s - 1, e - 1
+    # if b_pad > 0:
+    #    s, e = s - 1, e - 1
     frame_positions = torch.arange(s, e).long().unsqueeze(0).expand(
         len(batch), max_target_len // r)
 
@@ -359,6 +359,7 @@ if __name__ == "__main__":
 
     # Override hyper parameters
     hparams.parse(args["--hparams"])
+    assert hparams.name == "deepvoice3"
 
     os.makedirs(checkpoint_dir, exist_ok=True)
 

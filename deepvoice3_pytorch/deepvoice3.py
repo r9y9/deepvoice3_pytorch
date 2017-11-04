@@ -300,11 +300,11 @@ class Decoder(nn.Module):
         self.embed_query_positions = Embedding(
             max_positions, convolutions[0][0], padding_idx)
         self.embed_query_positions.weight.data = position_encoding_init(
-            max_positions, convolutions[0][0])
+            max_positions, convolutions[0][0], position_rate=1.0)
         self.embed_keys_positions = Embedding(
             max_positions, embed_dim, padding_idx)
         self.embed_keys_positions.weight.data = position_encoding_init(
-            max_positions, embed_dim)
+            max_positions, embed_dim, position_rate=1.29)
 
         self.fc1 = Linear(in_channels, convolutions[0][0], dropout=dropout)
         in_channels = convolutions[0][0]
@@ -333,6 +333,7 @@ class Decoder(nn.Module):
 
         self._is_inference_incremental = False
         self.max_decoder_steps = 200
+        self.min_decoder_steps = 10
         self.use_memory_mask = False
 
     def forward(self, encoder_out, inputs=None,
@@ -372,8 +373,7 @@ class Decoder(nn.Module):
         x = F.dropout(x, p=self.dropout, training=self.training)
 
         # project to size of convolution
-        #x = self.relu(self.fc1(x))
-        x = self.fc1(x)
+        x = self.relu(self.fc1(x))
 
         # B x T x C -> T x B x C
         x = x.transpose(0, 1)
@@ -507,8 +507,7 @@ class Decoder(nn.Module):
             x = F.dropout(x, p=self.dropout, training=self.training)
 
             # project to size of convolution
-            # x = self.relu(self.fc1(x))
-            x = self.fc1(x)
+            x = self.relu(self.fc1(x))
 
             # temporal convolutions
             ave_alignment = None
@@ -548,7 +547,7 @@ class Decoder(nn.Module):
 
             t += 1
             print(t, done.data.view(-1)[0])  # for debug
-            if (done > 0.5).all() and t > 20:
+            if (done > 0.5).all() and t > self.min_decoder_steps:
                 break
             elif t > self.max_decoder_steps:
                 print("Warning! doesn't seems to be converged")
@@ -604,10 +603,7 @@ class Converter(nn.Module):
             in_channels = out_channels
         self.fc2 = Linear(in_channels, out_dim)
 
-    def forward(self, mel_outputs):
-        x = mel_outputs
-        # x = F.dropout(x, p=self.dropout, training=self.training)
-
+    def forward(self, x):
         # project to size of convolution
         x = self.fc1(x)
 

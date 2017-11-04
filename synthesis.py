@@ -52,7 +52,7 @@ def tts(model, text):
         text_positions = text_positions.cuda()
 
     # Greedy decoding
-    mel_outputs, linear_outputs, alignments = model(
+    mel_outputs, linear_outputs, alignments, done = model(
         sequence, text_positions=text_positions)
 
     linear_output = linear_outputs[0].cpu().data.numpy()

@@ -3,6 +3,7 @@ import tensorflow as tf
 
 # Default hyperparameters:
 hparams = tf.contrib.training.HParams(
+    name="deepvoice3",
     # Comma-separated list of cleaners to run on text prior to training and eval. For non-English
     # text, you may want to use "basic_cleaners" or "transliteration_cleaners" See TRAINING_DATA.md.
     cleaners='english_cleaners',
@@ -20,7 +21,7 @@ hparams = tf.contrib.training.HParams(
 
     # Model:
     # TODO: add more configurable hparams
-    outputs_per_step=5,
+    outputs_per_step=4,
     padding_idx=0,
 
     # Data loader
@@ -29,16 +30,16 @@ hparams = tf.contrib.training.HParams(
 
     # Training:
     batch_size=16,
-    adam_beta1=0.9,
-    adam_beta2=0.999,
+    adam_beta1=0.5,
+    adam_beta2=0.9,
     initial_learning_rate=0.002,
     decay_learning_rate=True,
     nepochs=1000,
     weight_decay=0.0,
-    clip_thresh=0.2,
+    clip_thresh=5.0,
 
     # Save
-    checkpoint_interval=1000,
+    checkpoint_interval=5000,
 
     # Eval:
     max_iters=200,
