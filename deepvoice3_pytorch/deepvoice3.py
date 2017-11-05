@@ -295,7 +295,9 @@ class Decoder(nn.Module):
                  in_dim=80, r=5,
                  max_positions=512, padding_idx=None,
                  convolutions=((128, 5),) * 4,
-                 attention=True, dropout=0.1):
+                 attention=True, dropout=0.1,
+                 use_memory_mask=False,
+                 force_monotonic_attention=True):
         super(Decoder, self).__init__()
         self.dropout = dropout
         self.in_dim = in_dim
@@ -344,8 +346,12 @@ class Decoder(nn.Module):
         self._is_inference_incremental = False
         self.max_decoder_steps = 200
         self.min_decoder_steps = 10
-        self.use_memory_mask = False
-        self.force_monotonic_attention = True
+        self.use_memory_mask = use_memory_mask
+        if isinstance(force_monotonic_attention, bool):
+            self.force_monotonic_attention = \
+                [force_monotonic_attention] * len(convolutions)
+        else:
+            self.force_monotonic_attention = force_monotonic_attention
 
     def forward(self, encoder_out, inputs=None,
                 text_positions=None, frame_positions=None,
@@ -497,10 +503,9 @@ class Decoder(nn.Module):
         alignments = []
         dones = []
         # intially set to zeros
-        if self.force_monotonic_attention:
-            last_attended = [0] * len(self.attention)
-        else:
-            last_attended = [None] * len(self.attention)
+        last_attended = [None] * len(self.attention)
+        for idx, v in enumerate(self.force_monotonic_attention):
+            last_attended[idx] = 0 if v else None
 
         num_attention_layers = sum([layer is not None for layer in self.attention])
         t = 0
