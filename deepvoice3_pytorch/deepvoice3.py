@@ -18,8 +18,8 @@ def build_deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=4096, r=5,
         n_vocab, embed_dim, padding_idx=padding_idx,
         n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
         dropout=dropout,
-        convolutions=((128, 7),) * 7)
-    decoder_hidden_dim = 128
+        convolutions=((256, 7),) * 7)
+    decoder_hidden_dim = 256
     decoder = Decoder(
         embed_dim, in_dim=mel_dim, r=r, padding_idx=padding_idx,
         n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,

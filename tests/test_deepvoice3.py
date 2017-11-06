@@ -93,7 +93,7 @@ def test_multi_speaker_deepvoice3():
 
 @attr("local_only")
 def test_incremental_forward():
-    checkpoint_path = join(dirname(__file__), "../checkpoints/checkpoint_step000070000.pth")
+    checkpoint_path = join(dirname(__file__), "../checkpoints/checkpoint_step000040000.pth")
     if not exists(checkpoint_path):
         return
     model = _get_model()
@@ -146,26 +146,33 @@ def test_incremental_forward():
     encoder_outs = model.encoder(x, lengths=input_lengths)
 
     # Off line decoding
-    mel_output_ofline, alignments_offline, done, decoder_states = model.decoder(
+    mel_output_offline, alignments_offline, done, decoder_states = model.decoder(
         encoder_outs, mel_reshaped,
         text_positions=text_positions, frame_positions=frame_positions,
         lengths=input_lengths)
 
     from matplotlib import pylab as plt
 
-    plt.imshow(mel.data.cpu().numpy().T, origin="lower bottom", aspect="auto")
-    plt.colorbar()
-    plt.show()
+    def _plot(mel, mel_predicted, alignments):
+        plt.figure(figsize=(16, 10))
+        plt.subplot(3, 1, 1)
+        plt.imshow(mel.data.cpu().numpy().T, origin="lower bottom", aspect="auto")
+        plt.colorbar()
 
-    plt.imshow(mel_output_ofline.view(-1, mel_dim).data.cpu().numpy().T,
-               origin="lower bottom", aspect="auto")
-    plt.colorbar()
-    plt.show()
+        plt.subplot(3, 1, 2)
+        plt.imshow(mel_predicted.view(-1, mel_dim).data.cpu().numpy().T,
+                   origin="lower bottom", aspect="auto")
+        plt.colorbar()
 
-    plt.imshow(alignments_offline.mean(0)[0].data.cpu(
-    ).numpy().T, origin="lower bottom", aspect="auto")
-    plt.colorbar()
-    plt.show()
+        plt.subplot(3, 1, 3)
+        if alignments.dim() == 4:
+            alignments = alignments.mean(0)
+        plt.imshow(alignments[0].data.cpu(
+        ).numpy().T, origin="lower bottom", aspect="auto")
+        plt.colorbar()
+        plt.show()
+
+    _plot(mel, mel_output_offline, alignments_offline)
 
     # Online decoding
     model.decoder._start_incremental_inference()
@@ -177,17 +184,4 @@ def test_incremental_forward():
     # test_inputs=mel_reshaped)
     model.decoder._stop_incremental_inference()
 
-    # assert mel_output_ofline.size() == mel_outputs.size()
-
-    plt.imshow(mel.data.cpu().numpy().T, origin="lower bottom", aspect="auto")
-    plt.colorbar()
-    plt.show()
-
-    plt.imshow(mel_outputs.view(-1, mel_dim).data.cpu().numpy().T,
-               origin="lower bottom", aspect="auto")
-    plt.colorbar()
-    plt.show()
-
-    plt.imshow(alignments[0].data.cpu().numpy().T, origin="lower bottom", aspect="auto")
-    plt.colorbar()
-    plt.show()
+    _plot(mel, mel_outputs, alignments)
