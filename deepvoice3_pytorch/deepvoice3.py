@@ -13,22 +13,23 @@ from fairseq.models.fconv import grad_multiply
 
 def build_deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=4096, r=5,
                      n_speakers=1, speaker_embed_dim=16, padding_idx=None,
-                     dropout=(1 - 0.9)):
+                     dropout=(1 - 0.95)):
     encoder = Encoder(
         n_vocab, embed_dim, padding_idx=padding_idx,
         n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
         dropout=dropout,
-        convolutions=((64, 5),) * 7)
+        convolutions=((128, 7),) * 7)
     decoder_hidden_dim = 128
     decoder = Decoder(
         embed_dim, in_dim=mel_dim, r=r, padding_idx=padding_idx,
         n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
         dropout=dropout,
-        convolutions=((decoder_hidden_dim, 5),) * 4,
-        attention=[False, False, False, True])
+        convolutions=((decoder_hidden_dim, 7),) * 5,
+        attention=[True, False, False, False, True],
+        force_monotonic_attention=[True, False, False, False, False])
     converter = Converter(
         in_dim=decoder_hidden_dim // r, out_dim=linear_dim, dropout=dropout,
-        convolutions=((256, 5),) * 5)
+        convolutions=((256, 7),) * 7)
     model = DeepVoice3(
         encoder, decoder, converter, padding_idx=padding_idx,
         mel_dim=mel_dim, linear_dim=linear_dim,
