@@ -26,7 +26,7 @@ from torch.autograd import Variable
 import numpy as np
 import nltk
 
-# The tacotron model
+# The deepvoice3 model
 from deepvoice3_pytorch import build_deepvoice3
 from hparams import hparams
 
@@ -36,7 +36,7 @@ use_cuda = torch.cuda.is_available()
 
 
 def tts(model, text):
-    """Convert text to speech waveform given a Tacotron model.
+    """Convert text to speech waveform given a deepvoice3 model.
     """
     if use_cuda:
         model = model.cuda()
@@ -99,7 +99,7 @@ if __name__ == "__main__":
             dst_wav_path = join(dst_dir, "{}{}.wav".format(idx, file_name_suffix))
             dst_alignment_path = join(dst_dir, "{}{}_alignment.png".format(idx, file_name_suffix))
             plot_alignment(alignment.T, dst_alignment_path,
-                           info="tacotron, {}".format(checkpoint_path))
+                           info="deepvoice3, {}".format(checkpoint_path))
             audio.save_wav(waveform, dst_wav_path)
             from os.path import basename, splitext
             name = splitext(basename(text_list_file_path))[0]
@@ -109,11 +109,11 @@ if __name__ == "__main__":
 ({} chars, {} words)
 
 <audio controls="controls" >
-<source src="/audio/tacotron/{}/{}{}.wav" autoplay/>
+<source src="/audio/deepvoice3/{}/{}{}.wav" autoplay/>
 Your browser does not support the audio element.
 </audio>
 
-<div align="center"><img src="/audio/tacotron/{}/{}{}_alignment.png" /></div>
+<div align="center"><img src="/audio/deepvoice3/{}/{}{}_alignment.png" /></div>
                   """.format(text, len(text), len(words),
                              name, idx, file_name_suffix,
                              name, idx, file_name_suffix))
