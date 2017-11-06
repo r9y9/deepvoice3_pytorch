@@ -7,29 +7,103 @@ from torch.autograd import Variable
 import math
 import numpy as np
 
-from fairseq.models.fconv import Embedding, Linear, LinearizedConv1d, ConvTBC
+from fairseq.models.fconv import Embedding, Linear, LinearizedConvolution
 from fairseq.models.fconv import grad_multiply
+from fairseq.modules.conv_tbc import ConvTBC as _ConvTBC
+
+
+def Conv1d(in_channels, out_channels, kernel_size, dropout=0, **kwargs):
+    from .conv import Conv1d
+    m = Conv1d(in_channels, out_channels, kernel_size, **kwargs)
+    std = math.sqrt((4 * (1.0 - dropout)) / (m.kernel_size[0] * in_channels))
+    m.weight.data.normal_(mean=0, std=std)
+    m.bias.data.zero_()
+    return nn.utils.weight_norm(m)
+
+
+def LinearizedConv1d(in_channels, out_channels, kernel_size, dilation=(1,), dropout=0, **kwargs):
+    """Weight-normalized Conv1d layer optimized for decoding"""
+    assert dilation[0] == 1
+    m = LinearizedConvolution(in_channels, out_channels, kernel_size, **kwargs)
+    std = math.sqrt((4 * (1.0 - dropout)) / (m.kernel_size[0] * in_channels))
+    m.weight.data.normal_(mean=0, std=std)
+    m.bias.data.zero_()
+    return nn.utils.weight_norm(m)
+
+
+def ConvTBC(in_channels, out_channels, kernel_size, dilation=(1,), dropout=0, **kwargs):
+    """Weight-normalized Conv1d layer"""
+    from fairseq.modules import ConvTBC
+    assert dilation[0] == 1
+    m = ConvTBC(in_channels, out_channels, kernel_size, **kwargs)
+    std = math.sqrt((4 * (1.0 - dropout)) / (m.kernel_size[0] * in_channels))
+    m.weight.data.normal_(mean=0, std=std)
+    m.bias.data.zero_()
+    return nn.utils.weight_norm(m, dim=2)
+
+
+def has_dilation(convolutions):
+    return np.any(np.array(list(map(lambda x: x[2], convolutions))) > 1)
+
+
+def _build_deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=4096, r=5,
+                      n_speakers=1, speaker_embed_dim=16, padding_idx=None,
+                      dropout=(1 - 0.95)):
+    h = 128
+    encoder = Encoder(
+        n_vocab, embed_dim, padding_idx=padding_idx,
+        n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
+        dropout=dropout,
+        convolutions=((h, 7, 1),) * 7)
+
+    h = 512
+    decoder = Decoder(
+        embed_dim, in_dim=mel_dim, r=r, padding_idx=padding_idx,
+        n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
+        dropout=dropout,
+        convolutions=((h, 7, 1),) * 5,
+        attention=[True, False, False, False, True],
+        force_monotonic_attention=[True, False, False, False, False])
+
+    in_dim = h // r
+    h = 256
+    converter = Converter(
+        in_dim=in_dim, out_dim=linear_dim, dropout=dropout,
+        convolutions=((h, 7, 1),) * 7)
+
+    model = DeepVoice3(
+        encoder, decoder, converter, padding_idx=padding_idx,
+        mel_dim=mel_dim, linear_dim=linear_dim,
+        n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim)
+
+    return model
 
 
 def build_deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=4096, r=5,
                      n_speakers=1, speaker_embed_dim=16, padding_idx=None,
                      dropout=(1 - 0.95)):
+    h = 128
     encoder = Encoder(
         n_vocab, embed_dim, padding_idx=padding_idx,
         n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
         dropout=dropout,
-        convolutions=((256, 7),) * 7)
-    decoder_hidden_dim = 256
+        convolutions=[(h, 5, 1), (h, 5, 2), (h, 5, 4), (h, 5, 8), (h, 5, 16)])
+
+    h = 512
     decoder = Decoder(
         embed_dim, in_dim=mel_dim, r=r, padding_idx=padding_idx,
         n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
         dropout=dropout,
-        convolutions=((decoder_hidden_dim, 7),) * 5,
+        convolutions=[(h, 5, 1), (h, 5, 2), (h, 5, 4), (h, 5, 8), (h, 5, 16)],
         attention=[True, False, False, False, True],
         force_monotonic_attention=[True, False, False, False, False])
+
+    in_dim = h // r
+    h = 256
     converter = Converter(
-        in_dim=decoder_hidden_dim // r, out_dim=linear_dim, dropout=dropout,
-        convolutions=((256, 7),) * 7)
+        in_dim=in_dim, out_dim=linear_dim, dropout=dropout,
+        convolutions=[(h, 5, 1), (h, 5, 2), (h, 5, 4), (h, 5, 8), (h, 5, 16)])
+
     model = DeepVoice3(
         encoder, decoder, converter, padding_idx=padding_idx,
         mel_dim=mel_dim, linear_dim=linear_dim,
@@ -117,7 +191,7 @@ class DeepVoice3(nn.Module):
 
 class Encoder(nn.Module):
     def __init__(self, n_vocab, embed_dim, n_speakers, speaker_embed_dim,
-                 padding_idx=None, convolutions=((64, 5),) * 7,
+                 padding_idx=None, convolutions=((64, 5, .1),) * 7,
                  max_positions=512, dropout=0.1):
         super(Encoder, self).__init__()
         self.dropout = dropout
@@ -144,15 +218,19 @@ class Encoder(nn.Module):
         self.projections = nn.ModuleList()
         self.speaker_projections = nn.ModuleList()
         self.convolutions = nn.ModuleList()
-        for (out_channels, kernel_size) in convolutions:
-            pad = (kernel_size - 1) // 2
+
+        Conv1dLayer = Conv1d if has_dilation(convolutions) else ConvTBC
+
+        for (out_channels, kernel_size, dilation) in convolutions:
+            pad = (kernel_size - 1) // 2 * dilation
+            dilation = (dilation,)
             self.projections.append(Linear(in_channels, out_channels)
                                     if in_channels != out_channels else None)
             self.speaker_projections.append(
                 Linear(speaker_embed_dim, out_channels) if n_speakers > 1 else None)
             self.convolutions.append(
-                ConvTBC(in_channels, out_channels * 2, kernel_size, padding=pad,
-                        dropout=dropout))
+                Conv1dLayer(in_channels, out_channels * 2, kernel_size, padding=pad,
+                            dilation=dilation, dropout=dropout))
             in_channels = out_channels
         self.fc2 = Linear(in_channels, embed_dim)
 
@@ -181,9 +259,13 @@ class Encoder(nn.Module):
         # project to size of convolution
         x = self.fc1(x)
 
-        # B x T x C -> T x B x C
-        x = x.transpose(0, 1)
-        speaker_embed = speaker_embed.transpose(0, 1) if speaker_embed is not None else None
+        use_convtbc = isinstance(self.convolutions[0], _ConvTBC)
+        # TBC case: B x T x C -> T x B x C
+        # Generic case: B x T x C -> B x C x T
+        x = x.transpose(0, 1) if use_convtbc else x.transpose(1, 2)
+        if speaker_embed is not None:
+            speaker_embed = speaker_embed.transpose(0, 1) if use_convtbc else \
+                speaker_embed.transpose(1, 2)
 
         # １D conv blocks
         for proj, speaker_proj, conv in zip(
@@ -191,15 +273,18 @@ class Encoder(nn.Module):
             residual = x if proj is None else proj(x)
             x = F.dropout(x, p=self.dropout, training=self.training)
             x = conv(x)
-            a, b = x.split(x.size(-1) // 2, dim=-1)
+            splitdim = -1 if use_convtbc else 1
+            a, b = x.split(x.size(splitdim) // 2, dim=splitdim)
             if speaker_proj is not None:
                 a = a + F.softsign(speaker_proj(speaker_embed))
             x = a * F.sigmoid(b)
             x = (x + residual) * math.sqrt(0.5)
 
-        # T x B x C -> B x T x C
-        x = x.transpose(1, 0)
-        speaker_embed = speaker_embed.transpose(0, 1) if speaker_embed is not None else None
+        # Back to batch first
+        x = x.transpose(0, 1) if use_convtbc else x.transpose(1, 2)
+        if speaker_embed is not None:
+            speaker_embed = speaker_embed.transpose(0, 1) if use_convtbc else \
+                speaker_embed.transpose(1, 2)
 
         # project back to size of embedding
         keys = self.fc2(x)
@@ -295,7 +380,7 @@ class Decoder(nn.Module):
     def __init__(self, embed_dim, n_speakers, speaker_embed_dim,
                  in_dim=80, r=5,
                  max_positions=512, padding_idx=None,
-                 convolutions=((128, 5),) * 4,
+                 convolutions=((128, 5, 1),) * 4,
                  attention=True, dropout=0.1,
                  use_memory_mask=False,
                  force_monotonic_attention=True):
@@ -326,13 +411,17 @@ class Decoder(nn.Module):
         self.projections = nn.ModuleList()
         self.convolutions = nn.ModuleList()
         self.attention = nn.ModuleList()
-        for i, (out_channels, kernel_size) in enumerate(convolutions):
-            pad = kernel_size - 1
+
+        Conv1dLayer = Conv1d if has_dilation(convolutions) else LinearizedConv1d
+
+        for i, (out_channels, kernel_size, dilation) in enumerate(convolutions):
+            pad = (kernel_size - 1) * dilation
+            dilation = (dilation,)
             self.projections.append(Linear(in_channels, out_channels)
                                     if in_channels != out_channels else None)
             self.convolutions.append(
-                LinearizedConv1d(in_channels, out_channels * 2, kernel_size,
-                                 padding=pad, dropout=dropout))
+                Conv1dLayer(in_channels, out_channels * 2, kernel_size,
+                            padding=pad, dilation=dilation, dropout=dropout))
             self.attention.append(AttentionLayer(out_channels, embed_dim,
                                                  dropout=dropout)
                                   if attention[i] else None)
@@ -393,8 +482,10 @@ class Decoder(nn.Module):
         # project to size of convolution
         x = self.relu(self.fc1(x))
 
-        # B x T x C -> T x B x C
-        x = x.transpose(0, 1)
+        use_convtbc = isinstance(self.convolutions[0], _ConvTBC)
+        # TBC case: B x T x C -> T x B x C
+        # Generic case: B x T x C -> B x C x T
+        x = x.transpose(0, 1) if use_convtbc else x.transpose(1, 2)
 
         # temporal convolutions
         alignments = []
@@ -404,25 +495,29 @@ class Decoder(nn.Module):
             if idx > 0:
                 x = F.dropout(x, p=self.dropout, training=self.training)
             x = conv(x)
-            x = conv.remove_future_timesteps(x)
-            a, b = x.split(x.size(-1) // 2, dim=-1)
+            splitdim = -1 if use_convtbc else 1
+            if use_convtbc:
+                x = conv.remove_future_timesteps(x)
+            else:
+                x = x[:, :, :residual.size(-1)]
+            a, b = x.split(x.size(splitdim) // 2, dim=splitdim)
             x = a * F.sigmoid(b)
 
             # Feed conv output to attention layer as query
             if attention is not None:
                 # (B x T x C)
-                x = x.transpose(1, 0)
+                x = x.transpose(1, 0) if use_convtbc else x.transpose(1, 2)
                 x = x if frame_positions is None else x + frame_pos_embed
                 x, alignment = attention(x, (keys, values), mask=mask)
                 # (T x B x C)
-                x = x.transpose(1, 0)
+                x = x.transpose(1, 0) if use_convtbc else x.transpose(1, 2)
                 alignments += [alignment]
 
             # residual
             x = (x + residual) * math.sqrt(0.5)
 
-        # T x B x C -> B x T x C
-        x = x.transpose(1, 0)
+        # Back to batch first
+        x = x.transpose(0, 1) if use_convtbc else x.transpose(1, 2)
 
         # well, I'm not sure this is really necesasary
         decoder_states = x
@@ -606,7 +701,7 @@ def is_end_of_frames(output, eps=0.2):
 
 
 class Converter(nn.Module):
-    def __init__(self, in_dim, out_dim, convolutions=((256, 5),) * 4, dropout=0.1):
+    def __init__(self, in_dim, out_dim, convolutions=((256, 5, 1),) * 4, dropout=0.1):
         super(Converter, self).__init__()
         self.dropout = dropout
         self.in_dim = in_dim
@@ -617,13 +712,16 @@ class Converter(nn.Module):
         self.fc1 = Linear(in_dim, in_channels)
         self.projections = nn.ModuleList()
         self.convolutions = nn.ModuleList()
-        for (out_channels, kernel_size) in convolutions:
-            pad = (kernel_size - 1) // 2
+
+        Conv1dLayer = Conv1d if has_dilation(convolutions) else ConvTBC
+        for (out_channels, kernel_size, dilation) in convolutions:
+            pad = (kernel_size - 1) // 2 * dilation
+            dilation = (dilation,)
             self.projections.append(Linear(in_channels, out_channels)
                                     if in_channels != out_channels else None)
             self.convolutions.append(
-                ConvTBC(in_channels, out_channels * 2, kernel_size, padding=pad,
-                        dropout=dropout))
+                Conv1dLayer(in_channels, out_channels * 2, kernel_size,
+                            padding=pad, dilation=dilation, dropout=dropout))
             in_channels = out_channels
         self.fc2 = Linear(in_channels, out_dim)
 
@@ -631,19 +729,22 @@ class Converter(nn.Module):
         # project to size of convolution
         x = self.fc1(x)
 
-        # B x T x C -> T x B x C
-        x = x.transpose(0, 1)
+        use_convtbc = isinstance(self.convolutions[0], _ConvTBC)
+        # TBC case: B x T x C -> T x B x C
+        # Generic case: B x T x C -> B x C x T
+        x = x.transpose(0, 1) if use_convtbc else x.transpose(1, 2)
 
         # １D conv blocks
         for proj, conv in zip(self.projections, self.convolutions):
             residual = x if proj is None else proj(x)
             x = F.dropout(x, p=self.dropout, training=self.training)
             x = conv(x)
-            a, b = x.split(x.size(-1) // 2, dim=-1)
+            splitdim = -1 if use_convtbc else 1
+            a, b = x.split(x.size(splitdim) // 2, dim=splitdim)
             x = a * F.sigmoid(b)
             x = (x + residual) * math.sqrt(0.5)
 
-        # T x B x C -> B x T x C
-        x = x.transpose(1, 0)
+        # Back to batch first
+        x = x.transpose(0, 1) if use_convtbc else x.transpose(1, 2)
 
         return self.fc2(x)
