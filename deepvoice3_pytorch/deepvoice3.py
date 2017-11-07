@@ -82,19 +82,22 @@ def _build_deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=4096, r=5,
 def build_deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=4096, r=5,
                      n_speakers=1, speaker_embed_dim=16, padding_idx=None,
                      dropout=(1 - 0.95)):
-    h = 128
+    h = 128  # hidden dim (channels)
+    k = 3  # kernel size
     encoder = Encoder(
         n_vocab, embed_dim, padding_idx=padding_idx,
         n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
         dropout=dropout,
-        convolutions=[(h, 5, 1), (h, 5, 2), (h, 5, 4), (h, 5, 8), (h, 5, 16)])
+        convolutions=[(h, k, 1), (h, k, 1), (h, k, 1), (h, k, 1),
+                      (h, k, 2), (h, k, 4), (h, k, 8)],
+    )
 
-    h = 512
+    h = 256
     decoder = Decoder(
         embed_dim, in_dim=mel_dim, r=r, padding_idx=padding_idx,
         n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
         dropout=dropout,
-        convolutions=[(h, 5, 1), (h, 5, 2), (h, 5, 4), (h, 5, 8), (h, 5, 16)],
+        convolutions=[(h, k, 1), (h, k, 1), (h, k, 2), (h, k, 4), (h, k, 8)],
         attention=[True, False, False, False, True],
         force_monotonic_attention=[True, False, False, False, False])
 
@@ -102,7 +105,7 @@ def build_deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=4096, r=5,
     h = 256
     converter = Converter(
         in_dim=in_dim, out_dim=linear_dim, dropout=dropout,
-        convolutions=[(h, 5, 1), (h, 5, 2), (h, 5, 4), (h, 5, 8), (h, 5, 16)])
+        convolutions=[(h, k, 1), (h, k, 1), (h, k, 2), (h, k, 4), (h, k, 8)])
 
     model = DeepVoice3(
         encoder, decoder, converter, padding_idx=padding_idx,
