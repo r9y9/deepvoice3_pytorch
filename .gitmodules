@@ -1,3 +1,0 @@
-[submodule "lib/tacotron"]
-	path = lib/tacotron
-	url = https://github.com/r9y9/tacotron

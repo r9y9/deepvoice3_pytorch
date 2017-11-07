@@ -22,3 +22,10 @@ Current progress and planned to-dos can be found at https://github.com/r9y9/deep
 git clone --recursive https://github.com/r9y9/deepvoice3_pytorch
 pip install -e ".[train]"
 ```
+
+## Acknowledgements
+
+Part of code was adapted from the following projects:
+
+- https://github.com/keithito/tacotron
+- (https://github.com/facebookresearch/fairseq-py
