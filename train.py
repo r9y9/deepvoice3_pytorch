@@ -21,6 +21,7 @@ from text import text_to_sequence, symbols
 from util import audio
 from util.plot import plot_alignment
 from tqdm import tqdm, trange
+from datetime import datetime
 
 # The deepvoice3 model
 from deepvoice3_pytorch import build_deepvoice3
@@ -400,7 +401,7 @@ if __name__ == "__main__":
 
     # Setup tensorboard logger
     if log_event_path is None:
-        log_event_path = "log/run-test" + str(np.random.randint(100000))
+        log_event_path = "log/run-test" + str(datetime.now()).replace(" ", "_")
     print("Los event path: {}".format(log_event_path))
     tensorboard_logger.configure(log_event_path)
 
