@@ -12,19 +12,14 @@ options:
 """
 from docopt import docopt
 
-# Use text & audio modules from existing Tacotron implementation.
 import sys
 from os.path import dirname, join
-tacotron_lib_dir = join(dirname(__file__), "lib", "tacotron")
-sys.path.append(tacotron_lib_dir)
-from text import text_to_sequence, symbols
-from util import audio
-from util.plot import plot_alignment
 from tqdm import tqdm, trange
 from datetime import datetime
 
 # The deepvoice3 model
-from deepvoice3_pytorch import build_deepvoice3
+from deepvoice3_pytorch import frontend, build_deepvoice3
+import audio
 
 import torch
 from torch.utils import data as data_utils
@@ -49,13 +44,15 @@ from hparams import hparams, hparams_debug_string
 # Default DATA_ROOT
 DATA_ROOT = join(expanduser("~"), "tacotron", "training")
 
-fs = 20000
+fs = hparams.sample_rate
 
 global_step = 0
 global_epoch = 0
 use_cuda = torch.cuda.is_available()
 if use_cuda:
-    cudnn.benchmark = False
+    cudnn.benchmark = True
+
+_frontend = None  # to be set later
 
 
 def _pad(seq, max_len, constant_values=0):
@@ -69,10 +66,24 @@ def _pad_2d(x, max_len, b_pad=0):
     return x
 
 
-class TextDataSource(FileDataSource):
-    def __init__(self):
-        self._cleaner_names = [x.strip() for x in hparams.cleaners.split(',')]
+def plot_alignment(alignment, path, info=None):
+    fig, ax = plt.subplots()
+    im = ax.imshow(
+        alignment,
+        aspect='auto',
+        origin='lower',
+        interpolation='none')
+    fig.colorbar(im, ax=ax)
+    xlabel = 'Decoder timestep'
+    if info is not None:
+        xlabel += '\n\n' + info
+    plt.xlabel(xlabel)
+    plt.ylabel('Encoder timestep')
+    plt.tight_layout()
+    plt.savefig(path, format='png')
 
+
+class TextDataSource(FileDataSource):
     def collect_files(self):
         meta = join(DATA_ROOT, "train.txt")
         with open(meta, "rb") as f:
@@ -81,8 +92,8 @@ class TextDataSource(FileDataSource):
         return lines
 
     def collect_features(self, text):
-        return np.asarray(text_to_sequence(text, self._cleaner_names),
-                          dtype=np.int32)
+        seq = _frontend.text_to_sequence(text, p=hparams.replace_pronunciation_prob)
+        return np.asarray(seq, dtype=np.int32)
 
 
 class _NPYDataSource(FileDataSource):
@@ -362,6 +373,8 @@ if __name__ == "__main__":
     hparams.parse(args["--hparams"])
     assert hparams.name == "deepvoice3"
 
+    _frontend = getattr(frontend, hparams.frontend)
+
     os.makedirs(checkpoint_dir, exist_ok=True)
 
     # Input dataset definitions
@@ -377,7 +390,7 @@ if __name__ == "__main__":
         collate_fn=collate_fn, pin_memory=hparams.pin_memory)
 
     # Model
-    model = build_deepvoice3(n_vocab=len(symbols),
+    model = build_deepvoice3(n_vocab=_frontend.n_vocab,
                              embed_dim=256,
                              mel_dim=hparams.num_mels,
                              linear_dim=hparams.num_freq,

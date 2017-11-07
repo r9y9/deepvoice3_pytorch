@@ -11,9 +11,10 @@ Current progress and planned to-dos can be found at https://github.com/r9y9/deep
 
 ## Requirements
 
-- PyTorch
+- PyTorch >= v0.2
 - TensorFlow
 - [fairseq](https://github.com/facebookresearch/fairseq-py)
+- [nnmnkwii](https://github.com/r9y9/nnmnkwii) (master)
 
 ## Installation
 

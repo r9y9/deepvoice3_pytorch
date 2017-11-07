@@ -4,10 +4,14 @@ import tensorflow as tf
 # Default hyperparameters:
 hparams = tf.contrib.training.HParams(
     name="deepvoice3",
-    # Comma-separated list of cleaners to run on text prior to training and eval. For non-English
-    # text, you may want to use "basic_cleaners" or "transliteration_cleaners" See TRAINING_DATA.md.
-    cleaners='english_cleaners',
-    use_cmudict=False,  # Use CMUDict during training to learn pronunciation of ARPAbet phonemes
+
+    # Text:
+    # [en, ja]
+    frontend='en',
+    # en: Word -> pronunciation using CMUDict
+    # ja: Word -> pronounciation usnig MeCab
+    # [0 ~ 1.0]: 0 means no replacement happens.
+    replace_pronunciation_prob=0.0,
 
     # Audio:
     num_mels=80,

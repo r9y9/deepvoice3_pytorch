@@ -2,7 +2,7 @@
 """
 Synthesis waveform from trained model.
 
-usage: tts.py [options] <checkpoint> <text_list_file> <dst_dir>
+usage: synthesis.py [options] <checkpoint> <text_list_file> <dst_dir>
 
 options:
     --file-name-suffix=<s>   File name suffix [default: ].
@@ -11,15 +11,12 @@ options:
 """
 from docopt import docopt
 
-# Use text & audio modules from existing Tacotron implementation.
 import sys
 import os
 from os.path import dirname, join
-tacotron_lib_dir = join(dirname(__file__), "lib", "tacotron")
-sys.path.append(tacotron_lib_dir)
-from text import text_to_sequence, symbols
-from util import audio
-from util.plot import plot_alignment
+
+import audio
+from train import plot_alignment
 
 import torch
 from torch.autograd import Variable
@@ -27,23 +24,23 @@ import numpy as np
 import nltk
 
 # The deepvoice3 model
-from deepvoice3_pytorch import build_deepvoice3
+from deepvoice3_pytorch import frontend, build_deepvoice3
 from hparams import hparams
 
 from tqdm import tqdm
 
 use_cuda = torch.cuda.is_available()
+_frontend = None  # to be set later
 
 
-def tts(model, text):
+def tts(model, text, p=0):
     """Convert text to speech waveform given a deepvoice3 model.
     """
     if use_cuda:
         model = model.cuda()
-    # model.decoder.eval()
     model.eval()
 
-    sequence = np.array(text_to_sequence(text, [hparams.cleaners]))
+    sequence = np.array(_frontend.text_to_sequence(text, p=p))
     sequence = Variable(torch.from_numpy(sequence)).unsqueeze(0)
     text_positions = torch.arange(1, sequence.size(-1) + 1).unsqueeze(0).long()
     text_positions = Variable(text_positions)
@@ -75,7 +72,9 @@ if __name__ == "__main__":
     max_decoder_steps = int(args["--max-decoder-steps"])
     file_name_suffix = args["--file-name-suffix"]
 
-    model = build_deepvoice3(n_vocab=len(symbols),
+    _frontend = getattr(frontend, hparams.frontend)
+
+    model = build_deepvoice3(n_vocab=_frontend.n_vocab,
                              embed_dim=256,
                              mel_dim=hparams.num_mels,
                              linear_dim=hparams.num_freq,

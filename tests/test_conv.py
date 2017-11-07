@@ -1,3 +1,6 @@
+# coding: utf-8
+from __future__ import with_statement, print_function, absolute_import
+
 import torch
 from torch import nn
 from torch.autograd import Variable
@@ -60,4 +63,4 @@ def test_conv1d_incremental():
             for C in [1, 2, 4]:
                 for kernel_size in [3, 5, 9]:
                     for dilation in [1, 2, 3, 4, 5, 6, 7, 8, 9, 27]:
-                        yield __test, kernel_size, dilation, T, B, C
+                        __test, kernel_size, dilation, T, B, C

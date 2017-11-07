@@ -3,9 +3,8 @@ from __future__ import with_statement, print_function, absolute_import
 
 import sys
 from os.path import dirname, join, exists
-tacotron_lib_dir = join(dirname(__file__), "..", "lib", "tacotron")
-sys.path.insert(0, tacotron_lib_dir)
-from text import text_to_sequence, symbols
+
+from deepvoice3_pytorch.frontend.en import text_to_sequence, n_vocab
 
 import torch
 from torch.autograd import Variable
@@ -20,8 +19,6 @@ from deepvoice3_pytorch import build_deepvoice3
 from fairseq.modules.conv_tbc import ConvTBC
 
 use_cuda = torch.cuda.is_available()
-cleaners = "english_cleaners"
-_cleaner_names = [x.strip() for x in cleaners.split(',')]
 num_mels = 80
 num_freq = 1025
 outputs_per_step = 4
@@ -29,7 +26,7 @@ padding_idx = 0
 
 
 def _get_model(n_speakers=1, speaker_embed_dim=None):
-    model = build_deepvoice3(n_vocab=len(symbols),
+    model = build_deepvoice3(n_vocab=n_vocab,
                              embed_dim=256,
                              mel_dim=num_mels,
                              linear_dim=num_freq,
@@ -48,8 +45,7 @@ def _pad(seq, max_len):
 
 def _test_data():
     texts = ["Thank you very much.", "Hello.", "Deep voice 3."]
-    seqs = [np.array(text_to_sequence(
-        t, ["english_cleaners"]), dtype=np.int) for t in texts]
+    seqs = [np.array(text_to_sequence(t), dtype=np.int) for t in texts]
     input_lengths = np.array([len(s) for s in seqs])
     max_len = np.max(input_lengths)
     seqs = np.array([_pad(s, max_len) for s in seqs])
@@ -111,7 +107,7 @@ def test_dilated_convolution_support():
     x, y = _test_data()
 
     for dilation in [1, 2]:
-        model = _build_deepvoice3(n_vocab=len(symbols),
+        model = _build_deepvoice3(n_vocab=n_vocab,
                                   embed_dim=256,
                                   mel_dim=num_mels,
                                   linear_dim=num_freq,
@@ -143,8 +139,7 @@ def _pad_2d(x, max_len, b_pad=0):
 
 def test_multi_speaker_deepvoice3():
     texts = ["Thank you very much.", "Hello.", "Deep voice 3."]
-    seqs = [np.array(text_to_sequence(
-        t, ["english_cleaners"]), dtype=np.int) for t in texts]
+    seqs = [np.array(text_to_sequence(t), dtype=np.int) for t in texts]
     input_lengths = np.array([len(s) for s in seqs])
     max_len = np.max(input_lengths)
     seqs = np.array([_pad(s, max_len) for s in seqs])
@@ -166,7 +161,7 @@ def test_multi_speaker_deepvoice3():
 
 @attr("local_only")
 def test_incremental_forward():
-    checkpoint_path = join(dirname(__file__), "../checkpoints/checkpoint_step000040000.pth")
+    checkpoint_path = join(dirname(__file__), "../checkpoints/checkpoint_step000140000.pth")
     if not exists(checkpoint_path):
         return
     model = _get_model()
@@ -176,7 +171,7 @@ def test_incremental_forward():
     model = model.cuda() if use_cuda else model
 
     texts = ["they discarded this for a more completely Roman and far less beautiful letter."]
-    seqs = np.array([text_to_sequence(t, _cleaner_names) for t in texts])
+    seqs = np.array([text_to_sequence(t) for t in texts])
     input_lengths = [len(s) for s in seqs]
 
     use_manual_padding = False
@@ -249,11 +244,10 @@ def test_incremental_forward():
 
     # Online decoding
     model.decoder._start_incremental_inference()
-    mel_outputs, alignments, dones_online, decoder_states_online = \
-        model.decoder._incremental_forward(
-            encoder_outs, text_positions,
-            #initial_input=mel_reshaped[:, :1, :],
-            test_inputs=None)
+    mel_outputs, alignments, dones_online, decoder_states_online = model.decoder._incremental_forward(
+        encoder_outs, text_positions,
+        # initial_input=mel_reshaped[:, :1, :],
+        test_inputs=None)
     # test_inputs=mel_reshaped)
     model.decoder._stop_incremental_inference()
 

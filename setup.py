@@ -54,12 +54,12 @@ setup(name='deepvoice3_pytorch',
       install_requires=[
           "numpy",
           "scipy",
+          "unidecode",
+          "inflect",
+          "librosa",
       ],
       extras_require={
           "train": [
-              "librosa",
-              "unidecode",
-              "inflect",
               "docopt",
               "tqdm",
               "tensorboard_logger",
@@ -68,7 +68,9 @@ setup(name='deepvoice3_pytorch',
           ],
           "test": [
               "nose",
-              "unidecode",
-              "inflect",
+          ],
+          "jp": [
+              "jaconv",
+              "mecab-python3",
           ],
       })
