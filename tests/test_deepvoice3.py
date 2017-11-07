@@ -14,7 +14,10 @@ import numpy as np
 
 from nose.plugins.attrib import attr
 
-from deepvoice3_pytorch import Encoder, DeepVoice3, build_deepvoice3
+from deepvoice3_pytorch import Encoder, Decoder, Converter, DeepVoice3
+from deepvoice3_pytorch import build_deepvoice3
+
+from fairseq.modules.conv_tbc import ConvTBC
 
 use_cuda = torch.cuda.is_available()
 cleaners = "english_cleaners"
@@ -38,16 +41,12 @@ def _get_model(n_speakers=1, speaker_embed_dim=None):
     return model
 
 
-def test_model():
-    assert True
-
-
 def _pad(seq, max_len):
     return np.pad(seq, (0, max_len - len(seq)),
                   mode='constant', constant_values=0)
 
 
-def test_single_spaker_deepvoice3():
+def _test_data():
     texts = ["Thank you very much.", "Hello.", "Deep voice 3."]
     seqs = [np.array(text_to_sequence(
         t, ["english_cleaners"]), dtype=np.int) for t in texts]
@@ -58,8 +57,82 @@ def test_single_spaker_deepvoice3():
     # Test encoder
     x = Variable(torch.LongTensor(seqs))
     y = Variable(torch.rand(x.size(0), 12, 80))
+
+    return x, y
+
+
+def _build_deepvoice3(n_vocab, embed_dim=256, mel_dim=80,
+                      linear_dim=4096, r=5,
+                      n_speakers=1, speaker_embed_dim=16,
+                      padding_idx=None,
+                      dropout=(1 - 0.95), dilation=1):
+    h = 128
+    encoder = Encoder(
+        n_vocab, embed_dim, padding_idx=padding_idx,
+        n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
+        dropout=dropout,
+        convolutions=[(h, 3, dilation), (h, 3, dilation), (h, 3, dilation),
+                      (h, 3, dilation), (h, 3, dilation)],
+    )
+
+    h = 256
+    decoder = Decoder(
+        embed_dim, in_dim=mel_dim, r=r, padding_idx=padding_idx,
+        n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
+        dropout=dropout,
+        convolutions=[(h, 3, dilation), (h, 3, dilation), (h, 3, dilation),
+                      (h, 3, dilation), (h, 3, dilation)],
+        attention=[True, False, False, False, True],
+        force_monotonic_attention=[True, False, False, False, False])
+
+    in_dim = h // r
+    h = 256
+    converter = Converter(
+        in_dim=in_dim, out_dim=linear_dim, dropout=dropout,
+        convolutions=[(h, 3, dilation), (h, 3, dilation), (h, 3, dilation),
+                      (h, 3, dilation), (h, 3, dilation)])
+
+    model = DeepVoice3(
+        encoder, decoder, converter, padding_idx=padding_idx,
+        mel_dim=mel_dim, linear_dim=linear_dim,
+        n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim)
+
+    return model
+
+
+def test_single_speaker_deepvoice3():
+    x, y = _test_data()
+
     model = _get_model()
     mel_outputs, linear_outputs, alignments, done = model(x, y)
+
+
+def test_dilated_convolution_support():
+    x, y = _test_data()
+
+    for dilation in [1, 2]:
+        model = _build_deepvoice3(n_vocab=len(symbols),
+                                  embed_dim=256,
+                                  mel_dim=num_mels,
+                                  linear_dim=num_freq,
+                                  r=outputs_per_step,
+                                  padding_idx=padding_idx,
+                                  n_speakers=1,
+                                  speaker_embed_dim=16,
+                                  dilation=dilation,
+                                  )
+        if dilation > 1:
+            for conv in [model.encoder.convolutions[0],
+                         model.decoder.convolutions[0],
+                         model.converter.convolutions[0]]:
+                assert isinstance(conv, nn.Conv1d)
+        else:
+            assert dilation == 1
+            for conv in [model.encoder.convolutions[0],
+                         model.decoder.convolutions[0],
+                         model.converter.convolutions[0]]:
+                assert isinstance(conv, ConvTBC)
+        mel_outputs, linear_outputs, alignments, done = model(x, y)
 
 
 def _pad_2d(x, max_len, b_pad=0):

@@ -252,7 +252,9 @@ class Encoder(nn.Module):
             ss = speaker_embed.size()
             speaker_embed = speaker_embed.unsqueeze(1).expand(
                 ss[0], x.size(1), ss[-1])
-            x += F.softsign(self.speaker_fc1(speaker_embed))
+            speaker_embed_btc = speaker_embed
+            speaker_embed_tbc = speaker_embed.transpose(0, 1)
+            x += F.softsign(self.speaker_fc1(speaker_embed_btc))
 
         input_embedding = x
 
@@ -263,9 +265,6 @@ class Encoder(nn.Module):
         # TBC case: B x T x C -> T x B x C
         # Generic case: B x T x C -> B x C x T
         x = x.transpose(0, 1) if use_convtbc else x.transpose(1, 2)
-        if speaker_embed is not None:
-            speaker_embed = speaker_embed.transpose(0, 1) if use_convtbc else \
-                speaker_embed.transpose(1, 2)
 
         # １D conv blocks
         for proj, speaker_proj, conv in zip(
@@ -276,20 +275,20 @@ class Encoder(nn.Module):
             splitdim = -1 if use_convtbc else 1
             a, b = x.split(x.size(splitdim) // 2, dim=splitdim)
             if speaker_proj is not None:
-                a = a + F.softsign(speaker_proj(speaker_embed))
+                softsign = F.softsign(speaker_proj(
+                    speaker_embed_tbc if use_convtbc else speaker_embed_btc))
+                softsign = softsign if use_convtbc else softsign.transpose(1, 2)
+                a = a + softsign
             x = a * F.sigmoid(b)
             x = (x + residual) * math.sqrt(0.5)
 
         # Back to batch first
         x = x.transpose(0, 1) if use_convtbc else x.transpose(1, 2)
-        if speaker_embed is not None:
-            speaker_embed = speaker_embed.transpose(0, 1) if use_convtbc else \
-                speaker_embed.transpose(1, 2)
 
         # project back to size of embedding
         keys = self.fc2(x)
         if speaker_embed is not None:
-            keys += F.softsign(self.speaker_fc2(speaker_embed))
+            keys += F.softsign(self.speaker_fc2(speaker_embed_btc))
 
         # scale gradients (this only affects backward, not forward)
         if self.num_attention_layers is not None:
