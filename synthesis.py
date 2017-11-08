@@ -5,6 +5,7 @@ Synthesis waveform from trained model.
 usage: synthesis.py [options] <checkpoint> <text_list_file> <dst_dir>
 
 options:
+    --hparams=<parmas>        Hyper parameters [default: ].
     --file-name-suffix=<s>   File name suffix [default: ].
     --max-decoder-steps=<N>  Max decoder steps [default: 500].
     -h, --help               Show help message.
@@ -72,15 +73,26 @@ if __name__ == "__main__":
     max_decoder_steps = int(args["--max-decoder-steps"])
     file_name_suffix = args["--file-name-suffix"]
 
+    # Override hyper parameters
+    hparams.parse(args["--hparams"])
+    assert hparams.name == "deepvoice3"
+
     _frontend = getattr(frontend, hparams.frontend)
 
+    # Model
     model = build_deepvoice3(n_vocab=_frontend.n_vocab,
                              embed_dim=256,
                              mel_dim=hparams.num_mels,
                              linear_dim=hparams.num_freq,
                              r=hparams.outputs_per_step,
                              padding_idx=hparams.padding_idx,
+                             dropout=hparams.dropout,
+                             kernel_size=hparams.kernel_size,
+                             encoder_channels=hparams.encoder_channels,
+                             decoder_channels=hparams.decoder_channels,
+                             converter_channels=hparams.converter_channels,
                              )
+
     checkpoint = torch.load(checkpoint_path)
     model.load_state_dict(checkpoint["state_dict"])
     model.decoder.max_decoder_steps = max_decoder_steps
