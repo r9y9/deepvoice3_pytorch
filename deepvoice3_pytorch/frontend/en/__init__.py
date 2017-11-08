@@ -25,8 +25,8 @@ def mix_pronunciation(text, p):
 
 
 def text_to_sequence(text, p=0.0):
-    text = mix_pronunciation(text, p)
-
+    if p >= 0:
+        text = mix_pronunciation(text, p)
     from deepvoice3_pytorch.frontend.text import text_to_sequence
     text = text_to_sequence(text, ["english_cleaners"])
     return text

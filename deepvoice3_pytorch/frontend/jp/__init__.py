@@ -50,11 +50,19 @@ def add_punctuation(text):
     return text
 
 
+def normalize_delimitor(text):
+    text = text.replace(",", "、")
+    text = text.replace(".", "。")
+    return text
+
+
 def text_to_sequence(text, p=0.0):
     text = text.replace(" ", "")
     text = text.replace("　", "")
+    text = normalize_delimitor(text)
     text = jaconv.normalize(text)
-    text = mix_pronunciation(text, p=p)
+    if p > 0:
+        text = mix_pronunciation(text, p)
     text = jaconv.hira2kata(text)
     text = add_punctuation(text)
 
