@@ -42,6 +42,19 @@ def melspectrogram(y):
     return _normalize(S)
 
 
+def _griffin_lim(S):
+    '''librosa implementation of Griffin-Lim
+    Based on https://github.com/librosa/librosa/issues/434
+    '''
+    angles = np.exp(2j * np.pi * np.random.rand(*S.shape))
+    S_complex = np.abs(S).astype(np.complex)
+    y = _istft(S_complex * angles)
+    for i in range(hparams.griffin_lim_iters):
+        angles = np.exp(1j * np.angle(_stft(y)))
+        y = _istft(S_complex * angles)
+    return y
+
+
 def _stft(y):
     n_fft, hop_length, win_length = _stft_parameters()
     return librosa.stft(y=y, n_fft=n_fft, hop_length=hop_length, win_length=win_length)
