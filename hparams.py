@@ -6,12 +6,12 @@ hparams = tf.contrib.training.HParams(
     name="deepvoice3",
 
     # Text:
-    # [en, ja]
+    # [en, jp]
     frontend='en',
     # en: Word -> pronunciation using CMUDict
-    # ja: Word -> pronounciation usnig MeCab
+    # jp: Word -> pronounciation usnig MeCab
     # [0 ~ 1.0]: 0 means no replacement happens.
-    replace_pronunciation_prob=0.0,
+    replace_pronunciation_prob=0.5,
 
     # Audio:
     num_mels=80,
@@ -24,9 +24,15 @@ hparams = tf.contrib.training.HParams(
     ref_level_db=20,
 
     # Model:
-    # TODO: add more configurable hparams
     outputs_per_step=4,
     padding_idx=0,
+    dropout=1 - 0.95,
+    kernel_size=5,
+    encoder_channels=128,
+    decoder_channels=256,
+    converter_channels=256,
+    query_position_rate=1.0,
+    key_position_rate=1.29,  # 2.37 for jsut
 
     # Data loader
     pin_memory=True,

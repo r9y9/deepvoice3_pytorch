@@ -396,6 +396,11 @@ if __name__ == "__main__":
                              linear_dim=hparams.num_freq,
                              r=hparams.outputs_per_step,
                              padding_idx=hparams.padding_idx,
+                             dropout=hparams.dropout,
+                             kernel_size=hparams.kernel_size,
+                             encoder_channels=hparams.encoder_channels,
+                             decoder_channels=hparams.decoder_channels,
+                             converter_channels=hparams.converter_channels,
                              )
 
     optimizer = optim.Adam(model.get_trainable_parameters(),

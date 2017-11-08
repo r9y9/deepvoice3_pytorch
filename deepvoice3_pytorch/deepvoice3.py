@@ -46,44 +46,17 @@ def has_dilation(convolutions):
     return np.any(np.array(list(map(lambda x: x[2], convolutions))) > 1)
 
 
-def _build_deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=4096, r=5,
-                      n_speakers=1, speaker_embed_dim=16, padding_idx=None,
-                      dropout=(1 - 0.95)):
-    h = 128
-    encoder = Encoder(
-        n_vocab, embed_dim, padding_idx=padding_idx,
-        n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
-        dropout=dropout,
-        convolutions=((h, 7, 1),) * 7)
-
-    h = 512
-    decoder = Decoder(
-        embed_dim, in_dim=mel_dim, r=r, padding_idx=padding_idx,
-        n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
-        dropout=dropout,
-        convolutions=((h, 7, 1),) * 5,
-        attention=[True, False, False, False, True],
-        force_monotonic_attention=[True, False, False, False, False])
-
-    in_dim = h // r
-    h = 256
-    converter = Converter(
-        in_dim=in_dim, out_dim=linear_dim, dropout=dropout,
-        convolutions=((h, 7, 1),) * 7)
-
-    model = DeepVoice3(
-        encoder, decoder, converter, padding_idx=padding_idx,
-        mel_dim=mel_dim, linear_dim=linear_dim,
-        n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim)
-
-    return model
-
-
 def build_deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=4096, r=5,
                      n_speakers=1, speaker_embed_dim=16, padding_idx=None,
-                     dropout=(1 - 0.95)):
-    h = 128  # hidden dim (channels)
-    k = 3  # kernel size
+                     dropout=(1 - 0.95), kernel_size=5,
+                     encoder_channels=128,
+                     decoder_channels=256,
+                     converter_channels=256,
+                     query_position_rate=1.0,
+                     key_position_rate=1.29,
+                     ):
+    h = encoder_channels  # hidden dim (channels)
+    k = kernel_size   # kernel size
     encoder = Encoder(
         n_vocab, embed_dim, padding_idx=padding_idx,
         n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
@@ -92,17 +65,19 @@ def build_deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=4096, r=5,
                       (h, k, 2), (h, k, 4), (h, k, 8)],
     )
 
-    h = 256
+    h = decoder_channels
     decoder = Decoder(
         embed_dim, in_dim=mel_dim, r=r, padding_idx=padding_idx,
         n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
         dropout=dropout,
         convolutions=[(h, k, 1), (h, k, 1), (h, k, 2), (h, k, 4), (h, k, 8)],
         attention=[True, False, False, False, True],
-        force_monotonic_attention=[True, False, False, False, False])
+        force_monotonic_attention=[True, False, False, False, False],
+        query_position_rate=query_position_rate,
+        key_position_rate=key_position_rate)
 
     in_dim = h // r
-    h = 256
+    h = converter_channels
     converter = Converter(
         in_dim=in_dim, out_dim=linear_dim, dropout=dropout,
         convolutions=[(h, k, 1), (h, k, 1), (h, k, 2), (h, k, 4), (h, k, 8)])
@@ -385,7 +360,10 @@ class Decoder(nn.Module):
                  convolutions=((128, 5, 1),) * 4,
                  attention=True, dropout=0.1,
                  use_memory_mask=False,
-                 force_monotonic_attention=True):
+                 force_monotonic_attention=True,
+                 query_position_rate=1.0,
+                 key_position_rate=1.29,
+                 ):
         super(Decoder, self).__init__()
         self.dropout = dropout
         self.in_dim = in_dim
@@ -400,11 +378,11 @@ class Decoder(nn.Module):
         self.embed_query_positions = Embedding(
             max_positions, convolutions[0][0], padding_idx)
         self.embed_query_positions.weight.data = position_encoding_init(
-            max_positions, convolutions[0][0], position_rate=1.0)
+            max_positions, convolutions[0][0], position_rate=query_position_rate)
         self.embed_keys_positions = Embedding(
             max_positions, embed_dim, padding_idx)
         self.embed_keys_positions.weight.data = position_encoding_init(
-            max_positions, embed_dim, position_rate=1.29)
+            max_positions, embed_dim, position_rate=key_position_rate)
 
         self.fc1 = Linear(in_channels, convolutions[0][0], dropout=dropout)
         in_channels = convolutions[0][0]
