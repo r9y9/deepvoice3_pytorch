@@ -58,7 +58,10 @@ def normalize_delimitor(text):
 
 def text_to_sequence(text, p=0.0):
     for c in [" ", "　", "「", "」", "『", "』", "・", "【", "】"]:
-        text.replace(c, "")
+        text = text.replace(c, "")
+    text = text.replace("!", "！")
+    text = text.replace("?", "？")
+
     text = normalize_delimitor(text)
     text = jaconv.normalize(text)
     if p > 0:
