@@ -53,11 +53,14 @@ def add_punctuation(text):
 def normalize_delimitor(text):
     text = text.replace(",", "、")
     text = text.replace(".", "。")
+    text = text.replace("，", "、")
+    text = text.replace("．", "。")
     return text
 
 
 def text_to_sequence(text, p=0.0):
-    for c in [" ", "　", "「", "」", "『", "』", "・", "【", "】"]:
+    for c in [" ", "　", "「", "」", "『", "』", "・", "【", "】",
+              "（", "）", "(", ")"]:
         text = text.replace(c, "")
     text = text.replace("!", "！")
     text = text.replace("?", "？")
