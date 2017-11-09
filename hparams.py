@@ -48,7 +48,12 @@ hparams = tf.contrib.training.HParams(
     adam_beta2=0.9,
     initial_learning_rate=0.001,
     decay_learning_rate=True,
-    nepochs=1000,
+    lr_schedule=None,
+    lr_schedule_kwargs={
+        "anneal_rate": 0.98,
+        "anneal_interval": 30000,
+    },
+    nepochs=2000,
     weight_decay=0.0,
     clip_thresh=5.0,
 

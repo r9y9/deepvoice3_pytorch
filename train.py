@@ -20,6 +20,7 @@ from datetime import datetime
 # The deepvoice3 model
 from deepvoice3_pytorch import frontend, build_deepvoice3
 import audio
+import lrschedule
 
 import torch
 from torch.utils import data as data_utils
@@ -198,14 +199,6 @@ def save_spectrogram(path, linear_output):
     plt.close()
 
 
-def _learning_rate_decay(init_lr, global_step):
-    warmup_steps = 4000.0
-    step = global_step + 1.
-    lr = init_lr * warmup_steps**0.5 * np.minimum(
-        step * warmup_steps**-1.5, step**-0.5)
-    return lr
-
-
 def save_states(global_step, mel_outputs, linear_outputs, attn, y,
                 input_lengths, checkpoint_dir=None):
     print("Save intermediate states at step {}".format(global_step))
@@ -262,6 +255,7 @@ def train(model, data_loader, optimizer,
         model = model.cuda()
     linear_dim = model.linear_dim
     r = hparams.outputs_per_step
+    current_lr = init_lr
 
     criterion = nn.L1Loss()
     binary_criterion = nn.BCELoss()
@@ -270,10 +264,13 @@ def train(model, data_loader, optimizer,
     while global_epoch < nepochs:
         running_loss = 0.
         for step, (x, input_lengths, mel, y, positions, done) in tqdm(enumerate(data_loader)):
-            # Decay learning rate
-            current_lr = _learning_rate_decay(init_lr, global_step)
-            for param_group in optimizer.param_groups:
-                param_group['lr'] = current_lr
+            # Learning rate schedule
+            if hparams.lr_schedule is not None:
+                lr_schedule_f = getattr(lrschedule, hparams.lr_schedule)
+                current_lr = lr_schedule_f(
+                    init_lr, global_step, **hparams.lr_schedule_kwargs)
+                for param_group in optimizer.param_groups:
+                    param_group['lr'] = current_lr
 
             optimizer.zero_grad()
 
@@ -338,7 +335,8 @@ def train(model, data_loader, optimizer,
             log_value("priority freq loss", float(priority_freq_loss.data[0]), global_step)
             log_value("flat freq loss", float(flat_freq_loss.data[0]), global_step)
             log_value("linear loss", float(linear_loss.data[0]), global_step)
-            log_value("gradient norm", grad_norm, global_step)
+            if clip_thresh > 0:
+                log_value("gradient norm", grad_norm, global_step)
             log_value("learning rate", current_lr, global_step)
 
             global_step += 1
