@@ -308,10 +308,12 @@ def train(model, data_loader, optimizer,
 
             # Loss
             mel_loss = criterion(mel_outputs[:, :-r, :], mel[:, r:, :])
-            n_priority_freq = int(3000 / (fs * 0.5) * linear_dim)
-            linear_loss = 0.5 * criterion(linear_outputs[:, :-r, :], y[:, r:, :]) \
-                + 0.5 * criterion(linear_outputs[:, :-r, :n_priority_freq],
-                                  y[:, r:, :n_priority_freq])
+            n_priority_freq = int(hparams.priority_freq / (fs * 0.5) * linear_dim)
+            w = hparams.priority_freq_weight
+            priority_freq_loss = criterion(
+                linear_outputs[:, :-r, :n_priority_freq], y[:, r:, :n_priority_freq])
+            flat_freq_loss = criterion(linear_outputs[:, :-r, :], y[:, r:, :])
+            linear_loss = (1 - w) * flat_freq_loss + w * priority_freq_loss
             done_loss = binary_criterion(done_hat, done)
             loss = mel_loss + linear_loss + done_loss
 
@@ -333,6 +335,8 @@ def train(model, data_loader, optimizer,
             log_value("loss", float(loss.data[0]), global_step)
             log_value("done_loss", float(done_loss.data[0]), global_step)
             log_value("mel loss", float(mel_loss.data[0]), global_step)
+            log_value("priority freq loss", float(priority_freq_loss.data[0]), global_step)
+            log_value("flat freq loss", float(flat_freq_loss.data[0]), global_step)
             log_value("linear loss", float(linear_loss.data[0]), global_step)
             log_value("gradient norm", grad_norm, global_step)
             log_value("learning rate", current_lr, global_step)

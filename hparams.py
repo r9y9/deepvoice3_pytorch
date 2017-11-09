@@ -38,6 +38,10 @@ hparams = tf.contrib.training.HParams(
     pin_memory=True,
     num_workers=2,
 
+    # Loss
+    priority_freq=3000,  # heuristic: priotrize [0 ~ priotiry_freq] for linear loss
+    priority_freq_weight=0.0,  # (1-w)*flat_freq_loss + w*priority_freq_loss
+
     # Training:
     batch_size=16,
     adam_beta1=0.5,
