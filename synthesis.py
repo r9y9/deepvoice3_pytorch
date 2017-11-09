@@ -5,9 +5,10 @@ Synthesis waveform from trained model.
 usage: synthesis.py [options] <checkpoint> <text_list_file> <dst_dir>
 
 options:
-    --hparams=<parmas>        Hyper parameters [default: ].
-    --file-name-suffix=<s>   File name suffix [default: ].
-    --max-decoder-steps=<N>  Max decoder steps [default: 500].
+    --hparams=<parmas>                Hyper parameters [default: ].
+    --file-name-suffix=<s>            File name suffix [default: ].
+    --max-decoder-steps=<N>           Max decoder steps [default: 500].
+    --replace_pronunciation_prop=<N>  Prob [default: 0.0].
     -h, --help               Show help message.
 """
 from docopt import docopt
@@ -36,6 +37,10 @@ _frontend = None  # to be set later
 
 def tts(model, text, p=0):
     """Convert text to speech waveform given a deepvoice3 model.
+
+    Args:
+        text (str) : Input text to be synthesized
+        p (float) : Replace word to pronounciation if p > 0. Default is 0.
     """
     if use_cuda:
         model = model.cuda()
@@ -72,6 +77,7 @@ if __name__ == "__main__":
     dst_dir = args["<dst_dir>"]
     max_decoder_steps = int(args["--max-decoder-steps"])
     file_name_suffix = args["--file-name-suffix"]
+    replace_pronunciation_prob = float(args["--replace_pronunciation_prop"])
 
     # Override hyper parameters
     hparams.parse(args["--hparams"])
@@ -106,7 +112,7 @@ if __name__ == "__main__":
             text = line.decode("utf-8")[:-1]
             words = nltk.word_tokenize(text)
             # print("{}: {} ({} chars, {} words)".format(idx, text, len(text), len(words)))
-            waveform, alignment, _, _ = tts(model, text)
+            waveform, alignment, _, _ = tts(model, text, p=replace_pronunciation_prob)
             dst_wav_path = join(dst_dir, "{}{}.wav".format(idx, file_name_suffix))
             dst_alignment_path = join(dst_dir, "{}{}_alignment.png".format(idx, file_name_suffix))
             plot_alignment(alignment.T, dst_alignment_path,
