@@ -20,7 +20,7 @@ from fairseq.modules.conv_tbc import ConvTBC
 
 use_cuda = torch.cuda.is_available()
 num_mels = 80
-num_freq = 1025
+num_freq = 513
 outputs_per_step = 4
 padding_idx = 0
 
@@ -34,6 +34,11 @@ def _get_model(n_speakers=1, speaker_embed_dim=None):
                              padding_idx=padding_idx,
                              n_speakers=n_speakers,
                              speaker_embed_dim=speaker_embed_dim,
+                             dropout=1 - 0.95,
+                             kernel_size=5,
+                             encoder_channels=128,
+                             decoder_channels=256,
+                             converter_channels=256,
                              )
     return model
 
@@ -161,7 +166,7 @@ def test_multi_speaker_deepvoice3():
 
 @attr("local_only")
 def test_incremental_forward():
-    checkpoint_path = join(dirname(__file__), "../checkpoints/checkpoint_step000140000.pth")
+    checkpoint_path = join(dirname(__file__), "../checkpoints/checkpoint_step000055000.pth")
     if not exists(checkpoint_path):
         return
     model = _get_model()
@@ -185,7 +190,7 @@ def test_incremental_forward():
 
     text_positions = np.arange(1, len(seqs[0]) + 1).reshape(1, len(seqs[0]))
 
-    mel = np.load("/home/ryuichi/tacotron/training/ljspeech-mel-00035.npy")
+    mel = np.load("/home/ryuichi/Dropbox/sp/deepvoice3_pytorch/data/ljspeech/ljspeech-mel-00035.npy")
     max_target_len = mel.shape[0]
     r = 4
     mel_dim = 80

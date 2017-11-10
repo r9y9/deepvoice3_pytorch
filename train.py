@@ -30,6 +30,7 @@ from torch import optim
 import torch.backends.cudnn as cudnn
 from torch.utils import data as data_utils
 import numpy as np
+from numba import jit
 
 from nnmnkwii.datasets import FileSourceDataset, FileDataSource
 from os.path import join, expanduser
@@ -41,9 +42,6 @@ import os
 import tensorboard_logger
 from tensorboard_logger import log_value
 from hparams import hparams, hparams_debug_string
-
-# Default DATA_ROOT
-DATA_ROOT = join(expanduser("~"), "tacotron", "training")
 
 fs = hparams.sample_rate
 
@@ -85,8 +83,11 @@ def plot_alignment(alignment, path, info=None):
 
 
 class TextDataSource(FileDataSource):
+    def __init__(self, data_root):
+        self.data_root = data_root
+
     def collect_files(self):
-        meta = join(DATA_ROOT, "train.txt")
+        meta = join(self.data_root, "train.txt")
         with open(meta, "rb") as f:
             lines = f.readlines()
         lines = list(map(lambda l: l.decode("utf-8").split("|")[-1], lines))
@@ -98,15 +99,16 @@ class TextDataSource(FileDataSource):
 
 
 class _NPYDataSource(FileDataSource):
-    def __init__(self, col):
+    def __init__(self, data_root, col):
+        self.data_root = data_root
         self.col = col
 
     def collect_files(self):
-        meta = join(DATA_ROOT, "train.txt")
+        meta = join(self.data_root, "train.txt")
         with open(meta, "rb") as f:
             lines = f.readlines()
         lines = list(map(lambda l: l.decode("utf-8").split("|")[self.col], lines))
-        paths = list(map(lambda f: join(DATA_ROOT, f), lines))
+        paths = list(map(lambda f: join(self.data_root, f), lines))
         return paths
 
     def collect_features(self, path):
@@ -114,13 +116,13 @@ class _NPYDataSource(FileDataSource):
 
 
 class MelSpecDataSource(_NPYDataSource):
-    def __init__(self):
-        super(MelSpecDataSource, self).__init__(1)
+    def __init__(self, data_root):
+        super(MelSpecDataSource, self).__init__(data_root, 1)
 
 
 class LinearSpecDataSource(_NPYDataSource):
-    def __init__(self):
-        super(LinearSpecDataSource, self).__init__(0)
+    def __init__(self, data_root):
+        super(LinearSpecDataSource, self).__init__(data_root, 0)
 
 
 class PyTorchDataset(object):
@@ -246,6 +248,26 @@ def save_states(global_step, mel_outputs, linear_outputs, attn, y,
     save_spectrogram(path, linear_output)
 
 
+def logit(x, eps=1e-8):
+    return torch.log(x + eps) - torch.log(1 - x + eps)
+
+
+def spec_loss(y_hat, y):
+    l1_loss = nn.L1Loss()(y_hat, y)
+    y_hat_logits = logit(y_hat)
+    binary_div = torch.mean(-y * y_hat_logits + torch.log(1 + torch.exp(y_hat_logits)))
+    return l1_loss, binary_div
+
+
+@jit(nopython=True)
+def guided_attention(N, T, g=0.2):
+    W = np.empty((N, T), dtype=np.float32)
+    for n in range(N):
+        for t in range(T):
+            W[n, t] = 1 - np.exp(-(n / N - t / T)**2 / 2 / g / g)
+    return W
+
+
 def train(model, data_loader, optimizer,
           init_lr=0.002,
           checkpoint_dir=None, checkpoint_interval=None, nepochs=None,
@@ -257,7 +279,6 @@ def train(model, data_loader, optimizer,
     r = hparams.outputs_per_step
     current_lr = init_lr
 
-    criterion = nn.L1Loss()
     binary_criterion = nn.BCELoss()
 
     global global_step, global_epoch
@@ -303,16 +324,30 @@ def train(model, data_loader, optimizer,
                 text_positions=text_positions, frame_positions=frame_positions,
                 input_lengths=sorted_lengths)
 
-            # Loss
-            mel_loss = criterion(mel_outputs[:, :-r, :], mel[:, r:, :])
-            n_priority_freq = int(hparams.priority_freq / (fs * 0.5) * linear_dim)
-            w = hparams.priority_freq_weight
-            priority_freq_loss = criterion(
-                linear_outputs[:, :-r, :n_priority_freq], y[:, r:, :n_priority_freq])
-            flat_freq_loss = criterion(linear_outputs[:, :-r, :], y[:, r:, :])
-            linear_loss = (1 - w) * flat_freq_loss + w * priority_freq_loss
+            # Losses
+            w = hparams.binary_divergence_weight
+
+            # mel:
+            mel_l1_loss, mel_binary_div = spec_loss(mel_outputs[:, :-r, :], mel[:, r:, :])
+            mel_loss = (1 - w) * mel_l1_loss + w * mel_binary_div
+
+            # done:
             done_loss = binary_criterion(done_hat, done)
+
+            # linear:
+            linear_l1_loss, linear_binary_div = spec_loss(linear_outputs[:, :-r, :], y[:, r:, :])
+            linear_loss = (1 - w) * linear_l1_loss + w * linear_binary_div
+
             loss = mel_loss + linear_loss + done_loss
+
+            # attention
+            if hparams.use_guided_attention:
+                soft_mask = guided_attention(attn.size(-2), attn.size(-1),
+                                             g=hparams.guided_attention_sigma)
+                soft_mask = Variable(torch.from_numpy(soft_mask))
+                soft_mask = soft_mask.cuda() if use_cuda else soft_mask
+                attn_loss = (attn * soft_mask).mean()
+                loss += attn_loss
 
             if global_step > 0 and global_step % checkpoint_interval == 0:
                 save_states(
@@ -332,9 +367,14 @@ def train(model, data_loader, optimizer,
             log_value("loss", float(loss.data[0]), global_step)
             log_value("done_loss", float(done_loss.data[0]), global_step)
             log_value("mel loss", float(mel_loss.data[0]), global_step)
-            log_value("priority freq loss", float(priority_freq_loss.data[0]), global_step)
-            log_value("flat freq loss", float(flat_freq_loss.data[0]), global_step)
-            log_value("linear loss", float(linear_loss.data[0]), global_step)
+            log_value("mel_l1_loss", float(mel_l1_loss.data[0]), global_step)
+            log_value("mel_binary_div", float(mel_binary_div.data[0]), global_step)
+            log_value("linear_loss", float(linear_loss.data[0]), global_step)
+            log_value("linear_l1_loss", float(linear_l1_loss.data[0]), global_step)
+            log_value("linear_binary_div", float(linear_binary_div.data[0]), global_step)
+            if hparams.use_guided_attention:
+                log_value("attn_loss", float(attn_loss.data[0]), global_step)
+
             if clip_thresh > 0:
                 log_value("gradient norm", grad_norm, global_step)
             log_value("learning rate", current_lr, global_step)
@@ -367,9 +407,10 @@ if __name__ == "__main__":
     checkpoint_dir = args["--checkpoint-dir"]
     checkpoint_path = args["--checkpoint-path"]
     data_root = args["--data-root"]
+    if data_root is None:
+        data_root = join(expanduser("~"), "data", "ljspeech")
+
     log_event_path = args["--log-event-path"]
-    if data_root:
-        DATA_ROOT = data_root
 
     # Override hyper parameters
     hparams.parse(args["--hparams"])
@@ -380,9 +421,9 @@ if __name__ == "__main__":
     os.makedirs(checkpoint_dir, exist_ok=True)
 
     # Input dataset definitions
-    X = FileSourceDataset(TextDataSource())
-    Mel = FileSourceDataset(MelSpecDataSource())
-    Y = FileSourceDataset(LinearSpecDataSource())
+    X = FileSourceDataset(TextDataSource(data_root))
+    Mel = FileSourceDataset(MelSpecDataSource(data_root))
+    Y = FileSourceDataset(LinearSpecDataSource(data_root))
 
     # Dataset and Dataloader setup
     dataset = PyTorchDataset(X, Mel, Y)
@@ -408,7 +449,7 @@ if __name__ == "__main__":
     optimizer = optim.Adam(model.get_trainable_parameters(),
                            lr=hparams.initial_learning_rate, betas=(
         hparams.adam_beta1, hparams.adam_beta2),
-        weight_decay=hparams.weight_decay)
+        eps=hparams.adam_eps, weight_decay=hparams.weight_decay)
 
     # Load checkpoint
     if checkpoint_path:

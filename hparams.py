@@ -15,9 +15,9 @@ hparams = tf.contrib.training.HParams(
 
     # Audio:
     num_mels=80,
-    num_freq=1025,
-    sample_rate=20000,
-    frame_length_ms=50,
+    num_freq=513,
+    sample_rate=22050,
+    frame_length_ms=None,  # None uses FFT length
     frame_shift_ms=12.5,
     preemphasis=0.97,
     min_level_db=-100,
@@ -39,14 +39,20 @@ hparams = tf.contrib.training.HParams(
     num_workers=2,
 
     # Loss
+    # TODO
     priority_freq=3000,  # heuristic: priotrize [0 ~ priotiry_freq] for linear loss
     priority_freq_weight=0.0,  # (1-w)*flat_freq_loss + w*priority_freq_loss
+    # https://arxiv.org/pdf/1710.08969.pdf
+    binary_divergence_weight=0.0,  # set 0 to disable
+    use_guided_attention=True,
+    guided_attention_sigma=0.2,
 
     # Training:
     batch_size=16,
     adam_beta1=0.5,
     adam_beta2=0.9,
-    initial_learning_rate=0.001,
+    adam_eps=1e-6,
+    initial_learning_rate=0.002,
     decay_learning_rate=True,
     lr_schedule=None,
     lr_schedule_kwargs={
