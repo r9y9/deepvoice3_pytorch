@@ -412,8 +412,6 @@ class Decoder(nn.Module):
         # decoder states -> Done binary flag
         self.fc3 = Linear(in_channels, 1)
 
-        self.relu = nn.ReLU(inplace=True)
-
         self._is_inference_incremental = False
         self.max_decoder_steps = 200
         self.min_decoder_steps = 10
@@ -461,7 +459,7 @@ class Decoder(nn.Module):
         x = F.dropout(x, p=self.dropout, training=self.training)
 
         # project to size of convolution
-        x = self.relu(self.fc1(x))
+        x = F.relu(self.fc1(x), inplace=True)
 
         use_convtbc = isinstance(self.convolutions[0], _ConvTBC)
         # TBC case: B x T x C -> T x B x C
@@ -504,7 +502,7 @@ class Decoder(nn.Module):
         decoder_states = x
 
         # project to mel-spectorgram
-        x = self.fc2(decoder_states)
+        x = F.sigmoid(self.fc2(decoder_states))
 
         # Done flag
         done = F.sigmoid(self.fc3(decoder_states))
@@ -605,7 +603,7 @@ class Decoder(nn.Module):
             x = F.dropout(x, p=self.dropout, training=self.training)
 
             # project to size of convolution
-            x = self.relu(self.fc1(x))
+            x = F.relu(self.fc1(x), inplace=True)
 
             # temporal convolutions
             ave_alignment = None
@@ -636,7 +634,7 @@ class Decoder(nn.Module):
             ave_alignment = ave_alignment.div_(num_attention_layers)
             decoder_state = x
 
-            output = self.fc2(decoder_state)
+            output = F.sigmoid(self.fc2(decoder_state))
 
             # Done flag
             done = F.sigmoid(self.fc3(decoder_state))
@@ -728,4 +726,4 @@ class Converter(nn.Module):
         # Back to batch first
         x = x.transpose(0, 1) if use_convtbc else x.transpose(1, 2)
 
-        return self.fc2(x)
+        return F.sigmoid(self.fc2(x))
