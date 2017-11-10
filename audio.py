@@ -68,7 +68,11 @@ def _istft(y):
 def _stft_parameters():
     n_fft = (hparams.num_freq - 1) * 2
     hop_length = int(hparams.frame_shift_ms / 1000 * hparams.sample_rate)
-    win_length = int(hparams.frame_length_ms / 1000 * hparams.sample_rate)
+    frame_length_ms = hparams.frame_length_ms
+    if frame_length_ms is None:
+        win_length = n_fft
+    else:
+        win_length = int(hparams.frame_length_ms / 1000 * hparams.sample_rate)
     return n_fft, hop_length, win_length
 
 
