@@ -303,9 +303,13 @@ def spec_loss(y_hat, y, mask):
     l1 = nn.L1Loss()
     l1_loss = 0.5 * masked_l1(y_hat, y, mask=mask) + 0.5 * l1(y_hat, y)
 
-    y_hat_logits = logit(y_hat)
-    z = -y * y_hat_logits + torch.log(1 + torch.exp(y_hat_logits))
-    binary_div = 0.5 * masked_mean(z, mask) + 0.5 * z.mean()
+    if hparams.binary_divergence_weight <= 0:
+        binary_div = Variable(y.data.new(1).zero_())
+    else:
+        y_hat_logits = logit(y_hat)
+        z = -y * y_hat_logits + torch.log(1 + torch.exp(y_hat_logits))
+        binary_div = 0.5 * masked_mean(z, mask) + 0.5 * z.mean()
+
     return l1_loss, binary_div
 
 
@@ -506,6 +510,7 @@ if __name__ == "__main__":
                              encoder_channels=hparams.encoder_channels,
                              decoder_channels=hparams.decoder_channels,
                              converter_channels=hparams.converter_channels,
+                             use_memory_mask=hparams.use_memory_mask,
                              )
 
     optimizer = optim.Adam(model.get_trainable_parameters(),

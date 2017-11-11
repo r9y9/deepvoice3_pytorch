@@ -54,6 +54,7 @@ def build_deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=4096, r=5,
                      converter_channels=256,
                      query_position_rate=1.0,
                      key_position_rate=1.29,
+                     use_memory_mask=False,
                      ):
     h = encoder_channels  # hidden dim (channels)
     k = kernel_size   # kernel size
@@ -72,10 +73,11 @@ def build_deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=4096, r=5,
         n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
         dropout=dropout,
         convolutions=[(h, k, 1), (h, k, 1), (h, k, 2), (h, k, 4), (h, k, 8)],
-        attention=[True, False, False, False, True],
-        force_monotonic_attention=[True, False, False, False, False],
+        attention=[True, True, True, True, True],
+        force_monotonic_attention=[True, False, False, False, True],
         query_position_rate=query_position_rate,
-        key_position_rate=key_position_rate)
+        key_position_rate=key_position_rate,
+        use_memory_mask=use_memory_mask)
 
     in_dim = h // r
     h = converter_channels
