@@ -138,6 +138,39 @@ class PyTorchDataset(object):
         return len(self.X)
 
 
+def sequence_mask(sequence_length, max_len=None):
+    if max_len is None:
+        max_len = sequence_length.data.max()
+    batch_size = sequence_length.size(0)
+    seq_range = torch.arange(0, max_len).long()
+    seq_range_expand = seq_range.unsqueeze(0).expand(batch_size, max_len)
+    seq_range_expand = Variable(seq_range_expand)
+    if sequence_length.is_cuda:
+        seq_range_expand = seq_range_expand.cuda()
+    seq_length_expand = sequence_length.unsqueeze(1) \
+        .expand_as(seq_range_expand)
+    return (seq_range_expand < seq_length_expand).float()
+
+
+class MaskedL1Loss(nn.Module):
+    def __init__(self):
+        super(MaskedL1Loss, self).__init__()
+        self.criterion = nn.L1Loss(size_average=False)
+
+    def forward(self, input, target, lengths=None, mask=None, max_len=None):
+        if lengths is None and mask is None:
+            raise RuntimeError("Should provide either lengths or mask")
+
+        # (B, T, 1)
+        if mask is None:
+            mask = sequence_mask(lengths, max_len).unsqueeze(-1)
+
+        # (B, T, D)
+        mask_ = mask.expand_as(input)
+        loss = self.criterion(input * mask_, target * mask_)
+        return loss / mask_.sum()
+
+
 def collate_fn(batch):
     """Create batch"""
     r = hparams.outputs_per_step
@@ -146,10 +179,9 @@ def collate_fn(batch):
     input_lengths = [len(x[0]) for x in batch]
     max_input_len = max(input_lengths)
 
-    raw_target_lengths = [len(x[1]) for x in batch]
-    target_lengths = [len(x[1]) // r for x in batch]
+    target_lengths = [len(x[1]) for x in batch]
 
-    max_target_len = max(raw_target_lengths)
+    max_target_len = max(target_lengths)
     if max_target_len % r != 0:
         max_target_len += r - max_target_len % r
         assert max_target_len % r == 0
@@ -260,10 +292,20 @@ def logit(x, eps=1e-8):
     return torch.log(x + eps) - torch.log(1 - x + eps)
 
 
-def spec_loss(y_hat, y):
-    l1_loss = nn.L1Loss()(y_hat, y)
+def masked_mean(y, mask):
+    # (B, T, D)
+    mask_ = mask.expand_as(y)
+    return (y * mask_).sum() / mask_.sum()
+
+
+def spec_loss(y_hat, y, mask):
+    masked_l1 = MaskedL1Loss()
+    l1 = nn.L1Loss()
+    l1_loss = 0.5 * masked_l1(y_hat, y, mask=mask) + 0.5 * l1(y_hat, y)
+
     y_hat_logits = logit(y_hat)
-    binary_div = torch.mean(-y * y_hat_logits + torch.log(1 + torch.exp(y_hat_logits)))
+    z = -y * y_hat_logits + torch.log(1 + torch.exp(y_hat_logits))
+    binary_div = 0.5 * masked_mean(z, mask) + 0.5 * z.mean()
     return l1_loss, binary_div
 
 
@@ -272,7 +314,7 @@ def guided_attention(N, max_N, T, max_T, g):
     W = np.zeros((max_N, max_T), dtype=np.float32)
     for n in range(N):
         for t in range(T):
-            W[n, t] = 1 - np.exp(-(n / N - t / T)**2 / 2 / g / g)
+            W[n, t] = 1 - np.exp(-(n / N - t / T)**2 / (2 * g * g))
     return W
 
 
@@ -318,18 +360,23 @@ def train(model, data_loader, optimizer,
 
             # Lengths
             input_lengths = input_lengths.long().numpy()
-            target_lengths = target_lengths.long().numpy()
+            decoder_lengths = target_lengths.long().numpy() // r
 
             # Feed data
             x, mel, y = Variable(x), Variable(mel), Variable(y)
             text_positions = Variable(text_positions)
             frame_positions = Variable(frame_positions)
             done = Variable(done)
+            target_lengths = Variable(target_lengths)
             if use_cuda:
                 x, mel, y = x.cuda(), mel.cuda(), y.cuda()
                 text_positions = text_positions.cuda()
                 frame_positions = frame_positions.cuda()
-                done = done.cuda()
+                done, target_lengths = done.cuda(), target_lengths.cuda()
+
+            # spectrogram-domain mask
+            target_mask = sequence_mask(
+                target_lengths, max_len=mel.size(1)).unsqueeze(-1)
 
             mel_outputs, linear_outputs, attn, done_hat = model(
                 x, mel,
@@ -340,21 +387,23 @@ def train(model, data_loader, optimizer,
             w = hparams.binary_divergence_weight
 
             # mel:
-            mel_l1_loss, mel_binary_div = spec_loss(mel_outputs[:, :-r, :], mel[:, r:, :])
+            mel_l1_loss, mel_binary_div = spec_loss(
+                mel_outputs[:, :-r, :], mel[:, r:, :], target_mask[:, r:, :])
             mel_loss = (1 - w) * mel_l1_loss + w * mel_binary_div
 
             # done:
             done_loss = binary_criterion(done_hat, done)
 
             # linear:
-            linear_l1_loss, linear_binary_div = spec_loss(linear_outputs[:, :-r, :], y[:, r:, :])
+            linear_l1_loss, linear_binary_div = spec_loss(
+                linear_outputs[:, :-r, :], y[:, r:, :], target_mask[:, r:, :])
             linear_loss = (1 - w) * linear_l1_loss + w * linear_binary_div
 
             loss = mel_loss + linear_loss + done_loss
 
             # attention
             if hparams.use_guided_attention:
-                soft_mask = guided_attentions(input_lengths, target_lengths,
+                soft_mask = guided_attentions(input_lengths, decoder_lengths,
                                               attn.size(-2),
                                               g=hparams.guided_attention_sigma)
                 soft_mask = Variable(torch.from_numpy(soft_mask))
