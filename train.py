@@ -141,10 +141,15 @@ class PyTorchDataset(object):
 def collate_fn(batch):
     """Create batch"""
     r = hparams.outputs_per_step
+
+    # Lengths
     input_lengths = [len(x[0]) for x in batch]
-    max_input_len = np.max(input_lengths)
-    # Add single zeros frame at least, so plus 1
-    max_target_len = int(np.max([len(x[1]) for x in batch]) + 1)
+    max_input_len = max(input_lengths)
+
+    raw_target_lengths = [len(x[1]) for x in batch]
+    target_lengths = [len(x[1]) // r for x in batch]
+
+    max_target_len = max(raw_target_lengths)
     if max_target_len % r != 0:
         max_target_len += r - max_target_len % r
         assert max_target_len % r == 0
@@ -158,6 +163,7 @@ def collate_fn(batch):
     x_batch = torch.LongTensor(a)
 
     input_lengths = torch.LongTensor(input_lengths)
+    target_lengths = torch.LongTensor(target_lengths)
 
     b = np.array([_pad_2d(x[1], max_target_len, b_pad=b_pad) for x in batch],
                  dtype=np.float32)
@@ -180,11 +186,13 @@ def collate_fn(batch):
         len(batch), max_target_len // r)
 
     # done flags
-    done = np.array([_pad(np.zeros(len(x[1]) // r - 1), max_target_len // r, constant_values=1)
+    done = np.array([_pad(np.zeros(len(x[1]) // r - 1),
+                          max_target_len // r, constant_values=1)
                      for x in batch])
-    done = torch.FloatTensor(done)
+    done = torch.FloatTensor(done).unsqueeze(-1)
 
-    return x_batch, input_lengths, mel_batch, y_batch, (text_positions, frame_positions), done
+    return x_batch, input_lengths, mel_batch, y_batch, \
+        (text_positions, frame_positions), done, target_lengths
 
 
 def save_alignment(path, attn):
@@ -260,11 +268,21 @@ def spec_loss(y_hat, y):
 
 
 @jit(nopython=True)
-def guided_attention(N, T, g=0.2):
-    W = np.empty((N, T), dtype=np.float32)
+def guided_attention(N, max_N, T, max_T, g):
+    W = np.zeros((max_N, max_T), dtype=np.float32)
     for n in range(N):
         for t in range(T):
             W[n, t] = 1 - np.exp(-(n / N - t / T)**2 / 2 / g / g)
+    return W
+
+
+def guided_attentions(input_lengths, target_lengths, max_target_len, g=0.2):
+    B = len(input_lengths)
+    max_input_len = input_lengths.max()
+    W = np.zeros((B, max_target_len, max_input_len), dtype=np.float32)
+    for b in range(B):
+        W[b] = guided_attention(input_lengths[b], max_input_len,
+                                target_lengths[b], max_target_len, g).T
     return W
 
 
@@ -284,7 +302,8 @@ def train(model, data_loader, optimizer,
     global global_step, global_epoch
     while global_epoch < nepochs:
         running_loss = 0.
-        for step, (x, input_lengths, mel, y, positions, done) in tqdm(enumerate(data_loader)):
+        for step, (x, input_lengths, mel, y, positions, done, target_lengths) \
+                in tqdm(enumerate(data_loader)):
             # Learning rate schedule
             if hparams.lr_schedule is not None:
                 lr_schedule_f = getattr(lrschedule, hparams.lr_schedule)
@@ -292,21 +311,14 @@ def train(model, data_loader, optimizer,
                     init_lr, global_step, **hparams.lr_schedule_kwargs)
                 for param_group in optimizer.param_groups:
                     param_group['lr'] = current_lr
-
             optimizer.zero_grad()
 
             # Used for Position encoding
             text_positions, frame_positions = positions
 
-            # Sort by length
-            sorted_lengths, indices = torch.sort(
-                input_lengths.view(-1), dim=0, descending=True)
-            sorted_lengths = sorted_lengths.long().numpy()
-
-            x, mel, y = x[indices], mel[indices], y[indices]
-            text_positions, frame_positions = text_positions[indices], frame_positions[indices]
-            done = done[indices]
-            done = done.unsqueeze(-1) if done.dim() == 2 else done
+            # Lengths
+            input_lengths = input_lengths.long().numpy()
+            target_lengths = target_lengths.long().numpy()
 
             # Feed data
             x, mel, y = Variable(x), Variable(mel), Variable(y)
@@ -322,7 +334,7 @@ def train(model, data_loader, optimizer,
             mel_outputs, linear_outputs, attn, done_hat = model(
                 x, mel,
                 text_positions=text_positions, frame_positions=frame_positions,
-                input_lengths=sorted_lengths)
+                input_lengths=input_lengths)
 
             # Losses
             w = hparams.binary_divergence_weight
@@ -342,8 +354,9 @@ def train(model, data_loader, optimizer,
 
             # attention
             if hparams.use_guided_attention:
-                soft_mask = guided_attention(attn.size(-2), attn.size(-1),
-                                             g=hparams.guided_attention_sigma)
+                soft_mask = guided_attentions(input_lengths, target_lengths,
+                                              attn.size(-2),
+                                              g=hparams.guided_attention_sigma)
                 soft_mask = Variable(torch.from_numpy(soft_mask))
                 soft_mask = soft_mask.cuda() if use_cuda else soft_mask
                 attn_loss = (attn * soft_mask).mean()
@@ -352,7 +365,7 @@ def train(model, data_loader, optimizer,
             if global_step > 0 and global_step % checkpoint_interval == 0:
                 save_states(
                     global_step, mel_outputs, linear_outputs, attn, y,
-                    sorted_lengths, checkpoint_dir)
+                    input_lengths, checkpoint_dir)
                 save_checkpoint(
                     model, optimizer, global_step, checkpoint_dir, global_epoch)
 
