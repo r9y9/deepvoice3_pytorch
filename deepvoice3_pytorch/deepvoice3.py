@@ -708,7 +708,7 @@ class Converter(nn.Module):
 
     def forward(self, x):
         # project to size of convolution
-        x = self.fc1(x)
+        x = F.relu(self.fc1(x), inplace=True)
 
         use_convtbc = isinstance(self.convolutions[0], _ConvTBC)
         # TBC case: B x T x C -> T x B x C
@@ -716,9 +716,10 @@ class Converter(nn.Module):
         x = x.transpose(0, 1) if use_convtbc else x.transpose(1, 2)
 
         # １D conv blocks
-        for proj, conv in zip(self.projections, self.convolutions):
+        for idx, (proj, conv) in enumerate(zip(self.projections, self.convolutions)):
             residual = x if proj is None else proj(x)
-            x = F.dropout(x, p=self.dropout, training=self.training)
+            if idx > 0:
+                x = F.dropout(x, p=self.dropout, training=self.training)
             x = conv(x)
             splitdim = -1 if use_convtbc else 1
             a, b = x.split(x.size(splitdim) // 2, dim=splitdim)
