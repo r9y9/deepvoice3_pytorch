@@ -18,6 +18,7 @@ Current progress and planned TO-DOs can be found at [#1](https://github.com/r9y9
 - Python 3
 - PyTorch >= v0.2
 - TensorFlow >= v1.3
+- [tensorboard-pytorch](https://github.com/lanpa/tensorboard-pytorch) (master)
 - [fairseq](https://github.com/facebookresearch/fairseq-py) (master)
 - [nnmnkwii](https://github.com/r9y9/nnmnkwii) (master)
 - [MeCab](http://taku910.github.io/mecab/) (Japanese only)
