@@ -39,8 +39,8 @@ import librosa.display
 from matplotlib import pyplot as plt
 import sys
 import os
-import tensorboard_logger
-from tensorboard_logger import log_value
+from tensorboardX import SummaryWriter
+from matplotlib import cm
 from hparams import hparams, hparams_debug_string
 
 fs = hparams.sample_rate
@@ -231,17 +231,7 @@ def save_alignment(path, attn):
     plot_alignment(attn.T, path, info="deepvoice3, step={}".format(global_step))
 
 
-def save_spectrogram(path, linear_output):
-    spectrogram = audio._denormalize(linear_output)
-    plt.figure(figsize=(16, 10))
-    plt.imshow(spectrogram.T, aspect="auto", origin="lower")
-    plt.colorbar()
-    plt.tight_layout()
-    plt.savefig(path, format="png")
-    plt.close()
-
-
-def save_states(global_step, mel_outputs, linear_outputs, attn, y,
+def save_states(global_step, writer, mel_outputs, linear_outputs, attn, y,
                 input_lengths, checkpoint_dir=None):
     print("Save intermediate states at step {}".format(global_step))
 
@@ -253,11 +243,15 @@ def save_states(global_step, mel_outputs, linear_outputs, attn, y,
     # Multi-hop attention
     if attn.dim() == 4:
         for i, alignment in enumerate(attn):
+            alignment = alignment[idx].cpu().data.numpy()
+            tag = "alignment_layer{}".format(i + 1)
+            writer.add_image(tag, np.uint8(cm.viridis(np.flip(alignment, 1).T) * 255), global_step)
+
+            # save files as well for now
             alignment_dir = join(checkpoint_dir, "alignment_layer{}".format(i + 1))
             os.makedirs(alignment_dir, exist_ok=True)
             path = join(alignment_dir, "step{:09d}_layer_{}_alignment.png".format(
                 global_step, i + 1))
-            alignment = alignment[idx].cpu().data.numpy()
             save_alignment(path, alignment)
 
         # Save averaged alignment
@@ -266,6 +260,9 @@ def save_states(global_step, mel_outputs, linear_outputs, attn, y,
         path = join(alignment_dir, "step{:09d}_alignment.png".format(global_step))
         alignment = attn.mean(0)[idx].cpu().data.numpy()
         save_alignment(path, alignment)
+
+        tag = "averaged_alignment"
+        writer.add_image(tag, np.uint8(cm.viridis(np.flip(alignment, 1).T) * 255), global_step)
     else:
         assert False
 
@@ -273,19 +270,33 @@ def save_states(global_step, mel_outputs, linear_outputs, attn, y,
     path = join(checkpoint_dir, "step{:09d}_predicted_spectrogram.png".format(
         global_step))
     linear_output = linear_outputs[idx].cpu().data.numpy()
-    save_spectrogram(path, linear_output)
+    spectrogram = audio._denormalize(linear_output)
+    # [0, 1]
+    spectrogram = (spectrogram - np.min(spectrogram)) / (np.max(spectrogram) - np.min(spectrogram))
+    spectrogram = np.flip(spectrogram, axis=1)  # flip against freq axis
+    writer.add_image("Predicted spectorgram", np.uint8(cm.magma(spectrogram.T) * 255), global_step)
 
     # Predicted audio signal
     signal = audio.inv_spectrogram(linear_output.T)
+    audio.save_wav(signal, path)
+
+    signal /= np.max(np.abs(signal))
     path = join(checkpoint_dir, "step{:09d}_predicted.wav".format(
         global_step))
-    audio.save_wav(signal, path)
+    try:
+        writer.add_audio("Predicted audio signal", signal, global_step, sample_rate=fs)
+    except:
+        # TODO:
+        pass
 
     # Target spectrogram
     path = join(checkpoint_dir, "step{:09d}_target_spectrogram.png".format(
         global_step))
     linear_output = y[idx].cpu().data.numpy()
-    save_spectrogram(path, linear_output)
+    spectrogram = audio._denormalize(linear_output)
+    spectrogram = (spectrogram - np.min(spectrogram)) / (np.max(spectrogram) - np.min(spectrogram))
+    spectrogram = np.flip(spectrogram, axis=1)  # flip against freq axis
+    writer.add_image("Target spectorgram", np.uint8(cm.magma(spectrogram.T) * 255), global_step)
 
 
 def logit(x, eps=1e-8):
@@ -338,7 +349,7 @@ def guided_attentions(input_lengths, target_lengths, max_target_len, g=0.2):
     return W
 
 
-def train(model, data_loader, optimizer,
+def train(model, data_loader, optimizer, writer,
           init_lr=0.002,
           checkpoint_dir=None, checkpoint_interval=None, nepochs=None,
           clip_thresh=1.0):
@@ -426,7 +437,7 @@ def train(model, data_loader, optimizer,
 
             if global_step > 0 and global_step % checkpoint_interval == 0:
                 save_states(
-                    global_step, mel_outputs, linear_outputs, attn, y,
+                    global_step, writer, mel_outputs, linear_outputs, attn, y,
                     input_lengths, checkpoint_dir)
                 save_checkpoint(
                     model, optimizer, global_step, checkpoint_dir, global_epoch)
@@ -439,26 +450,26 @@ def train(model, data_loader, optimizer,
             optimizer.step()
 
             # Logs
-            log_value("loss", float(loss.data[0]), global_step)
-            log_value("done_loss", float(done_loss.data[0]), global_step)
-            log_value("mel loss", float(mel_loss.data[0]), global_step)
-            log_value("mel_l1_loss", float(mel_l1_loss.data[0]), global_step)
-            log_value("mel_binary_div", float(mel_binary_div.data[0]), global_step)
-            log_value("linear_loss", float(linear_loss.data[0]), global_step)
-            log_value("linear_l1_loss", float(linear_l1_loss.data[0]), global_step)
-            log_value("linear_binary_div", float(linear_binary_div.data[0]), global_step)
+            writer.add_scalar("loss", float(loss.data[0]), global_step)
+            writer.add_scalar("done_loss", float(done_loss.data[0]), global_step)
+            writer.add_scalar("mel loss", float(mel_loss.data[0]), global_step)
+            writer.add_scalar("mel_l1_loss", float(mel_l1_loss.data[0]), global_step)
+            writer.add_scalar("mel_binary_div", float(mel_binary_div.data[0]), global_step)
+            writer.add_scalar("linear_loss", float(linear_loss.data[0]), global_step)
+            writer.add_scalar("linear_l1_loss", float(linear_l1_loss.data[0]), global_step)
+            writer.add_scalar("linear_binary_div", float(linear_binary_div.data[0]), global_step)
             if hparams.use_guided_attention:
-                log_value("attn_loss", float(attn_loss.data[0]), global_step)
+                writer.add_scalar("attn_loss", float(attn_loss.data[0]), global_step)
 
             if clip_thresh > 0:
-                log_value("gradient norm", grad_norm, global_step)
-            log_value("learning rate", current_lr, global_step)
+                writer.add_scalar("gradient norm", grad_norm, global_step)
+            writer.add_scalar("learning rate", current_lr, global_step)
 
             global_step += 1
             running_loss += loss.data[0]
 
         averaged_loss = running_loss / (len(data_loader))
-        log_value("loss (per epoch)", averaged_loss, global_epoch)
+        writer.add_scalar("loss (per epoch)", averaged_loss, global_epoch)
         print("Loss: {}".format(running_loss / (len(data_loader))))
 
         global_epoch += 1
@@ -536,17 +547,17 @@ if __name__ == "__main__":
         global_step = checkpoint["global_step"]
         global_epoch = checkpoint["global_epoch"]
 
-    # Setup tensorboard logger
+    # Setup summary writer for tensorboard
     if log_event_path is None:
         log_event_path = "log/run-test" + str(datetime.now()).replace(" ", "_")
     print("Los event path: {}".format(log_event_path))
-    tensorboard_logger.configure(log_event_path)
+    writer = SummaryWriter(log_dir=log_event_path)
 
     print(hparams_debug_string())
 
     # Train!
     try:
-        train(model, data_loader, optimizer,
+        train(model, data_loader, optimizer, writer,
               init_lr=hparams.initial_learning_rate,
               checkpoint_dir=checkpoint_dir,
               checkpoint_interval=hparams.checkpoint_interval,
