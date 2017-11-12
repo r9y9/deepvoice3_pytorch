@@ -46,7 +46,7 @@ hparams = tf.contrib.training.HParams(
     # https://arxiv.org/pdf/1710.08969.pdf
     binary_divergence_weight=0.0,  # set 0 to disable it
     use_guided_attention=False,
-    guided_attention_sigma=0.2,
+    guided_attention_sigma=0.4,
 
     # Training:
     batch_size=16,
