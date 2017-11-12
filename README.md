@@ -118,4 +118,4 @@ A text-to-speech synthesis system typically consists of multiple stages, such as
 Part of code was adapted from the following projects:
 
 - https://github.com/keithito/tacotron
-- (https://github.com/facebookresearch/fairseq-py
+- https://github.com/facebookresearch/fairseq-py
