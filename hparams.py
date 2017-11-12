@@ -29,7 +29,7 @@ hparams = tf.contrib.training.HParams(
     dropout=1 - 0.95,
     kernel_size=5,
     encoder_channels=128,
-    decoder_channels=256,
+    decoder_channels=512,
     converter_channels=256,
     query_position_rate=1.0,
     key_position_rate=1.29,  # 2.37 for jsut
@@ -40,9 +40,8 @@ hparams = tf.contrib.training.HParams(
     num_workers=2,
 
     # Loss
-    # TODO
     priority_freq=3000,  # heuristic: priotrize [0 ~ priotiry_freq] for linear loss
-    priority_freq_weight=0.0,  # (1-w)*flat_freq_loss + w*priority_freq_loss
+    priority_freq_weight=0.5,  # (1-w)*linear_loss + w*priority_linear_loss
     # https://arxiv.org/pdf/1710.08969.pdf
     binary_divergence_weight=0.0,  # set 0 to disable it
     use_guided_attention=False,
