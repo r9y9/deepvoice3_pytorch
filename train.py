@@ -298,14 +298,20 @@ def masked_mean(y, mask):
     return (y * mask_).sum() / mask_.sum()
 
 
-def spec_loss(y_hat, y, mask):
+def spec_loss(y_hat, y, mask, priority_bin=None, priority_w=0):
     masked_l1 = MaskedL1Loss()
     l1 = nn.L1Loss()
     l1_loss = 0.5 * masked_l1(y_hat, y, mask=mask) + 0.5 * l1(y_hat, y)
+    if priority_bin is not None and priority_w > 0:
+        priority_loss = 0.5 * masked_l1(
+            y_hat[:, :, :priority_bin], y[:, :, :priority_bin], mask=mask) \
+            + 0.5 * l1(y_hat[:, :, :priority_bin], y[:, :, :priority_bin])
+        l1_loss = (1 - priority_w) * l1_loss + priority_w * priority_loss
 
     if hparams.binary_divergence_weight <= 0:
         binary_div = Variable(y.data.new(1).zero_())
     else:
+        # TODO: I cannot get good results with this yet
         y_hat_logits = logit(y_hat)
         z = -y * y_hat_logits + torch.log(1 + torch.exp(y_hat_logits))
         binary_div = 0.5 * masked_mean(z, mask) + 0.5 * z.mean()
@@ -399,8 +405,11 @@ def train(model, data_loader, optimizer,
             done_loss = binary_criterion(done_hat, done)
 
             # linear:
+            n_priority_freq = int(hparams.priority_freq / (fs * 0.5) * linear_dim)
             linear_l1_loss, linear_binary_div = spec_loss(
-                linear_outputs[:, :-r, :], y[:, r:, :], target_mask[:, r:, :])
+                linear_outputs[:, :-r, :], y[:, r:, :], target_mask[:, r:, :],
+                priority_bin=n_priority_freq,
+                priority_w=hparams.priority_freq_weight)
             linear_loss = (1 - w) * linear_l1_loss + w * linear_binary_div
 
             loss = mel_loss + linear_loss + done_loss
