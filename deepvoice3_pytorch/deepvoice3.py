@@ -677,10 +677,6 @@ class Decoder(nn.Module):
                 conv.clear_buffer()
 
 
-def is_end_of_frames(output, eps=0.2):
-    return (output.data <= eps).all()
-
-
 class Converter(nn.Module):
     def __init__(self, in_dim, out_dim, convolutions=((256, 5, 1),) * 4, dropout=0.1):
         super(Converter, self).__init__()

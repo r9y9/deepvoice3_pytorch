@@ -24,6 +24,7 @@ hparams = tf.contrib.training.HParams(
     ref_level_db=20,
 
     # Model:
+    downsample_step=1,
     outputs_per_step=4,
     padding_idx=0,
     dropout=1 - 0.95,

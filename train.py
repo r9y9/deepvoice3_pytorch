@@ -174,6 +174,7 @@ class MaskedL1Loss(nn.Module):
 def collate_fn(batch):
     """Create batch"""
     r = hparams.outputs_per_step
+    downsample_step = hparams.downsample_step
 
     # Lengths
     input_lengths = [len(x[0]) for x in batch]
@@ -185,11 +186,14 @@ def collate_fn(batch):
     if max_target_len % r != 0:
         max_target_len += r - max_target_len % r
         assert max_target_len % r == 0
+    if max_target_len % downsample_step != 0:
+        max_target_len += downsample_step - max_target_len % downsample_step
+        assert max_target_len % downsample_step == 0
 
     # Set 0 for zero beginning padding
     # imitates initial decoder states
     b_pad = r
-    max_target_len += b_pad
+    max_target_len += b_pad * downsample_step
 
     a = np.array([_pad(x[0], max_input_len) for x in batch], dtype=np.int)
     x_batch = torch.LongTensor(a)
@@ -210,16 +214,18 @@ def collate_fn(batch):
                                for x in batch], dtype=np.int)
     text_positions = torch.LongTensor(text_positions)
 
+    max_decoder_target_len = max_target_len // r // downsample_step
+
     # frame positions
-    s, e = 1, max_target_len // r + 1
+    s, e = 1, max_decoder_target_len + 1
     # if b_pad > 0:
     #    s, e = s - 1, e - 1
     frame_positions = torch.arange(s, e).long().unsqueeze(0).expand(
-        len(batch), max_target_len // r)
+        len(batch), max_decoder_target_len)
 
     # done flags
-    done = np.array([_pad(np.zeros(len(x[1]) // r - 1),
-                          max_target_len // r, constant_values=1)
+    done = np.array([_pad(np.zeros(len(x[1]) // r // downsample_step - 1),
+                          max_decoder_target_len, constant_values=1)
                      for x in batch])
     done = torch.FloatTensor(done).unsqueeze(-1)
 
@@ -358,6 +364,7 @@ def train(model, data_loader, optimizer, writer,
         model = model.cuda()
     linear_dim = model.linear_dim
     r = hparams.outputs_per_step
+    downsample_step = hparams.downsample_step
     current_lr = init_lr
 
     binary_criterion = nn.BCELoss()
@@ -379,9 +386,13 @@ def train(model, data_loader, optimizer, writer,
             # Used for Position encoding
             text_positions, frame_positions = positions
 
+            # Downsample mel spectrogram
+            if downsample_step > 1:
+                mel = mel[:, 0::downsample_step, :]
+
             # Lengths
             input_lengths = input_lengths.long().numpy()
-            decoder_lengths = target_lengths.long().numpy() // r
+            decoder_lengths = target_lengths.long().numpy() // r // downsample_step
 
             # Feed data
             x, mel, y = Variable(x), Variable(mel), Variable(y)
@@ -395,9 +406,16 @@ def train(model, data_loader, optimizer, writer,
                 frame_positions = frame_positions.cuda()
                 done, target_lengths = done.cuda(), target_lengths.cuda()
 
-            # spectrogram-domain mask
-            target_mask = sequence_mask(
-                target_lengths, max_len=mel.size(1)).unsqueeze(-1)
+            # decoder output domain mask
+            decoder_target_mask = sequence_mask(
+                target_lengths / (r * downsample_step),
+                max_len=mel.size(1)).unsqueeze(-1)
+            if downsample_step > 1:
+                # spectrogram-domain mask
+                target_mask = sequence_mask(
+                    target_lengths, max_len=y.size(1)).unsqueeze(-1)
+            else:
+                target_mask = decoder_target_mask
 
             mel_outputs, linear_outputs, attn, done_hat = model(
                 x, mel,
@@ -409,7 +427,7 @@ def train(model, data_loader, optimizer, writer,
 
             # mel:
             mel_l1_loss, mel_binary_div = spec_loss(
-                mel_outputs[:, :-r, :], mel[:, r:, :], target_mask[:, r:, :])
+                mel_outputs[:, :-r, :], mel[:, r:, :], decoder_target_mask[:, r:, :])
             mel_loss = (1 - w) * mel_l1_loss + w * mel_binary_div
 
             # done:
