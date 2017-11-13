@@ -83,8 +83,7 @@ def build_deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=4096, r=5,
     h = converter_channels
     converter = Converter(
         in_dim=in_dim, out_dim=linear_dim, dropout=dropout,
-        convolutions=[(h, k, 1), (h, k, 2), (h, k, 4), (h, k, 8), (h, k, 16),
-                      (h, k, 32)])
+        convolutions=[(h, k, 1), (h, k, 1), (h, k, 2), (h, k, 4), (h, k, 8)])
 
     model = DeepVoice3(
         encoder, decoder, converter, padding_idx=padding_idx,

@@ -29,7 +29,7 @@ hparams = tf.contrib.training.HParams(
     dropout=1 - 0.95,
     kernel_size=5,
     encoder_channels=128,
-    decoder_channels=512,
+    decoder_channels=256,
     converter_channels=256,
     query_position_rate=1.0,
     key_position_rate=1.29,  # 2.37 for jsut
@@ -45,7 +45,7 @@ hparams = tf.contrib.training.HParams(
     # https://arxiv.org/pdf/1710.08969.pdf
     binary_divergence_weight=0.0,  # set 0 to disable it
     use_guided_attention=False,
-    guided_attention_sigma=0.4,
+    guided_attention_sigma=0.2,
 
     # Training:
     batch_size=16,
