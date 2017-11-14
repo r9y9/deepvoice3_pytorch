@@ -38,7 +38,7 @@ def inv_spectrogram(spectrogram):
     '''Converts spectrogram to waveform using librosa'''
     S = _db_to_amp(_denormalize(spectrogram) + hparams.ref_level_db)  # Convert back to linear
     processor = _lws_processor()
-    D = processor.run_lws(S.T ** hparams.power)
+    D = processor.run_lws(S.astype(np.float64).T ** hparams.power)
     y = processor.istft(D).astype(np.float32)
     return inv_preemphasis(y)
 
