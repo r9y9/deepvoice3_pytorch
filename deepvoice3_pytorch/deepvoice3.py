@@ -8,7 +8,7 @@ import math
 import numpy as np
 
 from fairseq.models.fconv import Embedding, Linear, LinearizedConvolution
-from fairseq.models.fconv import grad_multiply
+from fairseq.modules import GradMultiply
 from fairseq.modules.conv_tbc import ConvTBC as _ConvTBC
 
 
@@ -273,7 +273,7 @@ class Encoder(nn.Module):
 
         # scale gradients (this only affects backward, not forward)
         if self.num_attention_layers is not None:
-            keys = grad_multiply(keys, 1.0 / (2.0 * self.num_attention_layers))
+            keys = GradMultiply.apply(keys, 1.0 / (2.0 * self.num_attention_layers))
 
         # add output to input embedding for attention
         values = (keys + input_embedding) * math.sqrt(0.5)
