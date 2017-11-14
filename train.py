@@ -237,7 +237,14 @@ def save_alignment(path, attn):
     plot_alignment(attn.T, path, info="deepvoice3, step={}".format(global_step))
 
 
-def save_states(global_step, writer, mel_outputs, linear_outputs, attn, y,
+def prepare_spec_image(spectrogram):
+    # [0, 1]
+    spectrogram = (spectrogram - np.min(spectrogram)) / (np.max(spectrogram) - np.min(spectrogram))
+    spectrogram = np.flip(spectrogram, axis=1)  # flip against freq axis
+    return np.uint8(cm.magma(spectrogram.T) * 255)
+
+
+def save_states(global_step, writer, mel_outputs, linear_outputs, attn, mel, y,
                 input_lengths, checkpoint_dir=None):
     print("Save intermediate states at step {}".format(global_step))
 
@@ -272,20 +279,18 @@ def save_states(global_step, writer, mel_outputs, linear_outputs, attn, y,
     else:
         assert False
 
+    # Predicted mel spectrogram
+    mel_output = mel_outputs[idx].cpu().data.numpy()
+    mel_output = prepare_spec_image(audio._denormalize(mel_output))
+    writer.add_image("Predicted mel spectrogram", mel_output, global_step)
+
     # Predicted spectrogram
-    path = join(checkpoint_dir, "step{:09d}_predicted_spectrogram.png".format(
-        global_step))
     linear_output = linear_outputs[idx].cpu().data.numpy()
-    spectrogram = audio._denormalize(linear_output)
-    # [0, 1]
-    spectrogram = (spectrogram - np.min(spectrogram)) / (np.max(spectrogram) - np.min(spectrogram))
-    spectrogram = np.flip(spectrogram, axis=1)  # flip against freq axis
-    writer.add_image("Predicted spectorgram", np.uint8(cm.magma(spectrogram.T) * 255), global_step)
+    spectrogram = prepare_spec_image(audio._denormalize(linear_output))
+    writer.add_image("Predicted linear spectrogram", spectrogram, global_step)
 
     # Predicted audio signal
     signal = audio.inv_spectrogram(linear_output.T)
-    audio.save_wav(signal, path)
-
     signal /= np.max(np.abs(signal))
     path = join(checkpoint_dir, "step{:09d}_predicted.wav".format(
         global_step))
@@ -294,15 +299,17 @@ def save_states(global_step, writer, mel_outputs, linear_outputs, attn, y,
     except:
         # TODO:
         pass
+    audio.save_wav(signal, path)
+
+    # Target mel spectrogram
+    mel_output = mel[idx].cpu().data.numpy()
+    mel_output = prepare_spec_image(audio._denormalize(mel_output))
+    writer.add_image("Target mel spectrogram", mel_output, global_step)
 
     # Target spectrogram
-    path = join(checkpoint_dir, "step{:09d}_target_spectrogram.png".format(
-        global_step))
     linear_output = y[idx].cpu().data.numpy()
-    spectrogram = audio._denormalize(linear_output)
-    spectrogram = (spectrogram - np.min(spectrogram)) / (np.max(spectrogram) - np.min(spectrogram))
-    spectrogram = np.flip(spectrogram, axis=1)  # flip against freq axis
-    writer.add_image("Target spectorgram", np.uint8(cm.magma(spectrogram.T) * 255), global_step)
+    spectrogram = prepare_spec_image(audio._denormalize(linear_output))
+    writer.add_image("Target linear spectrogram", spectrogram, global_step)
 
 
 def logit(x, eps=1e-8):
@@ -455,8 +462,8 @@ def train(model, data_loader, optimizer, writer,
 
             if global_step > 0 and global_step % checkpoint_interval == 0:
                 save_states(
-                    global_step, writer, mel_outputs, linear_outputs, attn, y,
-                    input_lengths, checkpoint_dir)
+                    global_step, writer, mel_outputs, linear_outputs, attn,
+                    mel, y, input_lengths, checkpoint_dir)
                 save_checkpoint(
                     model, optimizer, global_step, checkpoint_dir, global_epoch)
 
