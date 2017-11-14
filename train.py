@@ -549,7 +549,7 @@ if __name__ == "__main__":
     model = build_deepvoice3(n_vocab=_frontend.n_vocab,
                              embed_dim=256,
                              mel_dim=hparams.num_mels,
-                             linear_dim=hparams.num_freq,
+                             linear_dim=hparams.fft_size // 2 + 1,
                              r=hparams.outputs_per_step,
                              padding_idx=hparams.padding_idx,
                              dropout=hparams.dropout,

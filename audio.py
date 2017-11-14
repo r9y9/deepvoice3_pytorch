@@ -6,6 +6,8 @@ from scipy import signal
 from hparams import hparams
 from scipy.io import wavfile
 
+import lws
+
 
 def load_wav(path):
     return librosa.core.load(path, sr=hparams.sample_rate)[0]
@@ -17,15 +19,17 @@ def save_wav(wav, path):
 
 
 def preemphasis(x):
-    return signal.lfilter([1, -hparams.preemphasis], [1], x)
+    from nnmnkwii.preprocessing import preemphasis
+    return preemphasis(x, hparams.preemphasis)
 
 
 def inv_preemphasis(x):
-    return signal.lfilter([1], [1, -hparams.preemphasis], x)
+    from nnmnkwii.preprocessing import inv_preemphasis
+    return inv_preemphasis(x, hparams.preemphasis)
 
 
 def spectrogram(y):
-    D = _stft(preemphasis(y))
+    D = _lws_processor().stft(preemphasis(y)).T
     S = _amp_to_db(np.abs(D)) - hparams.ref_level_db
     return _normalize(S)
 
@@ -33,50 +37,24 @@ def spectrogram(y):
 def inv_spectrogram(spectrogram):
     '''Converts spectrogram to waveform using librosa'''
     S = _db_to_amp(_denormalize(spectrogram) + hparams.ref_level_db)  # Convert back to linear
-    return inv_preemphasis(_griffin_lim(S ** hparams.power))          # Reconstruct phase
+    processor = _lws_processor()
+    D = processor.run_lws(S.T ** hparams.power)
+    y = processor.istft(D).astype(np.float32)
+    return inv_preemphasis(y)
 
 
 def melspectrogram(y):
-    D = _stft(preemphasis(y))
+    D = _lws_processor().stft(preemphasis(y)).T
     S = _amp_to_db(_linear_to_mel(np.abs(D)))
     return _normalize(S)
 
 
-def _griffin_lim(S):
-    '''librosa implementation of Griffin-Lim
-    Based on https://github.com/librosa/librosa/issues/434
-    '''
-    angles = np.exp(2j * np.pi * np.random.rand(*S.shape))
-    S_complex = np.abs(S).astype(np.complex)
-    y = _istft(S_complex * angles)
-    for i in range(hparams.griffin_lim_iters):
-        angles = np.exp(1j * np.angle(_stft(y)))
-        y = _istft(S_complex * angles)
-    return y
-
-
-def _stft(y):
-    n_fft, hop_length, win_length = _stft_parameters()
-    return librosa.stft(y=y, n_fft=n_fft, hop_length=hop_length, win_length=win_length)
-
-
-def _istft(y):
-    _, hop_length, win_length = _stft_parameters()
-    return librosa.istft(y, hop_length=hop_length, win_length=win_length)
-
-
-def _stft_parameters():
-    n_fft = (hparams.num_freq - 1) * 2
-    hop_length = int(hparams.frame_shift_ms / 1000 * hparams.sample_rate)
-    frame_length_ms = hparams.frame_length_ms
-    if frame_length_ms is None:
-        win_length = n_fft
-    else:
-        win_length = int(hparams.frame_length_ms / 1000 * hparams.sample_rate)
-    return n_fft, hop_length, win_length
+def _lws_processor():
+    return lws.lws(hparams.fft_size, hparams.hop_size, mode="speech")
 
 
 # Conversions:
+
 
 _mel_basis = None
 
@@ -89,8 +67,7 @@ def _linear_to_mel(spectrogram):
 
 
 def _build_mel_basis():
-    n_fft = (hparams.num_freq - 1) * 2
-    return librosa.filters.mel(hparams.sample_rate, n_fft, n_mels=hparams.num_mels)
+    return librosa.filters.mel(hparams.sample_rate, hparams.fft_size, n_mels=hparams.num_mels)
 
 
 def _amp_to_db(x):

@@ -58,6 +58,7 @@ setup(name='deepvoice3_pytorch',
           "inflect",
           "librosa",
           "numba",
+          "lws",
       ],
       extras_require={
           "train": [

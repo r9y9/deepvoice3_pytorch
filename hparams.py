@@ -15,10 +15,9 @@ hparams = tf.contrib.training.HParams(
 
     # Audio:
     num_mels=80,
-    num_freq=513,
+    fft_size=1024,
+    hop_size=256,
     sample_rate=22050,
-    frame_length_ms=None,  # None uses FFT length
-    frame_shift_ms=12.5,
     preemphasis=0.97,
     min_level_db=-100,
     ref_level_db=20,
