@@ -34,7 +34,7 @@ hparams = tf.contrib.training.HParams(
     converter_channels=256,
     query_position_rate=1.0,
     key_position_rate=1.29,  # 2.37 for jsut
-    use_memory_mask=False,
+    use_memory_mask=True,
 
     # Data loader
     pin_memory=True,
