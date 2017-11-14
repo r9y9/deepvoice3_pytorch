@@ -15,7 +15,7 @@ from docopt import docopt
 
 import sys
 import os
-from os.path import dirname, join
+from os.path import dirname, join, basename, splitext
 
 import audio
 from train import plot_alignment
@@ -105,16 +105,19 @@ if __name__ == "__main__":
     model.make_generation_fast_()
 
     os.makedirs(dst_dir, exist_ok=True)
+    checkpoint_name = splitext(basename(checkpoint_path))[0]
 
     with open(text_list_file_path, "rb") as f:
         lines = f.readlines()
         for idx, line in enumerate(lines):
             text = line.decode("utf-8")[:-1]
             words = nltk.word_tokenize(text)
-            # print("{}: {} ({} chars, {} words)".format(idx, text, len(text), len(words)))
             waveform, alignment, _, _ = tts(model, text, p=replace_pronunciation_prob)
-            dst_wav_path = join(dst_dir, "{}{}.wav".format(idx, file_name_suffix))
-            dst_alignment_path = join(dst_dir, "{}{}_alignment.png".format(idx, file_name_suffix))
+            dst_wav_path = join(dst_dir, "{}_{}{}.wav".format(
+                idx, checkpoint_name, file_name_suffix))
+            dst_alignment_path = join(
+                dst_dir, "{}_{}{}_alignment.png".format(idx, checkpoint_name,
+                                                        file_name_suffix))
             plot_alignment(alignment.T, dst_alignment_path,
                            info="deepvoice3, {}".format(checkpoint_path))
             audio.save_wav(waveform, dst_wav_path)
