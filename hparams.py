@@ -28,6 +28,7 @@ hparams = tf.contrib.training.HParams(
     padding_idx=0,
     dropout=1 - 0.95,
     kernel_size=5,
+    text_embed_dim=256,
     encoder_channels=128,
     decoder_channels=256,
     converter_channels=256,

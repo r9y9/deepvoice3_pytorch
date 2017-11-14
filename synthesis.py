@@ -18,7 +18,7 @@ import os
 from os.path import dirname, join, basename, splitext
 
 import audio
-from train import plot_alignment
+from train import plot_alignment, build_model
 
 import torch
 from torch.autograd import Variable
@@ -84,20 +84,11 @@ if __name__ == "__main__":
     assert hparams.name == "deepvoice3"
 
     _frontend = getattr(frontend, hparams.frontend)
+    import train
+    train._frontend = _frontend
 
     # Model
-    model = build_deepvoice3(n_vocab=_frontend.n_vocab,
-                             embed_dim=256,
-                             mel_dim=hparams.num_mels,
-                             linear_dim=hparams.fft_size // 2 + 1,
-                             r=hparams.outputs_per_step,
-                             padding_idx=hparams.padding_idx,
-                             dropout=hparams.dropout,
-                             kernel_size=hparams.kernel_size,
-                             encoder_channels=hparams.encoder_channels,
-                             decoder_channels=hparams.decoder_channels,
-                             converter_channels=hparams.converter_channels,
-                             )
+    model = build_model()
 
     checkpoint = torch.load(checkpoint_path)
     model.load_state_dict(checkpoint["state_dict"])

@@ -513,6 +513,23 @@ def save_checkpoint(model, optimizer, step, checkpoint_dir, epoch):
     print("Saved checkpoint:", checkpoint_path)
 
 
+def build_model():
+    model = build_deepvoice3(n_vocab=_frontend.n_vocab,
+                             embed_dim=hparams.text_embed_dim,
+                             mel_dim=hparams.num_mels,
+                             linear_dim=hparams.fft_size // 2 + 1,
+                             r=hparams.outputs_per_step,
+                             padding_idx=hparams.padding_idx,
+                             dropout=hparams.dropout,
+                             kernel_size=hparams.kernel_size,
+                             encoder_channels=hparams.encoder_channels,
+                             decoder_channels=hparams.decoder_channels,
+                             converter_channels=hparams.converter_channels,
+                             use_memory_mask=hparams.use_memory_mask,
+                             )
+    return model
+
+
 if __name__ == "__main__":
     args = docopt(__doc__)
     print("Command line args:\n", args)
@@ -546,19 +563,7 @@ if __name__ == "__main__":
         collate_fn=collate_fn, pin_memory=hparams.pin_memory)
 
     # Model
-    model = build_deepvoice3(n_vocab=_frontend.n_vocab,
-                             embed_dim=256,
-                             mel_dim=hparams.num_mels,
-                             linear_dim=hparams.fft_size // 2 + 1,
-                             r=hparams.outputs_per_step,
-                             padding_idx=hparams.padding_idx,
-                             dropout=hparams.dropout,
-                             kernel_size=hparams.kernel_size,
-                             encoder_channels=hparams.encoder_channels,
-                             decoder_channels=hparams.decoder_channels,
-                             converter_channels=hparams.converter_channels,
-                             use_memory_mask=hparams.use_memory_mask,
-                             )
+    model = build_model()
 
     optimizer = optim.Adam(model.get_trainable_parameters(),
                            lr=hparams.initial_learning_rate, betas=(
