@@ -7,6 +7,10 @@ PyTorch implementation of Deep Voice 3, a convolutional text-to-speech synthesis
 
 Current progress and planned TO-DOs can be found at [#1](https://github.com/r9y9/deepvoice3_pytorch/issues/1).
 
+## Audio samples
+
+- [WIP] Samples from the model trained on LJ Speech Dataset: https://www.dropbox.com/sh/uq4tsfptxt0y17l/AADBL4LsPJRP2PjAAJRSH5eta?dl=0
+
 ## Highlights
 
 - Convolutional sequence-to-sequence model with attention for text-to-speech synthesis
