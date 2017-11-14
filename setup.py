@@ -65,7 +65,7 @@ setup(name='deepvoice3_pytorch',
               "docopt",
               "tqdm",
               "tensorboardX",
-              "nnmnkwii",
+              "nnmnkwii >= 0.0.9",
               "nltk",
           ],
           "test": [
