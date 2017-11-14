@@ -8,6 +8,7 @@ options:
     --checkpoint-path=<name>  Restore model from checkpoint path if given.
     --hparams=<parmas>        Hyper parameters [default: ].
     --log-event-path=<name>     Log event path.
+    --reset-optimizer         Reset optimizer.
     -h, --help                Show this help message and exit
 """
 from docopt import docopt
@@ -522,6 +523,7 @@ if __name__ == "__main__":
         data_root = join(expanduser("~"), "data", "ljspeech")
 
     log_event_path = args["--log-event-path"]
+    reset_optimizer = args["--reset-optimizer"]
 
     # Override hyper parameters
     hparams.parse(args["--hparams"])
@@ -568,7 +570,8 @@ if __name__ == "__main__":
         print("Load checkpoint from: {}".format(checkpoint_path))
         checkpoint = torch.load(checkpoint_path)
         model.load_state_dict(checkpoint["state_dict"])
-        optimizer.load_state_dict(checkpoint["optimizer"])
+        if not reset_optimizer:
+            optimizer.load_state_dict(checkpoint["optimizer"])
         global_step = checkpoint["global_step"]
         global_epoch = checkpoint["global_epoch"]
 
