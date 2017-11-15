@@ -7,171 +7,14 @@ from torch.autograd import Variable
 import math
 import numpy as np
 
-from fairseq.models.fconv import Embedding, Linear, LinearizedConvolution
 from fairseq.modules import GradMultiply
 from fairseq.modules.conv_tbc import ConvTBC as _ConvTBC
 
-
-def Conv1d(in_channels, out_channels, kernel_size, dropout=0, **kwargs):
-    from .conv import Conv1d
-    m = Conv1d(in_channels, out_channels, kernel_size, **kwargs)
-    std = math.sqrt((4 * (1.0 - dropout)) / (m.kernel_size[0] * in_channels))
-    m.weight.data.normal_(mean=0, std=std)
-    m.bias.data.zero_()
-    return nn.utils.weight_norm(m)
-
-
-def LinearizedConv1d(in_channels, out_channels, kernel_size, dilation=(1,), dropout=0, **kwargs):
-    """Weight-normalized Conv1d layer optimized for decoding"""
-    assert dilation[0] == 1
-    m = LinearizedConvolution(in_channels, out_channels, kernel_size, **kwargs)
-    std = math.sqrt((4 * (1.0 - dropout)) / (m.kernel_size[0] * in_channels))
-    m.weight.data.normal_(mean=0, std=std)
-    m.bias.data.zero_()
-    return nn.utils.weight_norm(m)
-
-
-def ConvTBC(in_channels, out_channels, kernel_size, dilation=(1,), dropout=0, **kwargs):
-    """Weight-normalized Conv1d layer"""
-    from fairseq.modules import ConvTBC
-    assert dilation[0] == 1
-    m = ConvTBC(in_channels, out_channels, kernel_size, **kwargs)
-    std = math.sqrt((4 * (1.0 - dropout)) / (m.kernel_size[0] * in_channels))
-    m.weight.data.normal_(mean=0, std=std)
-    m.bias.data.zero_()
-    return nn.utils.weight_norm(m, dim=2)
+from .modules import Conv1d, LinearizedConv1d, ConvTBC, Embedding, Linear
 
 
 def has_dilation(convolutions):
     return np.any(np.array(list(map(lambda x: x[2], convolutions))) > 1)
-
-
-def build_deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=4096, r=5,
-                     n_speakers=1, speaker_embed_dim=16, padding_idx=None,
-                     dropout=(1 - 0.95), kernel_size=5,
-                     encoder_channels=128,
-                     decoder_channels=256,
-                     converter_channels=256,
-                     query_position_rate=1.0,
-                     key_position_rate=1.29,
-                     use_memory_mask=False,
-                     trainable_positional_encodings=False,
-                     ):
-    h = encoder_channels  # hidden dim (channels)
-    k = kernel_size   # kernel size
-    encoder = Encoder(
-        n_vocab, embed_dim, padding_idx=padding_idx,
-        n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
-        dropout=dropout,
-        # (channels, kernel_size, dilation)
-        convolutions=[(h, k, 1), (h, k, 1), (h, k, 1), (h, k, 1),
-                      (h, k, 2), (h, k, 4), (h, k, 8)],
-    )
-
-    h = decoder_channels
-    decoder = Decoder(
-        embed_dim, in_dim=mel_dim, r=r, padding_idx=padding_idx,
-        n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
-        dropout=dropout,
-        convolutions=[(h, k, 1), (h, k, 1), (h, k, 2), (h, k, 4), (h, k, 8)],
-        attention=[True, False, False, False, True],
-        force_monotonic_attention=[True, False, False, False, True],
-        query_position_rate=query_position_rate,
-        key_position_rate=key_position_rate,
-        use_memory_mask=use_memory_mask)
-
-    in_dim = h // r
-    h = converter_channels
-    converter = Converter(
-        in_dim=in_dim, out_dim=linear_dim, dropout=dropout,
-        convolutions=[(h, k, 1), (h, k, 1), (h, k, 2), (h, k, 4), (h, k, 8)])
-
-    model = DeepVoice3(
-        encoder, decoder, converter, padding_idx=padding_idx,
-        mel_dim=mel_dim, linear_dim=linear_dim,
-        n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
-        trainable_positional_encodings=trainable_positional_encodings)
-
-    return model
-
-
-class DeepVoice3(nn.Module):
-    def __init__(self, encoder, decoder, converter,
-                 mel_dim=80, linear_dim=4096,
-                 n_speakers=1, speaker_embed_dim=16, padding_idx=None,
-                 trainable_positional_encodings=False):
-        super(DeepVoice3, self).__init__()
-        self.mel_dim = mel_dim
-        self.linear_dim = linear_dim
-        self.trainable_positional_encodings = trainable_positional_encodings
-
-        self.encoder = encoder
-        self.decoder = decoder
-        self.converter = converter
-        self.encoder.num_attention_layers = sum(
-            [layer is not None for layer in decoder.attention])
-
-        # Speaker embedding
-        if n_speakers > 1:
-            self.embed_speakers = Embedding(
-                n_speakers, speaker_embed_dim, padding_idx)
-        self.n_speakers = n_speakers
-        self.speaker_embed_dim = speaker_embed_dim
-
-        self.use_text_pos_embedding_in_encoder = False
-
-    def get_trainable_parameters(self):
-        if self.trainable_positional_encodings:
-            return self.parameters()
-
-        # Avoid updating the position encoding
-        pe_query_param_ids = set(map(id, self.decoder.embed_query_positions.parameters()))
-        pe_keys_param_ids = set(map(id, self.decoder.embed_keys_positions.parameters()))
-        freezed_param_ids = pe_query_param_ids | pe_keys_param_ids
-        return (p for p in self.parameters() if id(p) not in freezed_param_ids)
-
-    def forward(self, text_sequences, mel_targets=None, speaker_ids=None,
-                text_positions=None, frame_positions=None, input_lengths=None):
-        B = text_sequences.size(0)
-
-        if speaker_ids is not None:
-            speaker_embed = self.embed_speakers(speaker_ids)
-        else:
-            speaker_embed = None
-
-        # (B, T, text_embed_dim)
-        if self.use_text_pos_embedding_in_encoder:
-            encoder_outputs = self.encoder(
-                text_sequences, text_positions=text_positions,
-                lengths=input_lengths, speaker_embed=speaker_embed)
-        else:
-            encoder_outputs = self.encoder(
-                text_sequences, lengths=input_lengths, speaker_embed=speaker_embed)
-
-        # (B, T', mel_dim*r)
-        mel_outputs, alignments, done, decoder_states = self.decoder(
-            encoder_outputs, mel_targets,
-            text_positions=text_positions, frame_positions=frame_positions,
-            speaker_embed=speaker_embed, lengths=input_lengths)
-
-        # Reshape
-        # (B, T, mel_dim)
-        mel_outputs = mel_outputs.view(B, -1, self.mel_dim)
-        decoder_states = decoder_states.view(B, mel_outputs.size(1), -1)
-
-        # (B, T, linear_dim)
-        linear_outputs = self.converter(decoder_states)
-
-        return mel_outputs, linear_outputs, alignments, done
-
-    def make_generation_fast_(self):
-
-        def remove_weight_norm(m):
-            try:
-                nn.utils.remove_weight_norm(m)
-            except ValueError:  # this module didn't have weight norm
-                return
-        self.apply(remove_weight_norm)
 
 
 class Encoder(nn.Module):
@@ -513,7 +356,7 @@ class Decoder(nn.Module):
         # Done flag
         done = F.sigmoid(self.fc3(decoder_states))
 
-        return x, torch.stack(alignments), done, decoder_states
+        return x, torch.stack(alignments), done
 
     def incremental_inference(self, beam_size=None):
         """Context manager for incremental inference.
@@ -579,7 +422,6 @@ class Decoder(nn.Module):
         # transpose only once to speed up attention layers
         keys = keys.transpose(1, 2).contiguous()
 
-        decoder_states = []
         outputs = []
         alignments = []
         dones = []
@@ -638,15 +480,12 @@ class Decoder(nn.Module):
                 x = (x + residual) * math.sqrt(0.5)
 
             ave_alignment = ave_alignment.div_(num_attention_layers)
-            decoder_state = x
 
-            output = F.sigmoid(self.fc2(decoder_state))
-
-            # Done flag
-            done = F.sigmoid(self.fc3(decoder_state))
+            # Ooutput & done flag predictions
+            output = F.sigmoid(self.fc2(x))
+            done = F.sigmoid(self.fc3(x))
 
             outputs += [output]
-            decoder_states += [decoder_state]
             alignments += [ave_alignment]
             dones += [done]
 
@@ -659,15 +498,13 @@ class Decoder(nn.Module):
 
         # Remove 1-element time axis
         alignments = list(map(lambda x: x.squeeze(1), alignments))
-        decoder_states = list(map(lambda x: x.squeeze(1), decoder_states))
         outputs = list(map(lambda x: x.squeeze(1), outputs))
 
         # Combine outputs for all time steps
         alignments = torch.stack(alignments).transpose(0, 1)
-        decoder_states = torch.stack(decoder_states).transpose(0, 1).contiguous()
         outputs = torch.stack(outputs).transpose(0, 1).contiguous()
 
-        return outputs, alignments, dones, decoder_states
+        return outputs, alignments, dones
 
     def start_fresh_sequence(self):
         """Clear all state used for incremental generation.

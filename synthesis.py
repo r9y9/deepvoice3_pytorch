@@ -93,7 +93,6 @@ if __name__ == "__main__":
     checkpoint = torch.load(checkpoint_path)
     model.load_state_dict(checkpoint["state_dict"])
     model.decoder.max_decoder_steps = max_decoder_steps
-    model.make_generation_fast_()
 
     os.makedirs(dst_dir, exist_ok=True)
     checkpoint_name = splitext(basename(checkpoint_path))[0]

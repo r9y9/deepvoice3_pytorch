@@ -13,8 +13,8 @@ import numpy as np
 
 from nose.plugins.attrib import attr
 
-from deepvoice3_pytorch import Encoder, Decoder, Converter, DeepVoice3
 from deepvoice3_pytorch import build_deepvoice3
+from deepvoice3_pytorch import MultiSpeakerTTSModel, AttentionSeq2Seq
 
 from fairseq.modules.conv_tbc import ConvTBC
 
@@ -67,6 +67,8 @@ def _build_deepvoice3(n_vocab, embed_dim=256, mel_dim=80,
                       n_speakers=1, speaker_embed_dim=16,
                       padding_idx=None,
                       dropout=(1 - 0.95), dilation=1):
+
+    from deepvoice3_pytorch.deepvoice3 import Encoder, Decoder, Converter
     h = 128
     encoder = Encoder(
         n_vocab, embed_dim, padding_idx=padding_idx,
@@ -86,15 +88,17 @@ def _build_deepvoice3(n_vocab, embed_dim=256, mel_dim=80,
         attention=[True, False, False, False, True],
         force_monotonic_attention=[True, False, False, False, False])
 
-    in_dim = h // r
+    seq2seq = AttentionSeq2Seq(encoder, decoder)
+
+    in_dim = mel_dim
     h = 256
     converter = Converter(
         in_dim=in_dim, out_dim=linear_dim, dropout=dropout,
         convolutions=[(h, 3, dilation), (h, 3, dilation), (h, 3, dilation),
                       (h, 3, dilation), (h, 3, dilation)])
 
-    model = DeepVoice3(
-        encoder, decoder, converter, padding_idx=padding_idx,
+    model = MultiSpeakerTTSModel(
+        seq2seq, converter, padding_idx=padding_idx,
         mel_dim=mel_dim, linear_dim=linear_dim,
         n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim)
 
@@ -123,15 +127,15 @@ def test_dilated_convolution_support():
                                   dilation=dilation,
                                   )
         if dilation > 1:
-            for conv in [model.encoder.convolutions[0],
-                         model.decoder.convolutions[0],
-                         model.converter.convolutions[0]]:
+            for conv in [model.seq2seq.encoder.convolutions[0],
+                         model.seq2seq.decoder.convolutions[0],
+                         model.postnet.convolutions[0]]:
                 assert isinstance(conv, nn.Conv1d)
         else:
             assert dilation == 1
-            for conv in [model.encoder.convolutions[0],
-                         model.decoder.convolutions[0],
-                         model.converter.convolutions[0]]:
+            for conv in [model.seq2seq.encoder.convolutions[0],
+                         model.seq2seq.decoder.convolutions[0],
+                         model.postnet.convolutions[0]]:
                 assert isinstance(conv, ConvTBC)
         mel_outputs, linear_outputs, alignments, done = model(x, y)
 
@@ -166,7 +170,7 @@ def test_multi_speaker_deepvoice3():
 
 @attr("local_only")
 def test_incremental_forward():
-    checkpoint_path = join(dirname(__file__), "../checkpoints/checkpoint_step000055000.pth")
+    checkpoint_path = join(dirname(__file__), "../deep_test/checkpoint_step000215000.pth")
     if not exists(checkpoint_path):
         return
     model = _get_model()
@@ -213,13 +217,12 @@ def test_incremental_forward():
         frame_positions = frame_positions.cuda()
         mel_reshaped = mel_reshaped.cuda()
 
-    # model.make_generation_fast_()
     model.eval()
 
     encoder_outs = model.encoder(x, lengths=input_lengths)
 
     # Off line decoding
-    mel_output_offline, alignments_offline, done, decoder_states = model.decoder(
+    mel_output_offline, alignments_offline, done = model.decoder(
         encoder_outs, mel_reshaped,
         text_positions=text_positions, frame_positions=frame_positions,
         lengths=input_lengths)
@@ -229,12 +232,12 @@ def test_incremental_forward():
     def _plot(mel, mel_predicted, alignments):
         plt.figure(figsize=(16, 10))
         plt.subplot(3, 1, 1)
-        plt.imshow(mel.data.cpu().numpy().T, origin="lower bottom", aspect="auto")
+        plt.imshow(mel.data.cpu().numpy().T, origin="lower bottom", aspect="auto", cmap="magma")
         plt.colorbar()
 
         plt.subplot(3, 1, 2)
         plt.imshow(mel_predicted.view(-1, mel_dim).data.cpu().numpy().T,
-                   origin="lower bottom", aspect="auto")
+                   origin="lower bottom", aspect="auto", cmap="magma")
         plt.colorbar()
 
         plt.subplot(3, 1, 3)
@@ -249,7 +252,7 @@ def test_incremental_forward():
 
     # Online decoding
     model.decoder._start_incremental_inference()
-    mel_outputs, alignments, dones_online, decoder_states_online = model.decoder._incremental_forward(
+    mel_outputs, alignments, dones_online = model.decoder._incremental_forward(
         encoder_outs, text_positions,
         # initial_input=mel_reshaped[:, :1, :],
         test_inputs=None)
