@@ -461,7 +461,7 @@ class Decoder(nn.Module):
         x = F.dropout(x, p=self.dropout, training=self.training)
 
         # project to size of convolution
-        x = F.relu(self.fc1(x), inplace=True)
+        x = F.relu(self.fc1(x), inplace=False)
 
         use_convtbc = isinstance(self.convolutions[0], _ConvTBC)
         # TBC case: B x T x C -> T x B x C
@@ -605,7 +605,7 @@ class Decoder(nn.Module):
             x = F.dropout(x, p=self.dropout, training=self.training)
 
             # project to size of convolution
-            x = F.relu(self.fc1(x), inplace=True)
+            x = F.relu(self.fc1(x), inplace=False)
 
             # temporal convolutions
             ave_alignment = None
@@ -704,7 +704,7 @@ class Converter(nn.Module):
 
     def forward(self, x):
         # project to size of convolution
-        x = F.relu(self.fc1(x), inplace=True)
+        x = F.relu(self.fc1(x), inplace=False)
 
         use_convtbc = isinstance(self.convolutions[0], _ConvTBC)
         # TBC case: B x T x C -> T x B x C
