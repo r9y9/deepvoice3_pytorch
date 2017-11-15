@@ -55,6 +55,7 @@ def build_deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=4096, r=5,
                      query_position_rate=1.0,
                      key_position_rate=1.29,
                      use_memory_mask=False,
+                     trainable_positional_encodings=False,
                      ):
     h = encoder_channels  # hidden dim (channels)
     k = kernel_size   # kernel size
@@ -88,7 +89,8 @@ def build_deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=4096, r=5,
     model = DeepVoice3(
         encoder, decoder, converter, padding_idx=padding_idx,
         mel_dim=mel_dim, linear_dim=linear_dim,
-        n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim)
+        n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
+        trainable_positional_encodings=trainable_positional_encodings)
 
     return model
 
@@ -96,10 +98,12 @@ def build_deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=4096, r=5,
 class DeepVoice3(nn.Module):
     def __init__(self, encoder, decoder, converter,
                  mel_dim=80, linear_dim=4096,
-                 n_speakers=1, speaker_embed_dim=16, padding_idx=None):
+                 n_speakers=1, speaker_embed_dim=16, padding_idx=None,
+                 trainable_positional_encodings=False):
         super(DeepVoice3, self).__init__()
         self.mel_dim = mel_dim
         self.linear_dim = linear_dim
+        self.trainable_positional_encodings = trainable_positional_encodings
 
         self.encoder = encoder
         self.decoder = decoder
@@ -117,12 +121,12 @@ class DeepVoice3(nn.Module):
         self.use_text_pos_embedding_in_encoder = False
 
     def get_trainable_parameters(self):
-        ''' Avoid updating the position encoding '''
-        # return self.parameters()
+        if self.trainable_positional_encodings:
+            return self.parameters()
+
+        # Avoid updating the position encoding
         pe_query_param_ids = set(map(id, self.decoder.embed_query_positions.parameters()))
         pe_keys_param_ids = set(map(id, self.decoder.embed_keys_positions.parameters()))
-        # pe_encoder_ids = set(map(id, self.encoder.embed_text_positions.parameters()))
-
         freezed_param_ids = pe_query_param_ids | pe_keys_param_ids
         return (p for p in self.parameters() if id(p) not in freezed_param_ids)
 

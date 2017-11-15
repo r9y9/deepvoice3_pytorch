@@ -526,6 +526,7 @@ def build_model():
                              decoder_channels=hparams.decoder_channels,
                              converter_channels=hparams.converter_channels,
                              use_memory_mask=hparams.use_memory_mask,
+                             trainable_positional_encodings=hparams.trainable_positional_encodings
                              )
     return model
 
