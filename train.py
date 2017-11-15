@@ -523,8 +523,8 @@ def train(model, data_loader, optimizer, writer,
                 writer.add_scalar("linear_l1_loss", float(linear_l1_loss.data[0]), global_step)
                 writer.add_scalar("linear_binary_div", float(
                     linear_binary_div.data[0]), global_step)
-                if hparams.use_guided_attention:
-                    writer.add_scalar("attn_loss", float(attn_loss.data[0]), global_step)
+            if train_seq2seq and hparams.use_guided_attention:
+                writer.add_scalar("attn_loss", float(attn_loss.data[0]), global_step)
             if clip_thresh > 0:
                 writer.add_scalar("gradient norm", grad_norm, global_step)
             writer.add_scalar("learning rate", current_lr, global_step)
