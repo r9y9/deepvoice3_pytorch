@@ -25,7 +25,7 @@ outputs_per_step = 4
 padding_idx = 0
 
 
-def _get_model(n_speakers=1, speaker_embed_dim=None):
+def _get_model(n_speakers=1, speaker_embed_dim=None, force_monotonic_attention=False):
     model = build_deepvoice3(n_vocab=n_vocab,
                              embed_dim=256,
                              mel_dim=num_mels,
@@ -39,6 +39,7 @@ def _get_model(n_speakers=1, speaker_embed_dim=None):
                              encoder_channels=128,
                              decoder_channels=256,
                              converter_channels=256,
+                             force_monotonic_attention=force_monotonic_attention,
                              )
     return model
 
@@ -86,7 +87,7 @@ def _build_deepvoice3(n_vocab, embed_dim=256, mel_dim=80,
         convolutions=[(h, 3, dilation), (h, 3, dilation), (h, 3, dilation),
                       (h, 3, dilation), (h, 3, dilation)],
         attention=[True, False, False, False, True],
-        force_monotonic_attention=[True, False, False, False, False])
+        force_monotonic_attention=False)
 
     seq2seq = AttentionSeq2Seq(encoder, decoder)
 
@@ -166,6 +167,52 @@ def test_multi_speaker_deepvoice3():
     print("Linear:", linear_outputs.size())
     print("Alignments:", alignments.size())
     print("Done:", done.size())
+
+
+@attr("local_only")
+def test_incremental_correctness():
+    model = _get_model(force_monotonic_attention=False)
+
+    texts = ["they discarded this for a more completely Roman and far less beautiful letter."]
+    seqs = np.array([text_to_sequence(t) for t in texts])
+    text_positions = np.arange(1, len(seqs[0]) + 1).reshape(1, len(seqs[0]))
+
+    mel = np.load("/home/ryuichi/Dropbox/sp/deepvoice3_pytorch/data/ljspeech/ljspeech-mel-00035.npy")
+    max_target_len = mel.shape[0]
+    r = 4
+    mel_dim = 80
+    if max_target_len % r != 0:
+        max_target_len += r - max_target_len % r
+        assert max_target_len % r == 0
+    mel = _pad_2d(mel, max_target_len)
+    mel = Variable(torch.from_numpy(mel))
+    mel_reshaped = mel.view(1, -1, mel_dim * r)
+    frame_positions = np.arange(1, mel_reshaped.size(1) + 1).reshape(1, mel_reshaped.size(1))
+
+    x = Variable(torch.LongTensor(seqs))
+    text_positions = Variable(torch.LongTensor(text_positions))
+    frame_positions = Variable(torch.LongTensor(frame_positions))
+
+    model.eval()
+
+    # Encoder
+    encoder_outs = model.seq2seq.encoder(x)
+
+    # Off line decoding
+    mel_outputs_offline, alignments_offline, done = model.seq2seq.decoder(
+        encoder_outs, mel_reshaped,
+        text_positions=text_positions, frame_positions=frame_positions)
+
+    # Online decoding with test inputs
+    model.seq2seq.decoder._start_incremental_inference()
+    mel_outputs_online, alignments, dones_online = model.seq2seq.decoder._incremental_forward(
+        encoder_outs, text_positions,
+        test_inputs=mel_reshaped)
+    model.seq2seq.decoder._stop_incremental_inference()
+
+    # Should get same result
+    assert np.allclose(mel_outputs_offline.cpu().data.numpy(),
+                       mel_outputs_online.cpu().data.numpy())
 
 
 @attr("local_only")
