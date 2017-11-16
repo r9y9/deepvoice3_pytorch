@@ -217,13 +217,16 @@ def test_incremental_correctness():
 
 @attr("local_only")
 def test_incremental_forward():
-    checkpoint_path = join(dirname(__file__), "../deep_test/checkpoint_step000215000.pth")
+    checkpoint_path = join(dirname(__file__), "../test_whole/checkpoint_step000265000.pth")
     if not exists(checkpoint_path):
         return
     model = _get_model()
 
+    use_cuda = False
+
     checkpoint = torch.load(checkpoint_path)
     model.load_state_dict(checkpoint["state_dict"])
+    model.make_generation_fast_()
     model = model.cuda() if use_cuda else model
 
     texts = ["they discarded this for a more completely Roman and far less beautiful letter."]
@@ -266,17 +269,8 @@ def test_incremental_forward():
 
     model.eval()
 
-    encoder_outs = model.encoder(x, lengths=input_lengths)
-
-    # Off line decoding
-    mel_output_offline, alignments_offline, done = model.decoder(
-        encoder_outs, mel_reshaped,
-        text_positions=text_positions, frame_positions=frame_positions,
-        lengths=input_lengths)
-
-    from matplotlib import pylab as plt
-
     def _plot(mel, mel_predicted, alignments):
+        from matplotlib import pylab as plt
         plt.figure(figsize=(16, 10))
         plt.subplot(3, 1, 1)
         plt.imshow(mel.data.cpu().numpy().T, origin="lower bottom", aspect="auto", cmap="magma")
@@ -295,15 +289,30 @@ def test_incremental_forward():
         plt.colorbar()
         plt.show()
 
+    # Encoder
+    encoder_outs = model.seq2seq.encoder(x, lengths=input_lengths)
+
+    # Off line decoding
+    mel_output_offline, alignments_offline, done = model.seq2seq.decoder(
+        encoder_outs, mel_reshaped,
+        text_positions=text_positions, frame_positions=frame_positions,
+        lengths=input_lengths)
+
     _plot(mel, mel_output_offline, alignments_offline)
 
     # Online decoding
-    model.decoder._start_incremental_inference()
-    mel_outputs, alignments, dones_online = model.decoder._incremental_forward(
+    test_inputs = None
+    # test_inputs = mel_reshaped
+    model.seq2seq.decoder._start_incremental_inference()
+    mel_outputs, alignments, dones_online = model.seq2seq.decoder._incremental_forward(
         encoder_outs, text_positions,
         # initial_input=mel_reshaped[:, :1, :],
-        test_inputs=None)
-    # test_inputs=mel_reshaped)
-    model.decoder._stop_incremental_inference()
+        test_inputs=test_inputs)
+    model.seq2seq.decoder._stop_incremental_inference()
+
+    if test_inputs is not None:
+        c = (mel_output_offline - mel_outputs).abs()
+        print(c.mean(), c.max())
+        _plot(mel, c, alignments)
 
     _plot(mel, mel_outputs, alignments)
