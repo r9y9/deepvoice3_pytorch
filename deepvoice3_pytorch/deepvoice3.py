@@ -69,7 +69,7 @@ class Encoder(nn.Module):
         # embed text_sequences
         x = self.embed_tokens(text_sequences)
         if text_positions is not None:
-            x += self.embed_text_positions(text_positions)
+            x = x + self.embed_text_positions(text_positions)
 
         x = F.dropout(x, p=self.dropout, training=self.training)
 
@@ -82,7 +82,7 @@ class Encoder(nn.Module):
                 ss[0], x.size(1), ss[-1])
             speaker_embed_btc = speaker_embed
             speaker_embed_tbc = speaker_embed.transpose(0, 1)
-            x += F.softsign(self.speaker_fc1(speaker_embed_btc))
+            x = x + F.softsign(self.speaker_fc1(speaker_embed_btc))
 
         input_embedding = x
 
@@ -116,7 +116,7 @@ class Encoder(nn.Module):
         # project back to size of embedding
         keys = self.fc2(x)
         if speaker_embed is not None:
-            keys += F.softsign(self.speaker_fc2(speaker_embed_btc))
+            keys = keys + F.softsign(self.speaker_fc2(speaker_embed_btc))
 
         # scale gradients (this only affects backward, not forward)
         if self.num_attention_layers is not None:
@@ -210,7 +210,7 @@ class Decoder(nn.Module):
                  convolutions=((128, 5, 1),) * 4,
                  attention=True, dropout=0.1,
                  use_memory_mask=False,
-                 force_monotonic_attention=True,
+                 force_monotonic_attention=False,
                  query_position_rate=1.0,
                  key_position_rate=1.29,
                  ):
@@ -297,7 +297,7 @@ class Decoder(nn.Module):
         # position encodings
         if text_positions is not None:
             text_pos_embed = self.embed_keys_positions(text_positions)
-            keys += text_pos_embed
+            keys = keys + text_pos_embed
         if frame_positions is not None:
             frame_pos_embed = self.embed_query_positions(frame_positions)
 
@@ -347,16 +347,13 @@ class Decoder(nn.Module):
         # Back to batch first
         x = x.transpose(0, 1) if use_convtbc else x.transpose(1, 2)
 
-        # well, I'm not sure this is really necesasary
-        decoder_states = x
-
         # project to mel-spectorgram
-        x = F.sigmoid(self.fc2(decoder_states))
+        outputs = F.sigmoid(self.fc2(x))
 
         # Done flag
-        done = F.sigmoid(self.fc3(decoder_states))
+        done = F.sigmoid(self.fc3(x))
 
-        return x, torch.stack(alignments), done
+        return outputs, torch.stack(alignments), done
 
     def incremental_inference(self, beam_size=None):
         """Context manager for incremental inference.
@@ -417,7 +414,7 @@ class Decoder(nn.Module):
 
         # position encodings
         text_pos_embed = self.embed_keys_positions(text_positions)
-        keys += text_pos_embed
+        keys = keys + text_pos_embed
 
         # transpose only once to speed up attention layers
         keys = keys.transpose(1, 2).contiguous()
@@ -437,7 +434,8 @@ class Decoder(nn.Module):
                 keys.data.new(B, 1, self.in_dim * self.r).zero_())
         current_input = initial_input
         while True:
-            frame_pos = Variable(keys.data.new(B, 1).zero_().add_(t + 1)).long()
+            # frame pos start with 1.
+            frame_pos = Variable(keys.data.new(B, 1).fill_(t + 1)).long()
             frame_pos_embed = self.embed_query_positions(frame_pos)
 
             if test_inputs is not None:
@@ -469,7 +467,7 @@ class Decoder(nn.Module):
                     x = x + frame_pos_embed
                     x, alignment = attention(x, (keys, values),
                                              last_attended=last_attended[idx])
-                    if self.force_monotonic_attention:
+                    if self.force_monotonic_attention[idx]:
                         last_attended[idx] = alignment.max(-1)[1].view(-1).data[0]
                     if ave_alignment is None:
                         ave_alignment = alignment
@@ -490,11 +488,11 @@ class Decoder(nn.Module):
             dones += [done]
 
             t += 1
-            if (done > 0.5).all() and t > self.min_decoder_steps:
-                break
-            elif t > self.max_decoder_steps:
-                print("Warning! doesn't seems to be converged")
-                break
+            if test_inputs is None:
+                if (done > 0.5).all() and t > self.min_decoder_steps:
+                    break
+                elif t > self.max_decoder_steps:
+                    break
 
         # Remove 1-element time axis
         alignments = list(map(lambda x: x.squeeze(1), alignments))

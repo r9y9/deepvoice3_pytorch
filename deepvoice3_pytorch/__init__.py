@@ -30,6 +30,15 @@ class MultiSpeakerTTSModel(nn.Module):
         self.n_speakers = n_speakers
         self.speaker_embed_dim = speaker_embed_dim
 
+    def make_generation_fast_(self):
+
+        def remove_weight_norm(m):
+            try:
+                nn.utils.remove_weight_norm(m)
+            except ValueError:  # this module didn't have weight norm
+                return
+        self.apply(remove_weight_norm)
+
     def get_trainable_parameters(self):
         if self.trainable_positional_encodings:
             return self.parameters()
@@ -107,6 +116,7 @@ def build_deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=513, r=4,
                      key_position_rate=1.29,
                      use_memory_mask=False,
                      trainable_positional_encodings=False,
+                     force_monotonic_attention=True,
                      ):
     from deepvoice3_pytorch.deepvoice3 import Encoder, Decoder, Converter
 
@@ -129,7 +139,7 @@ def build_deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=513, r=4,
         dropout=dropout,
         convolutions=[(h, k, 1), (h, k, 1), (h, k, 2), (h, k, 4), (h, k, 8)],
         attention=[True, False, False, False, True],
-        force_monotonic_attention=[True, False, False, False, True],
+        force_monotonic_attention=force_monotonic_attention,
         query_position_rate=query_position_rate,
         key_position_rate=key_position_rate,
         use_memory_mask=use_memory_mask)
