@@ -1,4 +1,4 @@
-"""Trainining script for Tacotron speech synthesis model.
+"""Trainining script for seq2seq text-to-speech synthesis model.
 
 usage: train.py [options]
 

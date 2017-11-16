@@ -6,6 +6,8 @@ usage: synthesis.py [options] <checkpoint> <text_list_file> <dst_dir>
 
 options:
     --hparams=<parmas>                Hyper parameters [default: ].
+    --checkpoint-seq2seq=<path>       Load seq2seq model from checkpoint path.
+    --checkpoint-postnet=<path>       Load postnet model from checkpoint path.
     --file-name-suffix=<s>            File name suffix [default: ].
     --max-decoder-steps=<N>           Max decoder steps [default: 500].
     --replace_pronunciation_prop=<N>  Prob [default: 0.0].
@@ -75,6 +77,8 @@ if __name__ == "__main__":
     checkpoint_path = args["<checkpoint>"]
     text_list_file_path = args["<text_list_file>"]
     dst_dir = args["<dst_dir>"]
+    checkpoint_seq2seq_path = args["--checkpoint-seq2seq"]
+    checkpoint_postnet_path = args["--checkpoint-postnet"]
     max_decoder_steps = int(args["--max-decoder-steps"])
     file_name_suffix = args["--file-name-suffix"]
     replace_pronunciation_prob = float(args["--replace_pronunciation_prop"])
@@ -90,12 +94,21 @@ if __name__ == "__main__":
     # Model
     model = build_model()
 
-    checkpoint = torch.load(checkpoint_path)
-    model.load_state_dict(checkpoint["state_dict"])
-    model.decoder.max_decoder_steps = max_decoder_steps
+    # Load checkpoints separately
+    if checkpoint_postnet_path is not None and checkpoint_seq2seq_path is not None:
+        checkpoint = torch.load(checkpoint_seq2seq_path)
+        model.seq2seq.load_state_dict(checkpoint["state_dict"])
+        checkpoint = torch.load(checkpoint_postnet_path)
+        model.postnet.load_state_dict(checkpoint["state_dict"])
+        checkpoint_name = splitext(basename(checkpoint_seq2seq_path))[0]
+    else:
+        checkpoint = torch.load(checkpoint_path)
+        model.load_state_dict(checkpoint["state_dict"])
+        checkpoint_name = splitext(basename(checkpoint_path))[0]
+
+    model.seq2seq.decoder.max_decoder_steps = max_decoder_steps
 
     os.makedirs(dst_dir, exist_ok=True)
-    checkpoint_name = splitext(basename(checkpoint_path))[0]
 
     with open(text_list_file_path, "rb") as f:
         lines = f.readlines()
