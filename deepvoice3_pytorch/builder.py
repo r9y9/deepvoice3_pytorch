@@ -67,12 +67,12 @@ def build_deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=513, r=4,
     return model
 
 
-def build_nyanko(n_vocab, embed_dim=256, mel_dim=80, linear_dim=513, r=4,
+def build_nyanko(n_vocab, embed_dim=128, mel_dim=80, linear_dim=513, r=4,
                  n_speakers=1, speaker_embed_dim=16, padding_idx=0,
                  dropout=(1 - 0.95), kernel_size=5,
                  encoder_channels=256,
                  decoder_channels=256,
-                 converter_channels=256,
+                 converter_channels=512,
                  query_position_rate=1.0,
                  key_position_rate=1.29,
                  use_memory_mask=False,
@@ -80,22 +80,54 @@ def build_nyanko(n_vocab, embed_dim=256, mel_dim=80, linear_dim=513, r=4,
                  force_monotonic_attention=True,):
     from deepvoice3_pytorch.nyanko import Encoder, Decoder, Converter
 
-    # Seq2seq
-    encoder = Encoder(
-        n_vocab, embed_dim, channels=encoder_channels, padding_idx=padding_idx,
-        n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
-        dropout=dropout,
-    )
+    test = False
 
-    decoder = Decoder(
-        embed_dim, in_dim=mel_dim, r=r, channels=decoder_channels,
-        padding_idx=padding_idx,
-        n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
-        dropout=dropout,
-        force_monotonic_attention=force_monotonic_attention,
-        query_position_rate=query_position_rate,
-        key_position_rate=key_position_rate,
-        use_memory_mask=use_memory_mask)
+    if test:
+        from deepvoice3_pytorch.deepvoice3 import Encoder as _Encoder
+        h = encoder_channels
+        k = 3
+        encoder = _Encoder(
+            n_vocab, embed_dim, padding_idx=padding_idx,
+            n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
+            dropout=dropout,
+            # (channels, kernel_size, dilation)
+            convolutions=[(h, k, 1), (h, k, 1), (h, k, 1), (h, k, 1),
+                          (h, k, 2), (h, k, 4), (h, k, 8)],
+        )
+    else:
+        # Seq2seq
+        encoder = Encoder(
+            n_vocab, embed_dim, channels=encoder_channels, padding_idx=padding_idx,
+            n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
+            dropout=dropout,
+        )
+
+    test = False
+
+    if not test:
+        decoder = Decoder(
+            embed_dim, in_dim=mel_dim, r=r, channels=decoder_channels,
+            padding_idx=padding_idx,
+            n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
+            dropout=dropout,
+            force_monotonic_attention=force_monotonic_attention,
+            query_position_rate=query_position_rate,
+            key_position_rate=key_position_rate,
+            use_memory_mask=use_memory_mask)
+    else:
+        from deepvoice3_pytorch.deepvoice3 import Decoder as _Decoder
+        h = decoder_channels
+        k = 3
+        decoder = _Decoder(
+            embed_dim, in_dim=mel_dim, r=r, padding_idx=padding_idx,
+            n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
+            dropout=dropout,
+            convolutions=[(h, k, 1), (h, k, 1), (h, k, 2), (h, k, 4), (h, k, 8)],
+            attention=[True, False, False, False, True],
+            force_monotonic_attention=force_monotonic_attention,
+            query_position_rate=query_position_rate,
+            key_position_rate=key_position_rate,
+            use_memory_mask=use_memory_mask)
 
     seq2seq = AttentionSeq2Seq(encoder, decoder)
 

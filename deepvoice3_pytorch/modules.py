@@ -12,18 +12,18 @@ def Embedding(num_embeddings, embedding_dim, padding_idx):
     return m
 
 
-def Conv1d(in_channels, out_channels, kernel_size, dropout=0, **kwargs):
+def Conv1d(in_channels, out_channels, kernel_size, dropout=0, std_mult=4, **kwargs):
     from .conv import Conv1d
     m = Conv1d(in_channels, out_channels, kernel_size, **kwargs)
-    std = math.sqrt((4 * (1.0 - dropout)) / (m.kernel_size[0] * in_channels))
+    std = math.sqrt((std_mult * (1.0 - dropout)) / (m.kernel_size[0] * in_channels))
     m.weight.data.normal_(mean=0, std=std)
     m.bias.data.zero_()
     return nn.utils.weight_norm(m)
 
 
-def ConvTranspose1d(in_channels, out_channels, kernel_size, dropout=0, **kwargs):
+def ConvTranspose1d(in_channels, out_channels, kernel_size, dropout=0, std_mult=1, **kwargs):
     m = nn.ConvTranspose1d(in_channels, out_channels, kernel_size, **kwargs)
-    std = math.sqrt((4 * (1.0 - dropout)) / (m.kernel_size[0] * in_channels))
+    std = math.sqrt((std_mult * (1.0 - dropout)) / (m.kernel_size[0] * in_channels))
     m.weight.data.normal_(mean=0, std=std)
     m.bias.data.zero_()
     return nn.utils.weight_norm(m)

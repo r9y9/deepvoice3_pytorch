@@ -24,7 +24,8 @@ class HighwayConv1d(nn.Module):
         self.causual = causual
 
         self.conv = Conv1d(in_channels, 2 * out_channels,
-                           kernel_size=kernel_size, padding=padding, dilation=dilation)
+                           kernel_size=kernel_size, padding=padding,
+                           dilation=dilation)
 
     def _forward(self, x, is_incremental):
         """Forward
@@ -34,6 +35,7 @@ class HighwayConv1d(nn.Module):
         returns:
             (B, out_channels, T)
         """
+
         residual = x
         if is_incremental:
             splitdim = -1
@@ -43,12 +45,12 @@ class HighwayConv1d(nn.Module):
             x = self.conv(x)
             # remove future time steps
             x = x[:, :, :residual.size(-1)] if self.causual else x
-        h1, h2 = x.split(x.size(splitdim) // 2, dim=splitdim)
-        # return h1 * h2 + residual
-        # return h1 + h2
 
+        # x = (F.glu(x, dim=splitdim) + residual) * * math.sqrt(0.5)
+        # return x
+
+        h1, h2 = x.split(x.size(splitdim) // 2, dim=splitdim)
         T = F.sigmoid(h1)
-        # return (1 - T) * residual
         return T * h2 + (1 - T) * residual
 
     def forward(self, x):
@@ -75,9 +77,9 @@ class Encoder(nn.Module):
         E = embed_dim
         D = channels
         self.convnet = nn.Sequential(
-            Conv1d(E, 2 * D, kernel_size=1, padding=0, dilation=1),
+            Conv1d(E, 2 * D, kernel_size=1, padding=0, dilation=1, std_mult=1),
             nn.ReLU(),
-            Conv1d(2 * D, 2 * D, kernel_size=1, padding=0, dilation=1),
+            Conv1d(2 * D, 2 * D, kernel_size=1, padding=0, dilation=1, std_mult=1),
 
             HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None, dilation=1),
             HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None, dilation=3),
@@ -165,7 +167,6 @@ class Decoder(nn.Module):
     def __init__(self, embed_dim, in_dim=80, r=5, channels=256,
                  n_speakers=1, speaker_embed_dim=16,
                  max_positions=512, padding_idx=None,
-                 convolutions=((128, 5, 1),) * 4,
                  dropout=0.1,
                  use_memory_mask=False,
                  force_monotonic_attention=False,
@@ -180,11 +181,11 @@ class Decoder(nn.Module):
         D = channels
         F = in_dim * r  # should be r = 1 to replicate
         self.audio_encoder_modules = nn.ModuleList([
-            Conv1d(F, D, kernel_size=1, padding=0, dilation=1),
+            Conv1d(F, D, kernel_size=1, padding=0, dilation=1, std_mult=1),
             nn.ReLU(),
-            Conv1d(D, D, kernel_size=1, padding=0, dilation=1),
+            Conv1d(D, D, kernel_size=1, padding=0, dilation=1, std_mult=1),
             nn.ReLU(),
-            Conv1d(D, D, kernel_size=1, padding=0, dilation=1),
+            Conv1d(D, D, kernel_size=1, padding=0, dilation=1, std_mult=1),
 
             HighwayConv1d(D, D, kernel_size=3, padding=None, dilation=1, causual=True),
             HighwayConv1d(D, D, kernel_size=3, padding=None, dilation=3, causual=True),
@@ -203,7 +204,7 @@ class Decoder(nn.Module):
         self.attention = AttentionLayer(D, D, dropout=0)
 
         self.audio_decoder_modules = nn.ModuleList([
-            Conv1d(2 * D, D, kernel_size=1, padding=0, dilation=1),
+            Conv1d(2 * D, D, kernel_size=1, padding=0, dilation=1, std_mult=1),
 
             HighwayConv1d(D, D, kernel_size=3, padding=None, dilation=1, causual=True),
             HighwayConv1d(D, D, kernel_size=3, padding=None, dilation=3, causual=True),
@@ -213,14 +214,14 @@ class Decoder(nn.Module):
             HighwayConv1d(D, D, kernel_size=3, padding=None, dilation=1, causual=True),
             HighwayConv1d(D, D, kernel_size=3, padding=None, dilation=1, causual=True),
 
-            Conv1d(D, D, kernel_size=1, padding=0, dilation=1),
+            Conv1d(D, D, kernel_size=1, padding=0, dilation=1, std_mult=1),
             nn.ReLU(),
-            Conv1d(D, D, kernel_size=1, padding=0, dilation=1),
+            Conv1d(D, D, kernel_size=1, padding=0, dilation=1, std_mult=1),
             nn.ReLU(),
-            Conv1d(D, D, kernel_size=1, padding=0, dilation=1),
+            Conv1d(D, D, kernel_size=1, padding=0, dilation=1, std_mult=1),
             nn.ReLU(),
 
-            Conv1d(D, F, kernel_size=1, padding=0, dilation=1),
+            Conv1d(D, F, kernel_size=1, padding=0, dilation=1, std_mult=1),
             # nn.Sigmoid()
         ])
 
@@ -229,13 +230,13 @@ class Decoder(nn.Module):
 
         # Position encodings for query (decoder states) and keys (encoder states)
         self.embed_query_positions = Embedding(
-            max_positions, convolutions[0][0], padding_idx)
+            max_positions, D, padding_idx)
         self.embed_query_positions.weight.data = position_encoding_init(
-            max_positions, convolutions[0][0], position_rate=query_position_rate)
+            max_positions, D, position_rate=query_position_rate)
         self.embed_keys_positions = Embedding(
-            max_positions, embed_dim, padding_idx)
+            max_positions, D, padding_idx)
         self.embed_keys_positions.weight.data = position_encoding_init(
-            max_positions, embed_dim, position_rate=key_position_rate)
+            max_positions, D, position_rate=key_position_rate)
 
         # options
         self._is_inference_incremental = False
@@ -270,8 +271,7 @@ class Decoder(nn.Module):
         # position encodings
         if text_positions is not None:
             text_pos_embed = self.embed_keys_positions(text_positions)
-            # TODO
-            # keys = keys + text_pos_embed
+            keys = keys + text_pos_embed
         if frame_positions is not None:
             frame_pos_embed = self.embed_query_positions(frame_positions)
 
@@ -291,7 +291,8 @@ class Decoder(nn.Module):
 
         # Attention modules assume query as (B, T, C)
         x = x.transpose(1, 2)
-        R, alignments = self.attention(x, (keys, values), mask=mask)
+        R, alignments = self.attention(
+            x + frame_pos_embed, (keys, values), mask=mask)
         R = R.transpose(1, 2)
 
         # (B, C*2, T)
@@ -344,8 +345,7 @@ class Decoder(nn.Module):
         # position encodings
         if text_positions is not None:
             text_pos_embed = self.embed_keys_positions(text_positions)
-            # TODO
-            # keys = keys + text_pos_embed
+            keys = keys + text_pos_embed
 
         # transpose only once to speed up attention layers
         keys = keys.transpose(1, 2).contiguous()
@@ -384,8 +384,8 @@ class Decoder(nn.Module):
                     x = f(x)
             Q = x
 
-            R, alignment = self.attention(x, (keys, values),
-                                          last_attended=last_attended)
+            R, alignment = self.attention(
+                x + frame_pos_embed, (keys, values), last_attended=last_attended)
 
             Rd = torch.cat((R, Q), dim=-1)
             x = Rd
@@ -445,7 +445,7 @@ class Converter(nn.Module):
         Fd = out_dim
         C = channels
         self.convnet = nn.Sequential(
-            Conv1d(F, C, kernel_size=1, padding=0, dilation=1),
+            Conv1d(F, C, kernel_size=1, padding=0, dilation=1, std_mult=1),
 
             HighwayConv1d(C, C, kernel_size=3, padding=None, dilation=1),
             HighwayConv1d(C, C, kernel_size=3, padding=None, dilation=3),
@@ -457,19 +457,19 @@ class Converter(nn.Module):
             HighwayConv1d(C, C, kernel_size=3, padding=None, dilation=1),
             HighwayConv1d(C, C, kernel_size=3, padding=None, dilation=3),
 
-            Conv1d(C, 2 * C, kernel_size=1, padding=0, dilation=1),
+            Conv1d(C, 2 * C, kernel_size=1, padding=0, dilation=1, std_mult=1),
 
             HighwayConv1d(2 * C, 2 * C, kernel_size=3, padding=None, dilation=1),
             HighwayConv1d(2 * C, 2 * C, kernel_size=3, padding=None, dilation=1),
 
-            Conv1d(2 * C, Fd, kernel_size=1, padding=0, dilation=1),
+            Conv1d(2 * C, Fd, kernel_size=1, padding=0, dilation=1, std_mult=1),
 
-            Conv1d(Fd, Fd, kernel_size=1, padding=0, dilation=1),
+            Conv1d(Fd, Fd, kernel_size=1, padding=0, dilation=1, std_mult=1),
             nn.ReLU(),
-            Conv1d(Fd, Fd, kernel_size=1, padding=0, dilation=1),
+            Conv1d(Fd, Fd, kernel_size=1, padding=0, dilation=1, std_mult=1),
             nn.ReLU(),
 
-            Conv1d(Fd, Fd, kernel_size=1, padding=0, dilation=1),
+            Conv1d(Fd, Fd, kernel_size=1, padding=0, dilation=1, std_mult=1),
             nn.Sigmoid(),
         )
 
