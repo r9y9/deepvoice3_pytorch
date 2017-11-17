@@ -13,7 +13,7 @@ import numpy as np
 
 from nose.plugins.attrib import attr
 
-from deepvoice3_pytorch import build_deepvoice3
+from deepvoice3_pytorch.builder import build_deepvoice3
 from deepvoice3_pytorch import MultiSpeakerTTSModel, AttentionSeq2Seq
 
 from fairseq.modules.conv_tbc import ConvTBC

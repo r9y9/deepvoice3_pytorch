@@ -23,7 +23,7 @@ from tqdm import tqdm, trange
 from datetime import datetime
 
 # The deepvoice3 model
-from deepvoice3_pytorch import frontend, build_deepvoice3
+from deepvoice3_pytorch import frontend, builder
 import audio
 import lrschedule
 
@@ -563,20 +563,21 @@ def save_checkpoint(model, optimizer, step, checkpoint_dir, epoch,
 
 
 def build_model():
-    model = build_deepvoice3(n_vocab=_frontend.n_vocab,
-                             embed_dim=hparams.text_embed_dim,
-                             mel_dim=hparams.num_mels,
-                             linear_dim=hparams.fft_size // 2 + 1,
-                             r=hparams.outputs_per_step,
-                             padding_idx=hparams.padding_idx,
-                             dropout=hparams.dropout,
-                             kernel_size=hparams.kernel_size,
-                             encoder_channels=hparams.encoder_channels,
-                             decoder_channels=hparams.decoder_channels,
-                             converter_channels=hparams.converter_channels,
-                             use_memory_mask=hparams.use_memory_mask,
-                             trainable_positional_encodings=hparams.trainable_positional_encodings
-                             )
+    model = getattr(builder, hparams.builder)(
+        n_vocab=_frontend.n_vocab,
+        embed_dim=hparams.text_embed_dim,
+        mel_dim=hparams.num_mels,
+        linear_dim=hparams.fft_size // 2 + 1,
+        r=hparams.outputs_per_step,
+        padding_idx=hparams.padding_idx,
+        dropout=hparams.dropout,
+        kernel_size=hparams.kernel_size,
+        encoder_channels=hparams.encoder_channels,
+        decoder_channels=hparams.decoder_channels,
+        converter_channels=hparams.converter_channels,
+        use_memory_mask=hparams.use_memory_mask,
+        trainable_positional_encodings=hparams.trainable_positional_encodings
+    )
     return model
 
 

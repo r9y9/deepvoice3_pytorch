@@ -5,6 +5,9 @@ import tensorflow as tf
 hparams = tf.contrib.training.HParams(
     name="deepvoice3",
 
+    # Model builder function
+    builder="build_deepvoice3",
+
     # Text:
     # [en, jp]
     frontend='en',

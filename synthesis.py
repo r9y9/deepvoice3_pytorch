@@ -20,7 +20,6 @@ import os
 from os.path import dirname, join, basename, splitext
 
 import audio
-from train import plot_alignment, build_model
 
 import torch
 from torch.autograd import Variable
@@ -28,7 +27,7 @@ import numpy as np
 import nltk
 
 # The deepvoice3 model
-from deepvoice3_pytorch import frontend, build_deepvoice3
+from deepvoice3_pytorch import frontend
 from hparams import hparams
 
 from tqdm import tqdm
@@ -90,6 +89,7 @@ if __name__ == "__main__":
     _frontend = getattr(frontend, hparams.frontend)
     import train
     train._frontend = _frontend
+    from train import plot_alignment, build_model
 
     # Model
     model = build_model()

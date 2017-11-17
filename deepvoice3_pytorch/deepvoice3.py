@@ -11,6 +11,7 @@ from fairseq.modules import GradMultiply
 from fairseq.modules.conv_tbc import ConvTBC as _ConvTBC
 
 from .modules import Conv1d, LinearizedConv1d, ConvTBC, Embedding, Linear
+from .modules import get_mask_from_lengths
 
 
 def has_dilation(convolutions):
@@ -126,18 +127,6 @@ class Encoder(nn.Module):
         values = (keys + input_embedding) * math.sqrt(0.5)
 
         return keys, values
-
-
-def get_mask_from_lengths(memory, memory_lengths):
-    """Get mask tensor from list of length
-    Args:
-        memory: (batch, max_time, dim)
-        memory_lengths: array like
-    """
-    mask = memory.data.new(memory.size(0), memory.size(1)).byte().zero_()
-    for idx, l in enumerate(memory_lengths):
-        mask[idx][:l] = 1
-    return ~mask
 
 
 class AttentionLayer(nn.Module):
