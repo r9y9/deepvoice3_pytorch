@@ -50,7 +50,7 @@ hparams = tf.contrib.training.HParams(
     priority_freq=3000,  # heuristic: priotrize [0 ~ priotiry_freq] for linear loss
     priority_freq_weight=0.0,  # (1-w)*linear_loss + w*priority_linear_loss
     # https://arxiv.org/pdf/1710.08969.pdf
-    binary_divergence_weight=0.0,  # set 0 to disable it
+    binary_divergence_weight=0.5,  # set 0 to disable it
     use_guided_attention=True,
     guided_attention_sigma=0.2,
 
@@ -59,12 +59,12 @@ hparams = tf.contrib.training.HParams(
     adam_beta1=0.5,
     adam_beta2=0.9,
     adam_eps=1e-6,
-    initial_learning_rate=0.001,  # 0.001,
+    initial_learning_rate=2e-4,  # 0.001,
     lr_schedule="noam_learning_rate_decay",
     lr_schedule_kwargs={},
     nepochs=2000,
     weight_decay=0.0,
-    clip_thresh=1.0,
+    clip_thresh=0.1,
 
     # Save
     checkpoint_interval=5000,

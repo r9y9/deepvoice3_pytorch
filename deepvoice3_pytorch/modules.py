@@ -3,6 +3,7 @@
 from torch import nn
 import math
 
+from torch.nn import functional as F
 from fairseq.models.fconv import Linear, LinearizedConvolution
 
 
@@ -50,6 +51,68 @@ def ConvTBC(in_channels, out_channels, kernel_size, dilation=(1,),
     m.weight.data.normal_(mean=0, std=std)
     m.bias.data.zero_()
     return nn.utils.weight_norm(m, dim=2)
+
+
+class HighwayConv1d(nn.Module):
+    """Conv1d + Highway network (support incremental forward)
+    """
+
+    def __init__(self, in_channels, out_channels, kernel_size=1, padding=None,
+                 dilation=1, causal=False, dropout=0, std_mul=4.0, glu=False):
+        super(HighwayConv1d, self).__init__()
+        if padding is None:
+            # no future time stamps available
+            if causal:
+                padding = (kernel_size - 1) * dilation
+            else:
+                padding = (kernel_size - 1) // 2 * dilation
+        self.causal = causal
+        self.dropout = dropout
+        self.glu = glu
+
+        self.conv = Conv1d(in_channels, 2 * out_channels,
+                           kernel_size=kernel_size, padding=padding,
+                           dilation=dilation, dropout=dropout,
+                           std_mul=std_mul)
+
+    def forward(self, x):
+        return self._forward(x, False)
+
+    def incremental_forward(self, x):
+        return self._forward(x, True)
+
+    def _forward(self, x, is_incremental):
+        """Forward
+
+        Args:
+            x: (B, in_channels, T)
+        returns:
+            (B, out_channels, T)
+        """
+
+        residual = x
+        x = F.dropout(x, p=self.dropout, training=self.training)
+        if is_incremental:
+            splitdim = -1
+            x = self.conv.incremental_forward(x)
+        else:
+            splitdim = 1
+            x = self.conv(x)
+            # remove future time steps
+            x = x[:, :, :residual.size(-1)] if self.causal else x
+
+        if self.glu:
+            x = F.glu(x, dim=splitdim)
+            return (x + residual) * math.sqrt(0.5)
+        else:
+            a, b = x.split(x.size(splitdim) // 2, dim=splitdim)
+            T = F.sigmoid(b)
+            # TODO: does math.sqrt(0.5) really make sense?
+            # This helps training stability
+            return (T * a + (1 - T) * residual) * math.sqrt(0.5)
+
+    def clear_buffer(self):
+        self.conv.clear_buffer()
 
 
 def get_mask_from_lengths(memory, memory_lengths):

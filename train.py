@@ -518,11 +518,11 @@ def train(model, data_loader, optimizer, writer,
                 writer.add_scalar("done_loss", float(done_loss.data[0]), global_step)
                 writer.add_scalar("mel loss", float(mel_loss.data[0]), global_step)
                 writer.add_scalar("mel_l1_loss", float(mel_l1_loss.data[0]), global_step)
-                writer.add_scalar("mel_binary_div", float(mel_binary_div.data[0]), global_step)
+                writer.add_scalar("mel_binary_div_loss", float(mel_binary_div.data[0]), global_step)
             if train_postnet:
                 writer.add_scalar("linear_loss", float(linear_loss.data[0]), global_step)
                 writer.add_scalar("linear_l1_loss", float(linear_l1_loss.data[0]), global_step)
-                writer.add_scalar("linear_binary_div", float(
+                writer.add_scalar("linear_binary_div_loss", float(
                     linear_binary_div.data[0]), global_step)
             if train_seq2seq and hparams.use_guided_attention:
                 writer.add_scalar("attn_loss", float(attn_loss.data[0]), global_step)
