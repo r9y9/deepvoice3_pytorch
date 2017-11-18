@@ -79,6 +79,7 @@ def build_nyanko(n_vocab, embed_dim=128, mel_dim=80, linear_dim=513, r=4,
                  trainable_positional_encodings=False,
                  force_monotonic_attention=True,):
     from deepvoice3_pytorch.nyanko import Encoder, Decoder, Converter
+    assert encoder_channels == decoder_channels
 
     test = False
 
@@ -102,7 +103,7 @@ def build_nyanko(n_vocab, embed_dim=128, mel_dim=80, linear_dim=513, r=4,
             dropout=dropout,
         )
 
-    test = True
+    test = False
 
     if test:
         from deepvoice3_pytorch.deepvoice3 import Decoder as _Decoder

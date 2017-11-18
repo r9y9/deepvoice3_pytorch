@@ -9,23 +9,27 @@ import numpy as np
 
 from .modules import Embedding, Linear, Conv1d, ConvTranspose1d
 from .modules import get_mask_from_lengths
-from .deepvoice3 import position_encoding_init
+from .deepvoice3 import position_encoding_init, AttentionLayer
 
 
 class HighwayConv1d(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=1, padding=None,
-                 dilation=1, causual=False):
+                 dilation=1, causual=False, dropout=0, std_mul=4.0, glu=False):
         super(HighwayConv1d, self).__init__()
         if padding is None:
+            # no future time stamps available
             if causual:
                 padding = (kernel_size - 1) * dilation
             else:
                 padding = (kernel_size - 1) // 2 * dilation
         self.causual = causual
+        self.glu = glu
 
         self.conv = Conv1d(in_channels, 2 * out_channels,
                            kernel_size=kernel_size, padding=padding,
-                           dilation=dilation)
+                           dilation=dilation, dropout=dropout,
+                           std_mul=std_mul)
+        self.dropout = dropout
 
     def _forward(self, x, is_incremental):
         """Forward
@@ -37,6 +41,7 @@ class HighwayConv1d(nn.Module):
         """
 
         residual = x
+        x = F.dropout(x, p=self.dropout, training=self.training)
         if is_incremental:
             splitdim = -1
             x = self.conv.incremental_forward(x)
@@ -46,12 +51,13 @@ class HighwayConv1d(nn.Module):
             # remove future time steps
             x = x[:, :, :residual.size(-1)] if self.causual else x
 
-        # x = (F.glu(x, dim=splitdim) + residual) * * math.sqrt(0.5)
-        # return x
-
-        h1, h2 = x.split(x.size(splitdim) // 2, dim=splitdim)
-        T = F.sigmoid(h1)
-        return T * h2 + (1 - T) * residual
+        if self.glu:
+            x = F.glu(x, dim=splitdim)
+            return (x + residual) * math.sqrt(0.5)
+        else:
+            a, b = x.split(x.size(splitdim) // 2, dim=splitdim)
+            T = F.sigmoid(b)
+            return (T * a + (1 - T) * residual) * math.sqrt(0.5)
 
     def forward(self, x):
         return self._forward(x, False)
@@ -77,90 +83,62 @@ class Encoder(nn.Module):
         E = embed_dim
         D = channels
         self.convnet = nn.Sequential(
-            Conv1d(E, 2 * D, kernel_size=1, padding=0, dilation=1, std_mult=1),
+            Conv1d(E, 2 * D, kernel_size=1, padding=0, dilation=1, std_mul=1.0),
             nn.ReLU(),
-            Conv1d(2 * D, 2 * D, kernel_size=1, padding=0, dilation=1, std_mult=1),
+            Conv1d(2 * D, 2 * D, kernel_size=1, padding=0, dilation=1, std_mul=1.0),
 
-            HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None, dilation=1),
-            HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None, dilation=3),
-            HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None, dilation=9),
-            HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None, dilation=27),
-            HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None, dilation=1),
-            HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None, dilation=3),
-            HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None, dilation=9),
-            HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None, dilation=27),
+            HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None,
+                          dilation=1, std_mul=4.0, dropout=dropout),
+            HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None,
+                          dilation=3, std_mul=4.0, dropout=dropout),
+            HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None,
+                          dilation=9, std_mul=4.0, dropout=dropout),
+            HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None,
+                          dilation=27, std_mul=4.0, dropout=dropout),
 
-            HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None, dilation=1),
-            HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None, dilation=1),
+            HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None,
+                          dilation=1, std_mul=4.0, dropout=dropout),
+            HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None,
+                          dilation=3, std_mul=4.0, dropout=dropout),
+            HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None,
+                          dilation=9, std_mul=4.0, dropout=dropout),
+            HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None,
+                          dilation=27, std_mul=4.0, dropout=dropout),
 
-            HighwayConv1d(2 * D, 2 * D, kernel_size=1, padding=0, dilation=1),
+            HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None,
+                          dilation=1, std_mul=4.0, dropout=dropout),
+            HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None,
+                          dilation=1, std_mul=4.0, dropout=dropout),
+
+            HighwayConv1d(2 * D, 2 * D, kernel_size=1, padding=0,
+                          dilation=1, std_mul=4.0, dropout=dropout),
         )
+
+        # self.fc = Linear(E, D) if E != D else None
 
     def forward(self, text_sequences, text_positions=None, lengths=None,
                 speaker_embed=None):
         # embed text_sequences
-        # (B, T, C)
+        # (B, T, E)
         x = self.embed_tokens(text_sequences)
+        input_embed = x
 
-        # (B, C, T)
+        # (B, E, T)
         x = x.transpose(1, 2)
+        # (B, 2*D, T)
         x = self.convnet(x)
+        # (B, T, 2*D)
         x = x.transpose(1, 2)
+        # (B, T, D) and (B, T, D)
 
-        # (B, T, C)
         keys, values = x.split(x.size(-1) // 2, dim=-1)
 
+        # residual connection
+        # TODO
+        # input_embed = input_embed if self.fc is None else self.fc(input_embed)
+        # values = (values + input_embed) * math.sqrt(0.5)
+
         return keys, values
-
-
-class AttentionLayer(nn.Module):
-    def __init__(self, conv_channels, embed_dim, dropout=0):
-        super(AttentionLayer, self).__init__()
-        # projects from output of convolution to embedding dimension
-        self.in_projection = Linear(conv_channels, embed_dim)
-        # projects from embedding dimension to convolution size
-        self.out_projection = Linear(embed_dim, conv_channels)
-        self.dropout = dropout
-
-    def forward(self, query, encoder_out, mask=None, last_attended=None,
-                window_size=3):
-        keys, values = encoder_out
-        residual = query
-
-        # attention
-        x = self.in_projection(query)
-        x = torch.bmm(x, keys)
-
-        mask_value = -float("inf")
-        if mask is not None:
-            mask = mask.view(query.size(0), 1, -1)
-            x.data.masked_fill_(mask, mask_value)
-
-        if last_attended is not None:
-            if last_attended > 0:
-                x[:, :, :last_attended] = mask_value
-            ahead = last_attended + window_size
-            if ahead < x.size(-1):
-                x[:, :, ahead:] = mask_value
-
-        # softmax over last dim
-        # (B, tgt_len, src_len)
-        sz = x.size()
-        x = F.softmax(x.view(sz[0] * sz[1], sz[2]), dim=1)
-        x = x.view(sz)
-        attn_scores = x
-
-        x = F.dropout(x, p=self.dropout, training=self.training)
-
-        x = torch.bmm(x, values)
-
-        # scale attention output
-        s = values.size(1)
-        x = x * (s * math.sqrt(1.0 / s))
-
-        # project back
-        x = (self.out_projection(x) + residual) * math.sqrt(0.5)
-        return x, attn_scores
 
 
 class Decoder(nn.Module):
@@ -181,47 +159,63 @@ class Decoder(nn.Module):
         D = channels
         F = in_dim * r  # should be r = 1 to replicate
         self.audio_encoder_modules = nn.ModuleList([
-            Conv1d(F, D, kernel_size=1, padding=0, dilation=1, std_mult=1),
+            Conv1d(F, D, kernel_size=1, padding=0, dilation=1, std_mul=1.0),
             nn.ReLU(),
-            Conv1d(D, D, kernel_size=1, padding=0, dilation=1, std_mult=1),
+            Conv1d(D, D, kernel_size=1, padding=0, dilation=1, std_mul=2.0),
             nn.ReLU(),
-            Conv1d(D, D, kernel_size=1, padding=0, dilation=1, std_mult=1),
+            Conv1d(D, D, kernel_size=1, padding=0, dilation=1, std_mul=2.0),
 
-            HighwayConv1d(D, D, kernel_size=3, padding=None, dilation=1, causual=True),
-            HighwayConv1d(D, D, kernel_size=3, padding=None, dilation=3, causual=True),
-            HighwayConv1d(D, D, kernel_size=3, padding=None, dilation=9, causual=True),
-            HighwayConv1d(D, D, kernel_size=3, padding=None, dilation=27, causual=True),
+            HighwayConv1d(D, D, kernel_size=3, padding=None,
+                          dilation=1, causual=True, std_mul=1.0, dropout=dropout),
+            HighwayConv1d(D, D, kernel_size=3, padding=None,
+                          dilation=3, causual=True, std_mul=4.0, dropout=dropout),
+            HighwayConv1d(D, D, kernel_size=3, padding=None,
+                          dilation=9, causual=True, std_mul=4.0, dropout=dropout),
+            HighwayConv1d(D, D, kernel_size=3, padding=None,
+                          dilation=27, causual=True, std_mul=4.0, dropout=dropout),
 
-            HighwayConv1d(D, D, kernel_size=3, padding=None, dilation=1, causual=True),
-            HighwayConv1d(D, D, kernel_size=3, padding=None, dilation=3, causual=True),
-            HighwayConv1d(D, D, kernel_size=3, padding=None, dilation=9, causual=True),
-            HighwayConv1d(D, D, kernel_size=3, padding=None, dilation=27, causual=True),
+            HighwayConv1d(D, D, kernel_size=3, padding=None,
+                          dilation=1, causual=True, std_mul=4.0, dropout=dropout),
+            HighwayConv1d(D, D, kernel_size=3, padding=None,
+                          dilation=3, causual=True, std_mul=4.0, dropout=dropout),
+            HighwayConv1d(D, D, kernel_size=3, padding=None,
+                          dilation=9, causual=True, std_mul=4.0, dropout=dropout),
+            HighwayConv1d(D, D, kernel_size=3, padding=None,
+                          dilation=27, causual=True, std_mul=4.0, dropout=dropout),
 
-            HighwayConv1d(D, D, kernel_size=3, padding=None, dilation=3, causual=True),
-            HighwayConv1d(D, D, kernel_size=3, padding=None, dilation=3, causual=True),
+            HighwayConv1d(D, D, kernel_size=3, padding=None,
+                          dilation=3, causual=True, std_mul=4.0, dropout=dropout),
+            HighwayConv1d(D, D, kernel_size=3, padding=None,
+                          dilation=3, causual=True, std_mul=4.0, dropout=dropout),
         ])
 
-        self.attention = AttentionLayer(D, D, dropout=0)
+        self.attention = AttentionLayer(D, D, dropout=dropout)
 
         self.audio_decoder_modules = nn.ModuleList([
-            Conv1d(2 * D, D, kernel_size=1, padding=0, dilation=1, std_mult=1),
+            Conv1d(2 * D, D, kernel_size=1, padding=0, dilation=1, std_mul=1.0),
 
-            HighwayConv1d(D, D, kernel_size=3, padding=None, dilation=1, causual=True),
-            HighwayConv1d(D, D, kernel_size=3, padding=None, dilation=3, causual=True),
-            HighwayConv1d(D, D, kernel_size=3, padding=None, dilation=9, causual=True),
-            HighwayConv1d(D, D, kernel_size=3, padding=None, dilation=27, causual=True),
+            HighwayConv1d(D, D, kernel_size=3, padding=None,
+                          dilation=1, causual=True, std_mul=1.0, dropout=dropout),
+            HighwayConv1d(D, D, kernel_size=3, padding=None,
+                          dilation=3, causual=True, std_mul=4.0, dropout=dropout),
+            HighwayConv1d(D, D, kernel_size=3, padding=None,
+                          dilation=9, causual=True, std_mul=4.0, dropout=dropout),
+            HighwayConv1d(D, D, kernel_size=3, padding=None,
+                          dilation=27, causual=True, std_mul=4.0, dropout=dropout),
 
-            HighwayConv1d(D, D, kernel_size=3, padding=None, dilation=1, causual=True),
-            HighwayConv1d(D, D, kernel_size=3, padding=None, dilation=1, causual=True),
+            HighwayConv1d(D, D, kernel_size=3, padding=None,
+                          dilation=1, causual=True, std_mul=4.0, dropout=dropout),
+            HighwayConv1d(D, D, kernel_size=3, padding=None,
+                          dilation=1, causual=True, std_mul=4.0, dropout=dropout),
 
-            Conv1d(D, D, kernel_size=1, padding=0, dilation=1, std_mult=1),
+            Conv1d(D, D, kernel_size=1, padding=0, dilation=1, std_mul=4.0),
             nn.ReLU(),
-            Conv1d(D, D, kernel_size=1, padding=0, dilation=1, std_mult=1),
+            Conv1d(D, D, kernel_size=1, padding=0, dilation=1, std_mul=2.0),
             nn.ReLU(),
-            Conv1d(D, D, kernel_size=1, padding=0, dilation=1, std_mult=1),
+            Conv1d(D, D, kernel_size=1, padding=0, dilation=1, std_mul=2.0),
             nn.ReLU(),
 
-            Conv1d(D, F, kernel_size=1, padding=0, dilation=1, std_mult=1),
+            Conv1d(D, F, kernel_size=1, padding=0, dilation=1, std_mul=2.0),
             # nn.Sigmoid()
         ])
 
@@ -298,6 +292,8 @@ class Decoder(nn.Module):
         # (B, C*2, T)
         Rd = torch.cat((R, Q), dim=1)
         x = Rd
+
+        # Apply audio decoder
         for f in self.audio_decoder_modules:
             x = f(x)
 
@@ -445,36 +441,33 @@ class Converter(nn.Module):
         Fd = out_dim
         C = channels
         self.convnet = nn.Sequential(
-            Conv1d(F, C, kernel_size=1, padding=0, dilation=1, std_mult=1),
+            Conv1d(F, C, kernel_size=1, padding=0, dilation=1, std_mul=1.0),
 
-            HighwayConv1d(C, C, kernel_size=3, padding=None, dilation=1),
-            HighwayConv1d(C, C, kernel_size=3, padding=None, dilation=3),
+            HighwayConv1d(C, C, kernel_size=3, padding=None, dilation=1, std_mul=1.0),
+            HighwayConv1d(C, C, kernel_size=3, padding=None, dilation=3, std_mul=4.0),
 
-            ConvTranspose1d(C, C, kernel_size=2, padding=0, stride=2),
-            HighwayConv1d(C, C, kernel_size=3, padding=None, dilation=1),
-            HighwayConv1d(C, C, kernel_size=3, padding=None, dilation=3),
-            ConvTranspose1d(C, C, kernel_size=2, padding=0, stride=2),
-            HighwayConv1d(C, C, kernel_size=3, padding=None, dilation=1),
-            HighwayConv1d(C, C, kernel_size=3, padding=None, dilation=3),
+            ConvTranspose1d(C, C, kernel_size=2, padding=0, stride=2, std_mul=4.0),
+            HighwayConv1d(C, C, kernel_size=3, padding=None, dilation=1, std_mul=1.0),
+            HighwayConv1d(C, C, kernel_size=3, padding=None, dilation=3, std_mul=4.0),
+            ConvTranspose1d(C, C, kernel_size=2, padding=0, stride=2, std_mul=4.0),
+            HighwayConv1d(C, C, kernel_size=3, padding=None, dilation=1, std_mul=1.0),
+            HighwayConv1d(C, C, kernel_size=3, padding=None, dilation=3, std_mul=4.0),
 
-            Conv1d(C, 2 * C, kernel_size=1, padding=0, dilation=1, std_mult=1),
+            Conv1d(C, 2 * C, kernel_size=1, padding=0, dilation=1, std_mul=4.0),
 
-            HighwayConv1d(2 * C, 2 * C, kernel_size=3, padding=None, dilation=1),
-            HighwayConv1d(2 * C, 2 * C, kernel_size=3, padding=None, dilation=1),
+            HighwayConv1d(2 * C, 2 * C, kernel_size=3, padding=None, dilation=1, std_mul=1.0),
+            HighwayConv1d(2 * C, 2 * C, kernel_size=3, padding=None, dilation=1, std_mul=4.0),
 
-            Conv1d(2 * C, Fd, kernel_size=1, padding=0, dilation=1, std_mult=1),
+            Conv1d(2 * C, Fd, kernel_size=1, padding=0, dilation=1, std_mul=4.0),
 
-            Conv1d(Fd, Fd, kernel_size=1, padding=0, dilation=1, std_mult=1),
+            Conv1d(Fd, Fd, kernel_size=1, padding=0, dilation=1, std_mul=1.0),
             nn.ReLU(),
-            Conv1d(Fd, Fd, kernel_size=1, padding=0, dilation=1, std_mult=1),
+            Conv1d(Fd, Fd, kernel_size=1, padding=0, dilation=1, std_mul=2.0),
             nn.ReLU(),
 
-            Conv1d(Fd, Fd, kernel_size=1, padding=0, dilation=1, std_mult=1),
+            Conv1d(Fd, Fd, kernel_size=1, padding=0, dilation=1, std_mul=2.0),
             nn.Sigmoid(),
         )
 
     def forward(self, x):
-        x = x.transpose(1, 2)
-        x = self.convnet(x)
-        x = x.transpose(1, 2)
-        return x
+        return self.convnet(x.transpose(1, 2)).transpose(1, 2)

@@ -132,10 +132,13 @@ class Encoder(nn.Module):
 class AttentionLayer(nn.Module):
     def __init__(self, conv_channels, embed_dim, dropout=0.1):
         super(AttentionLayer, self).__init__()
-        # projects from output of convolution to embedding dimension
-        self.in_projection = Linear(conv_channels, embed_dim)
-        # projects from embedding dimension to convolution size
-        self.out_projection = Linear(embed_dim, conv_channels)
+        # TODO
+        if embed_dim != conv_channels or True:
+            self.in_projection = Linear(conv_channels, embed_dim)
+            self.out_projection = Linear(embed_dim, conv_channels)
+        else:
+            self.in_projection = None
+            self.out_projection = None
         self.dropout = dropout
 
     def forward(self, query, encoder_out, mask=None, last_attended=None,
@@ -144,7 +147,7 @@ class AttentionLayer(nn.Module):
         residual = query
 
         # attention
-        x = self.in_projection(query)
+        x = query if self.in_projection is None else self.in_projection(query)
         x = torch.bmm(x, keys)
 
         mask_value = -float("inf")
@@ -175,7 +178,8 @@ class AttentionLayer(nn.Module):
         x = x * (s * math.sqrt(1.0 / s))
 
         # project back
-        x = (self.out_projection(x) + residual) * math.sqrt(0.5)
+        x = x if self.out_projection is None else self.out_projection(x)
+        x = (x + residual) * math.sqrt(0.5)
         return x, attn_scores
 
 
