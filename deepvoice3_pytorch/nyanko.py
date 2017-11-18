@@ -84,9 +84,9 @@ class Encoder(nn.Module):
             HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None, dilation=1),
             HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None, dilation=3),
             HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None, dilation=9),
+            HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None, dilation=27),
             HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None, dilation=1),
             HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None, dilation=3),
-            HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None, dilation=27),
             HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None, dilation=9),
             HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None, dilation=27),
 
