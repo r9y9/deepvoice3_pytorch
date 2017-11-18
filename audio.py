@@ -50,7 +50,7 @@ def melspectrogram(y):
 
 
 def _lws_processor():
-    return lws.lws(hparams.fft_size, hparams.hop_size, mode="speech")
+    return lws.lws(hparams.fft_size, hparams.hop_size, look_ahead=10, mode="speech")
 
 
 # Conversions:
