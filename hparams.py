@@ -6,7 +6,9 @@ hparams = tf.contrib.training.HParams(
     name="deepvoice3",
 
     # Model builder function
-    builder="build_deepvoice3",
+    # build_deepvoice3: build DeepVoice3
+    # build_nyanko: Efficiently traianble xxx
+    builder="build_nyanko",
 
     # Text:
     # [en, jp]
@@ -26,13 +28,13 @@ hparams = tf.contrib.training.HParams(
     ref_level_db=20,
 
     # Model:
-    downsample_step=1,
-    outputs_per_step=4,
+    downsample_step=4,
+    outputs_per_step=1,
     padding_idx=0,
     dropout=1 - 0.95,
     kernel_size=5,
     text_embed_dim=256,
-    encoder_channels=128,
+    encoder_channels=256,
     decoder_channels=256,
     converter_channels=256,
     query_position_rate=1.0,
@@ -57,15 +59,12 @@ hparams = tf.contrib.training.HParams(
     adam_beta1=0.5,
     adam_beta2=0.9,
     adam_eps=1e-6,
-    initial_learning_rate=0.001,
-    lr_schedule=None,
-    lr_schedule_kwargs={
-        "anneal_rate": 0.98,
-        "anneal_interval": 30000,
-    },
+    initial_learning_rate=0.001,  # 0.001,
+    lr_schedule="noam_learning_rate_decay",
+    lr_schedule_kwargs={},
     nepochs=2000,
     weight_decay=0.0,
-    clip_thresh=5.0,
+    clip_thresh=1.0,
 
     # Save
     checkpoint_interval=5000,
