@@ -107,6 +107,8 @@ def test_nyanko():
         encoder_outs, mel_reshaped,
         text_positions=text_positions, frame_positions=frame_positions)
 
+    _plot(mel, mel_outputs_offline, alignments_offline)
+
     # Online decoding with test inputs
     print("Online decoding")
     seq2seq.decoder._start_incremental_inference()
@@ -124,8 +126,6 @@ def test_nyanko():
     _plot(mel, mel_outputs_online, alignments)
     _plot(mel, c, alignments)
 
-    import ipdb
-    ipdb.set_trace()
     # Should get same result
     # TODO
     if False:
@@ -135,5 +135,3 @@ def test_nyanko():
 
     linear_outputs = postnet(mel_outputs_offline)
     print(linear_outputs.size())
-    import ipdb
-    ipdb.set_trace()
