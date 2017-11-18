@@ -132,13 +132,8 @@ class Encoder(nn.Module):
 class AttentionLayer(nn.Module):
     def __init__(self, conv_channels, embed_dim, dropout=0.1):
         super(AttentionLayer, self).__init__()
-        # TODO
-        if embed_dim != conv_channels or True:
-            self.in_projection = Linear(conv_channels, embed_dim)
-            self.out_projection = Linear(embed_dim, conv_channels)
-        else:
-            self.in_projection = None
-            self.out_projection = None
+        self.in_projection = Linear(conv_channels, embed_dim)
+        self.out_projection = Linear(embed_dim, conv_channels)
         self.dropout = dropout
 
     def forward(self, query, encoder_out, mask=None, last_attended=None,
