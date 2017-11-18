@@ -41,7 +41,7 @@ if __name__ == "__main__":
     out_sizes = np.array(out_sizes)
 
     input_timestamps = np.sum(in_sizes)
-    output_timestamps = np.sum(out_sizes) / hparams.outputs_per_step
+    output_timestamps = np.sum(out_sizes) / hparams.outputs_per_step / hparams.downsample_step
 
     print(input_timestamps, output_timestamps, output_timestamps / input_timestamps)
     sys.exit(0)
