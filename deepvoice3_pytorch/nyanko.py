@@ -318,6 +318,8 @@ class Decoder(nn.Module):
 
             R, alignment = self.attention(
                 x + frame_pos_embed, (keys, values), last_attended=last_attended)
+            if self.force_monotonic_attention:
+                last_attended = alignment.max(-1)[1].view(-1).data[0]
 
             Rd = torch.cat((R, Q), dim=-1)
             x = Rd
