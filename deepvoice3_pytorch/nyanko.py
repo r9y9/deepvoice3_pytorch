@@ -33,28 +33,28 @@ class Encoder(nn.Module):
             HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None,
                           dilation=1, std_mul=1.0, dropout=dropout),
             HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None,
-                          dilation=3, std_mul=4.0, dropout=dropout),
+                          dilation=3, std_mul=1.0, dropout=dropout),
             HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None,
-                          dilation=9, std_mul=4.0, dropout=dropout),
+                          dilation=9, std_mul=1.0, dropout=dropout),
             HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None,
-                          dilation=27, std_mul=4.0, dropout=dropout),
+                          dilation=27, std_mul=1.0, dropout=dropout),
 
             HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None,
-                          dilation=1, std_mul=4.0, dropout=dropout),
+                          dilation=1, std_mul=1.0, dropout=dropout),
             HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None,
-                          dilation=3, std_mul=4.0, dropout=dropout),
+                          dilation=3, std_mul=1.0, dropout=dropout),
             HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None,
-                          dilation=9, std_mul=4.0, dropout=dropout),
+                          dilation=9, std_mul=1.0, dropout=dropout),
             HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None,
-                          dilation=27, std_mul=4.0, dropout=dropout),
+                          dilation=27, std_mul=1.0, dropout=dropout),
 
             HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None,
-                          dilation=1, std_mul=4.0, dropout=dropout),
+                          dilation=1, std_mul=1.0, dropout=dropout),
             HighwayConv1d(2 * D, 2 * D, kernel_size=3, padding=None,
-                          dilation=1, std_mul=4.0, dropout=dropout),
+                          dilation=1, std_mul=1.0, dropout=dropout),
 
             HighwayConv1d(2 * D, 2 * D, kernel_size=1, padding=0,
-                          dilation=1, std_mul=4.0, dropout=dropout),
+                          dilation=1, std_mul=1.0, dropout=dropout),
         )
 
     def forward(self, text_sequences, text_positions=None, lengths=None,
@@ -62,16 +62,10 @@ class Encoder(nn.Module):
         # embed text_sequences
         # (B, T, E)
         x = self.embed_tokens(text_sequences)
-        input_embed = x
 
-        # (B, E, T)
-        x = x.transpose(1, 2)
-        # (B, 2*D, T)
-        x = self.convnet(x)
-        # (B, T, 2*D)
-        x = x.transpose(1, 2)
+        x = self.convnet(x.transpose(1, 2)).transpose(1, 2)
+
         # (B, T, D) and (B, T, D)
-
         keys, values = x.split(x.size(-1) // 2, dim=-1)
 
         return keys, values
@@ -104,25 +98,25 @@ class Decoder(nn.Module):
             HighwayConv1d(D, D, kernel_size=3, padding=None,
                           dilation=1, causal=True, std_mul=1.0, dropout=dropout),
             HighwayConv1d(D, D, kernel_size=3, padding=None,
-                          dilation=3, causal=True, std_mul=4.0, dropout=dropout),
+                          dilation=3, causal=True, std_mul=1.0, dropout=dropout),
             HighwayConv1d(D, D, kernel_size=3, padding=None,
-                          dilation=9, causal=True, std_mul=4.0, dropout=dropout),
+                          dilation=9, causal=True, std_mul=1.0, dropout=dropout),
             HighwayConv1d(D, D, kernel_size=3, padding=None,
-                          dilation=27, causal=True, std_mul=4.0, dropout=dropout),
+                          dilation=27, causal=True, std_mul=1.0, dropout=dropout),
 
             HighwayConv1d(D, D, kernel_size=3, padding=None,
-                          dilation=1, causal=True, std_mul=4.0, dropout=dropout),
+                          dilation=1, causal=True, std_mul=1.0, dropout=dropout),
             HighwayConv1d(D, D, kernel_size=3, padding=None,
-                          dilation=3, causal=True, std_mul=4.0, dropout=dropout),
+                          dilation=3, causal=True, std_mul=1.0, dropout=dropout),
             HighwayConv1d(D, D, kernel_size=3, padding=None,
-                          dilation=9, causal=True, std_mul=4.0, dropout=dropout),
+                          dilation=9, causal=True, std_mul=1.0, dropout=dropout),
             HighwayConv1d(D, D, kernel_size=3, padding=None,
-                          dilation=27, causal=True, std_mul=4.0, dropout=dropout),
+                          dilation=27, causal=True, std_mul=1.0, dropout=dropout),
 
             HighwayConv1d(D, D, kernel_size=3, padding=None,
-                          dilation=3, causal=True, std_mul=4.0, dropout=dropout),
+                          dilation=3, causal=True, std_mul=1.0, dropout=dropout),
             HighwayConv1d(D, D, kernel_size=3, padding=None,
-                          dilation=3, causal=True, std_mul=4.0, dropout=dropout),
+                          dilation=3, causal=True, std_mul=1.0, dropout=dropout),
         ])
 
         self.attention = AttentionLayer(D, D, dropout=dropout)
@@ -133,18 +127,18 @@ class Decoder(nn.Module):
             HighwayConv1d(D, D, kernel_size=3, padding=None,
                           dilation=1, causal=True, std_mul=1.0, dropout=dropout),
             HighwayConv1d(D, D, kernel_size=3, padding=None,
-                          dilation=3, causal=True, std_mul=4.0, dropout=dropout),
+                          dilation=3, causal=True, std_mul=1.0, dropout=dropout),
             HighwayConv1d(D, D, kernel_size=3, padding=None,
-                          dilation=9, causal=True, std_mul=4.0, dropout=dropout),
+                          dilation=9, causal=True, std_mul=1.0, dropout=dropout),
             HighwayConv1d(D, D, kernel_size=3, padding=None,
-                          dilation=27, causal=True, std_mul=4.0, dropout=dropout),
+                          dilation=27, causal=True, std_mul=1.0, dropout=dropout),
 
             HighwayConv1d(D, D, kernel_size=3, padding=None,
-                          dilation=1, causal=True, std_mul=4.0, dropout=dropout),
+                          dilation=1, causal=True, std_mul=1.0, dropout=dropout),
             HighwayConv1d(D, D, kernel_size=3, padding=None,
-                          dilation=1, causal=True, std_mul=4.0, dropout=dropout),
+                          dilation=1, causal=True, std_mul=1.0, dropout=dropout),
 
-            Conv1d(D, D, kernel_size=1, padding=0, dilation=1, std_mul=4.0),
+            Conv1d(D, D, kernel_size=1, padding=0, dilation=1, std_mul=1.0),
             nn.ReLU(),
             Conv1d(D, D, kernel_size=1, padding=0, dilation=1, std_mul=2.0),
             nn.ReLU(),
@@ -152,7 +146,6 @@ class Decoder(nn.Module):
             nn.ReLU(),
 
             Conv1d(D, F, kernel_size=1, padding=0, dilation=1, std_mul=2.0),
-            # nn.Sigmoid()
         ])
 
         # Done prediction
@@ -181,9 +174,8 @@ class Decoder(nn.Module):
 
         if inputs is None:
             assert text_positions is not None
-            self._start_incremental_inference()
-            outputs = self._incremental_forward(encoder_out, text_positions)
-            self._stop_incremental_inference()
+            self.start_fresh_sequence()
+            outputs = self.incremental_forward(encoder_out, text_positions)
             return outputs
 
         # Grouping multiple frames if necessary
@@ -247,30 +239,8 @@ class Decoder(nn.Module):
 
         return outputs, alignments, done
 
-    def _start_incremental_inference(self):
-        assert not self._is_inference_incremental, \
-            'already performing incremental inference'
-        self._is_inference_incremental = True
-
-        # save original forward
-        self._orig_forward = self.forward
-
-        # switch to incremental forward
-        self.forward = self._incremental_forward
-
-        # start a fresh sequence
-        self.start_fresh_sequence()
-
-    def _stop_incremental_inference(self):
-        # restore original forward
-        self.forward = self._orig_forward
-
-        self._is_inference_incremental = False
-
-    def _incremental_forward(self, encoder_out, text_positions,
-                             initial_input=None, test_inputs=None):
-        assert self._is_inference_incremental
-
+    def incremental_forward(self, encoder_out, text_positions,
+                            initial_input=None, test_inputs=None):
         keys, values = encoder_out
         B = keys.size(0)
 
@@ -355,9 +325,8 @@ class Decoder(nn.Module):
         return outputs, alignments, dones
 
     def start_fresh_sequence(self):
-        if self._is_inference_incremental:
-            _clear_modules(self.audio_encoder_modules)
-            _clear_modules(self.audio_decoder_modules)
+        _clear_modules(self.audio_encoder_modules)
+        _clear_modules(self.audio_decoder_modules)
 
 
 def _clear_modules(modules):
@@ -384,29 +353,29 @@ class Converter(nn.Module):
             HighwayConv1d(C, C, kernel_size=3, padding=None,
                           dilation=1, std_mul=1.0, dropout=dropout),
             HighwayConv1d(C, C, kernel_size=3, padding=None,
-                          dilation=3, std_mul=4.0, dropout=dropout),
+                          dilation=3, std_mul=1.0, dropout=dropout),
 
             ConvTranspose1d(C, C, kernel_size=2, padding=0, stride=2,
-                            std_mul=4.0, dropout=dropout),
+                            std_mul=1.0, dropout=dropout),
             HighwayConv1d(C, C, kernel_size=3, padding=None,
                           dilation=1, std_mul=1.0, dropout=dropout),
             HighwayConv1d(C, C, kernel_size=3, padding=None,
-                          dilation=3, std_mul=4.0, dropout=dropout),
+                          dilation=3, std_mul=1.0, dropout=dropout),
             ConvTranspose1d(C, C, kernel_size=2, padding=0, stride=2,
-                            std_mul=4.0, dropout=dropout),
+                            std_mul=1.0, dropout=dropout),
             HighwayConv1d(C, C, kernel_size=3, padding=None,
                           dilation=1, std_mul=1.0, dropout=dropout),
             HighwayConv1d(C, C, kernel_size=3, padding=None,
-                          dilation=3, std_mul=4.0, dropout=dropout),
+                          dilation=3, std_mul=1.0, dropout=dropout),
 
-            Conv1d(C, 2 * C, kernel_size=1, padding=0, dilation=1, std_mul=4.0),
+            Conv1d(C, 2 * C, kernel_size=1, padding=0, dilation=1, std_mul=1.0),
 
             HighwayConv1d(2 * C, 2 * C, kernel_size=3, padding=None,
                           dilation=1, std_mul=1.0, dropout=dropout),
             HighwayConv1d(2 * C, 2 * C, kernel_size=3, padding=None,
-                          dilation=1, std_mul=4.0, dropout=dropout),
+                          dilation=1, std_mul=1.0, dropout=dropout),
 
-            Conv1d(2 * C, Fd, kernel_size=1, padding=0, dilation=1, std_mul=4.0,
+            Conv1d(2 * C, Fd, kernel_size=1, padding=0, dilation=1, std_mul=1.0,
                    dropout=dropout),
 
             Conv1d(Fd, Fd, kernel_size=1, padding=0, dilation=1, std_mul=1.0,

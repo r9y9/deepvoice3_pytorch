@@ -58,8 +58,10 @@ class HighwayConv1d(nn.Module):
     """
 
     def __init__(self, in_channels, out_channels, kernel_size=1, padding=None,
-                 dilation=1, causal=False, dropout=0, std_mul=4.0, glu=False):
+                 dilation=1, causal=False, dropout=0, std_mul=None, glu=False):
         super(HighwayConv1d, self).__init__()
+        if std_mul is None:
+            std_mul = 4.0 if glu else 1.0
         if padding is None:
             # no future time stamps available
             if causal:
@@ -107,9 +109,7 @@ class HighwayConv1d(nn.Module):
         else:
             a, b = x.split(x.size(splitdim) // 2, dim=splitdim)
             T = F.sigmoid(b)
-            # TODO: does math.sqrt(0.5) really make sense?
-            # This helps training stability
-            return (T * a + (1 - T) * residual) * math.sqrt(0.5)
+            return (T * a + (1 - T) * residual)
 
     def clear_buffer(self):
         self.conv.clear_buffer()
