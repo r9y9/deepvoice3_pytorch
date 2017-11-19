@@ -54,7 +54,7 @@ global_step = 0
 global_epoch = 0
 use_cuda = torch.cuda.is_available()
 if use_cuda:
-    cudnn.benchmark = True
+    cudnn.benchmark = False
 
 _frontend = None  # to be set later
 
