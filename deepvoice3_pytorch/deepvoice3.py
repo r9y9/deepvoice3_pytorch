@@ -249,7 +249,6 @@ class Decoder(nn.Module):
         # decoder states -> Done binary flag
         self.fc3 = Linear(in_channels, 1)
 
-        self._is_inference_incremental = False
         self.max_decoder_steps = 200
         self.min_decoder_steps = 10
         self.use_memory_mask = use_memory_mask
@@ -265,9 +264,8 @@ class Decoder(nn.Module):
 
         if inputs is None:
             assert text_positions is not None
-            self._start_incremental_inference()
-            outputs = self._incremental_forward(encoder_out, text_positions)
-            self._stop_incremental_inference()
+            self.start_fresh_sequence()
+            outputs = self.incremental_forward(encoder_out, text_positions)
             return outputs
 
         # Grouping multiple frames if necessary
@@ -343,60 +341,8 @@ class Decoder(nn.Module):
 
         return outputs, torch.stack(alignments), done
 
-    def incremental_inference(self, beam_size=None):
-        """Context manager for incremental inference.
-        This provides an optimized forward pass for incremental inference
-        (i.e., it predicts one time step at a time). If the input order changes
-        between time steps, call model.decoder.reorder_incremental_state to
-        update the relevant buffers. To generate a fresh sequence, first call
-        model.decoder.start_fresh_sequence.
-        Usage:
-        ```
-        with model.decoder.incremental_inference():
-            for step in range(maxlen):
-                out = model.decoder(tokens[:, :step], positions[:, :step],
-                                    encoder_out)
-                probs = F.log_softmax(out[:, -1, :])
-        ```
-        """
-        class IncrementalInference(object):
-
-            def __init__(self, decoder, beam_size):
-                self.decoder = decoder
-                self.beam_size = beam_size
-
-            def __enter__(self):
-                self.decoder._start_incremental_inference(self.beam_size)
-
-            def __exit__(self, *args):
-                self.decoder._stop_incremental_inference()
-
-        return IncrementalInference(self, beam_size)
-
-    def _start_incremental_inference(self):
-        assert not self._is_inference_incremental, \
-            'already performing incremental inference'
-        self._is_inference_incremental = True
-
-        # save original forward
-        self._orig_forward = self.forward
-
-        # switch to incremental forward
-        self.forward = self._incremental_forward
-
-        # start a fresh sequence
-        self.start_fresh_sequence()
-
-    def _stop_incremental_inference(self):
-        # restore original forward
-        self.forward = self._orig_forward
-
-        self._is_inference_incremental = False
-
-    def _incremental_forward(self, encoder_out, text_positions,
-                             initial_input=None, test_inputs=None):
-        assert self._is_inference_incremental
-
+    def incremental_forward(self, encoder_out, text_positions,
+                            initial_input=None, test_inputs=None):
         keys, values = encoder_out
         B = keys.size(0)
 
@@ -493,15 +439,8 @@ class Decoder(nn.Module):
         return outputs, alignments, dones
 
     def start_fresh_sequence(self):
-        """Clear all state used for incremental generation.
-        **For incremental inference only**
-        This should be called before generating a fresh sequence.
-        beam_size is required if using BeamableMM.
-        """
-        if self._is_inference_incremental:
-            self.prev_state = None
-            for conv in self.convolutions:
-                conv.clear_buffer()
+        for conv in self.convolutions:
+            conv.clear_buffer()
 
 
 class Converter(nn.Module):

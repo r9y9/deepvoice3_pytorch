@@ -204,11 +204,10 @@ def test_incremental_correctness():
         text_positions=text_positions, frame_positions=frame_positions)
 
     # Online decoding with test inputs
-    model.seq2seq.decoder._start_incremental_inference()
-    mel_outputs_online, alignments, dones_online = model.seq2seq.decoder._incremental_forward(
+    model.seq2seq.decoder.start_fresh_sequence()
+    mel_outputs_online, alignments, dones_online = model.seq2seq.decoder.incremental_forward(
         encoder_outs, text_positions,
         test_inputs=mel_reshaped)
-    model.seq2seq.decoder._stop_incremental_inference()
 
     # Should get same result
     assert np.allclose(mel_outputs_offline.cpu().data.numpy(),
@@ -303,12 +302,11 @@ def test_incremental_forward():
     # Online decoding
     test_inputs = None
     # test_inputs = mel_reshaped
-    model.seq2seq.decoder._start_incremental_inference()
-    mel_outputs, alignments, dones_online = model.seq2seq.decoder._incremental_forward(
+    model.seq2seq.decoder.start_fresh_sequence()
+    mel_outputs, alignments, dones_online = model.seq2seq.decoder.incremental_forward(
         encoder_outs, text_positions,
         # initial_input=mel_reshaped[:, :1, :],
         test_inputs=test_inputs)
-    model.seq2seq.decoder._stop_incremental_inference()
 
     if test_inputs is not None:
         c = (mel_output_offline - mel_outputs).abs()

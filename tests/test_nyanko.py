@@ -51,6 +51,51 @@ def _pad_2d(x, max_len, b_pad=0):
 
 
 @attr("local_only")
+def test_incremental_correctness():
+    texts = ["they discarded this for a more completely Roman and far less beautiful letter."]
+    seqs = np.array([text_to_sequence(t) for t in texts])
+    text_positions = np.arange(1, len(seqs[0]) + 1).reshape(1, len(seqs[0]))
+
+    mel = np.load("/home/ryuichi/Dropbox/sp/deepvoice3_pytorch/data/ljspeech/ljspeech-mel-00035.npy")
+    max_target_len = mel.shape[0]
+    r = 1
+    mel_dim = 80
+    if max_target_len % r != 0:
+        max_target_len += r - max_target_len % r
+        assert max_target_len % r == 0
+    mel = _pad_2d(mel, max_target_len)
+    mel = Variable(torch.from_numpy(mel))
+    mel_reshaped = mel.view(1, -1, mel_dim * r)
+    frame_positions = np.arange(1, mel_reshaped.size(1) + 1).reshape(1, mel_reshaped.size(1))
+
+    x = Variable(torch.LongTensor(seqs))
+    text_positions = Variable(torch.LongTensor(text_positions))
+    frame_positions = Variable(torch.LongTensor(frame_positions))
+
+    model = build_nyanko(n_vocab, mel_dim=mel_dim, linear_dim=513,
+                         r=r, force_monotonic_attention=False)
+    model.eval()
+
+    # Encoder
+    encoder_outs = model.seq2seq.encoder(x)
+
+    # Off line decoding
+    mel_outputs_offline, alignments_offline, done = model.seq2seq.decoder(
+        encoder_outs, mel_reshaped,
+        text_positions=text_positions, frame_positions=frame_positions)
+
+    # Online decoding with test inputs
+    model.seq2seq.decoder.start_fresh_sequence()
+    mel_outputs_online, alignments, dones_online = model.seq2seq.decoder.incremental_forward(
+        encoder_outs, text_positions,
+        test_inputs=mel_reshaped)
+
+    # Should get same result
+    assert np.allclose(mel_outputs_offline.cpu().data.numpy(),
+                       mel_outputs_online.cpu().data.numpy())
+
+
+@attr("local_only")
 def test_nyanko():
     texts = ["they discarded this for a more completely Roman and far less beautiful letter."]
     seqs = np.array([text_to_sequence(t) for t in texts])
@@ -111,11 +156,10 @@ def test_nyanko():
 
     # Online decoding with test inputs
     print("Online decoding")
-    seq2seq.decoder._start_incremental_inference()
-    mel_outputs_online, alignments, dones_online = seq2seq.decoder._incremental_forward(
+    seq2seq.decoder.start_fresh_sequence()
+    mel_outputs_online, alignments, dones_online = seq2seq.decoder.incremental_forward(
         encoder_outs, text_positions,
         test_inputs=mel_reshaped)
-    seq2seq.decoder._stop_incremental_inference()
 
     a = mel_outputs_offline.cpu().data.numpy()
     b = mel_outputs_online.cpu().data.numpy()
@@ -127,9 +171,7 @@ def test_nyanko():
     _plot(mel, c, alignments)
 
     # Should get same result
-    # TODO
-    if False:
-        assert np.allclose(a, b)
+    assert np.allclose(a, b)
 
     postnet = model.postnet
 
