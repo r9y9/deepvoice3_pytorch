@@ -1,18 +1,27 @@
 import tensorflow as tf
 
+# NOTE: If you want full control for model architecture. please take a look
+# at the code and change whatever you want. Some hyper parameters are hardcoded.
 
 # Default hyperparameters:
 hparams = tf.contrib.training.HParams(
     name="deepvoice3",
 
-    # Model builder function
-    # build_deepvoice3: build DeepVoice3
-    # build_nyanko: Efficiently traianble xxx
-    builder="build_nyanko",
+    # Convenient model builder
+    # [build_deepvoice3, build_nyanko, build_latest]
+    # Definitions can be found at deepvoice3_pytorch/builder.py
+    # build_deepvoice3: build DeepVoice3　https://arxiv.org/abs/1710.07654
+    # build_nyanko: https://arxiv.org/abs/1710.08969
+    # build_latest: Latest model I (@r9y9) have been working on.
+    builder="build_latest",
 
     # Text:
     # [en, jp]
     frontend='en',
+
+    # Replace words to its pronunciation with fixed probability.
+    # e.g., 'hello' to 'HH AH0 L OW1'
+    # [en, jp]
     # en: Word -> pronunciation using CMUDict
     # jp: Word -> pronounciation usnig MeCab
     # [0 ~ 1.0]: 0 means no replacement happens.
@@ -28,15 +37,16 @@ hparams = tf.contrib.training.HParams(
     ref_level_db=20,
 
     # Model:
-    downsample_step=4,
-    outputs_per_step=1,
+    downsample_step=4,  # must be 4 when builder="build_nyanko"
+    outputs_per_step=1,  # must be 1 when builder="build_nyanko"
     padding_idx=0,
-    dropout=1 - 0.95,
-    kernel_size=5,
+    dropout=0,  # 1 - 0.95,
+    kernel_size=3,
     text_embed_dim=128,
     encoder_channels=256,
     decoder_channels=256,
-    converter_channels=512,
+    # Note: large converter channels requires significant computational cost
+    converter_channels=256,
     query_position_rate=1.0,
     key_position_rate=1.385,  # 2.37 for jsut
     use_memory_mask=True,
@@ -50,7 +60,9 @@ hparams = tf.contrib.training.HParams(
     priority_freq=3000,  # heuristic: priotrize [0 ~ priotiry_freq] for linear loss
     priority_freq_weight=0.0,  # (1-w)*linear_loss + w*priority_linear_loss
     # https://arxiv.org/pdf/1710.08969.pdf
-    binary_divergence_weight=0.2,  # set 0 to disable it
+    # Adding the divergence to the loss stabilizes training, expecially for
+    # very deep (> 10 layers) networks
+    binary_divergence_weight=0.5,  # set 0 to disable
     use_guided_attention=True,
     guided_attention_sigma=0.2,
 
@@ -70,9 +82,10 @@ hparams = tf.contrib.training.HParams(
     checkpoint_interval=5000,
 
     # Eval:
-    max_iters=200,
-    griffin_lim_iters=60,
-    power=1.4,              # Power to raise magnitudes to prior to Griffin-Lim
+    # this can be list for multple layers of attention
+    # e.g., [True, False, False, False, True]
+    force_monotonic_attention=True,
+    power=1.4,  # Power to raise magnitudes to prior to phase retrieval
 )
 
 

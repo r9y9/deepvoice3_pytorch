@@ -69,7 +69,7 @@ def build_deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=513, r=4,
 
 def build_nyanko(n_vocab, embed_dim=128, mel_dim=80, linear_dim=513, r=4,
                  n_speakers=1, speaker_embed_dim=16, padding_idx=0,
-                 dropout=(1 - 0.95), kernel_size=5,
+                 dropout=(1 - 0.95), kernel_size=3,
                  encoder_channels=256,
                  decoder_channels=256,
                  converter_channels=512,
@@ -83,14 +83,15 @@ def build_nyanko(n_vocab, embed_dim=128, mel_dim=80, linear_dim=513, r=4,
 
     # Seq2seq
     encoder = Encoder(
-        n_vocab, embed_dim, channels=encoder_channels, padding_idx=padding_idx,
+        n_vocab, embed_dim, channels=encoder_channels, kernel_size=kernel_size,
+        padding_idx=padding_idx,
         n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
         dropout=dropout,
     )
 
     decoder = Decoder(
         embed_dim, in_dim=mel_dim, r=r, channels=decoder_channels,
-        padding_idx=padding_idx,
+        kernel_size=kernel_size, padding_idx=padding_idx,
         n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
         dropout=dropout,
         force_monotonic_attention=force_monotonic_attention,
@@ -102,7 +103,7 @@ def build_nyanko(n_vocab, embed_dim=128, mel_dim=80, linear_dim=513, r=4,
 
     converter = Converter(
         in_dim=mel_dim, out_dim=linear_dim, channels=converter_channels,
-        dropout=dropout)
+        kernel_size=kernel_size, dropout=dropout)
 
     # Seq2seq + post net
     model = MultiSpeakerTTSModel(
@@ -112,3 +113,7 @@ def build_nyanko(n_vocab, embed_dim=128, mel_dim=80, linear_dim=513, r=4,
         trainable_positional_encodings=trainable_positional_encodings)
 
     return model
+
+
+# TODO:
+build_latest = build_nyanko
