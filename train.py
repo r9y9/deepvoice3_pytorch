@@ -392,20 +392,37 @@ def masked_mean(y, mask):
 def spec_loss(y_hat, y, mask, priority_bin=None, priority_w=0):
     masked_l1 = MaskedL1Loss()
     l1 = nn.L1Loss()
-    l1_loss = 0.5 * masked_l1(y_hat, y, mask=mask) + 0.5 * l1(y_hat, y)
+
+    w = hparams.masked_loss_weight
+
+    # L1 loss
+    if w > 0:
+        assert mask is not None
+        l1_loss = w * masked_l1(y_hat, y, mask=mask) + (1 - w) * l1(y_hat, y)
+    else:
+        assert mask is None
+        l1_loss = l1(y_hat, y)
+
+    # Priority L1 loss
     if priority_bin is not None and priority_w > 0:
-        priority_loss = 0.5 * masked_l1(
-            y_hat[:, :, :priority_bin], y[:, :, :priority_bin], mask=mask) \
-            + 0.5 * l1(y_hat[:, :, :priority_bin], y[:, :, :priority_bin])
+        if w > 0:
+            priority_loss = w * masked_l1(
+                y_hat[:, :, :priority_bin], y[:, :, :priority_bin], mask=mask) \
+                + (1 - w) * l1(y_hat[:, :, :priority_bin], y[:, :, :priority_bin])
+        else:
+            priority_loss = l1(y_hat[:, :, :priority_bin], y[:, :, :priority_bin])
         l1_loss = (1 - priority_w) * l1_loss + priority_w * priority_loss
 
+    # Binary div loss
     if hparams.binary_divergence_weight <= 0:
         binary_div = Variable(y.data.new(1).zero_())
     else:
-        # TODO: I cannot get good results with this yet
         y_hat_logits = logit(y_hat)
         z = -y * y_hat_logits + torch.log(1 + torch.exp(y_hat_logits))
-        binary_div = 0.5 * masked_mean(z, mask) + 0.5 * z.mean()
+        if w > 0:
+            binary_div = w * masked_mean(z, mask) + (1 - w) * z.mean()
+        else:
+            binary_div = z.mean()
 
     return l1_loss, binary_div
 
@@ -487,16 +504,23 @@ def train(model, data_loader, optimizer, writer,
                 mel = mel.cuda()
                 done, target_lengths = done.cuda(), target_lengths.cuda()
 
-            # decoder output domain mask
-            decoder_target_mask = sequence_mask(
-                target_lengths / (r * downsample_step),
-                max_len=mel.size(1)).unsqueeze(-1)
-            if downsample_step > 1:
-                # spectrogram-domain mask
-                target_mask = sequence_mask(
-                    target_lengths, max_len=y.size(1)).unsqueeze(-1)
+            # Create mask if we use masked loss
+            if hparams.masked_loss_weight > 0:
+                # decoder output domain mask
+                decoder_target_mask = sequence_mask(
+                    target_lengths / (r * downsample_step),
+                    max_len=mel.size(1)).unsqueeze(-1)
+                if downsample_step > 1:
+                    # spectrogram-domain mask
+                    target_mask = sequence_mask(
+                        target_lengths, max_len=y.size(1)).unsqueeze(-1)
+                else:
+                    target_mask = decoder_target_mask
+                # shift mask
+                decoder_target_mask = decoder_target_mask[:, r:, :]
+                target_mask = target_mask[:, r:, :]
             else:
-                target_mask = decoder_target_mask
+                decoder_target_mask, target_mask = None, None
 
             # Apply model
             if train_seq2seq and train_postnet:
@@ -522,7 +546,7 @@ def train(model, data_loader, optimizer, writer,
             # mel:
             if train_seq2seq:
                 mel_l1_loss, mel_binary_div = spec_loss(
-                    mel_outputs[:, :-r, :], mel[:, r:, :], decoder_target_mask[:, r:, :])
+                    mel_outputs[:, :-r, :], mel[:, r:, :], decoder_target_mask)
                 mel_loss = (1 - w) * mel_l1_loss + w * mel_binary_div
 
             # done:
@@ -533,7 +557,7 @@ def train(model, data_loader, optimizer, writer,
             if train_postnet:
                 n_priority_freq = int(hparams.priority_freq / (fs * 0.5) * linear_dim)
                 linear_l1_loss, linear_binary_div = spec_loss(
-                    linear_outputs[:, :-r, :], y[:, r:, :], target_mask[:, r:, :],
+                    linear_outputs[:, :-r, :], y[:, r:, :], target_mask,
                     priority_bin=n_priority_freq,
                     priority_w=hparams.priority_freq_weight)
                 linear_loss = (1 - w) * linear_l1_loss + w * linear_binary_div

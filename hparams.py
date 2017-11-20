@@ -57,6 +57,7 @@ hparams = tf.contrib.training.HParams(
     num_workers=2,
 
     # Loss
+    masked_loss_weight=0.0,  # (1-w)*loss + w * masked_loss
     priority_freq=3000,  # heuristic: priotrize [0 ~ priotiry_freq] for linear loss
     priority_freq_weight=0.0,  # (1-w)*linear_loss + w*priority_linear_loss
     # https://arxiv.org/pdf/1710.08969.pdf
