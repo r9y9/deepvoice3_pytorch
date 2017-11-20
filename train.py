@@ -34,11 +34,13 @@ from torch import nn
 from torch import optim
 import torch.backends.cudnn as cudnn
 from torch.utils import data as data_utils
+from torch.utils.data.sampler import Sampler
 import numpy as np
 from numba import jit
 
 from nnmnkwii.datasets import FileSourceDataset, FileDataSource
 from os.path import join, expanduser
+import random
 
 import librosa.display
 from matplotlib import pyplot as plt
@@ -60,11 +62,15 @@ _frontend = None  # to be set later
 
 
 def _pad(seq, max_len, constant_values=0):
+    if max_len - len(seq) == 0:
+        return seq
     return np.pad(seq, (0, max_len - len(seq)),
                   mode='constant', constant_values=constant_values)
 
 
 def _pad_2d(x, max_len, b_pad=0):
+    if max_len - len(x) - b_pad == 0:
+        return x
     x = np.pad(x, [(b_pad, max_len - len(x) - b_pad), (0, 0)],
                mode="constant", constant_values=0)
     return x
@@ -108,13 +114,17 @@ class _NPYDataSource(FileDataSource):
     def __init__(self, data_root, col):
         self.data_root = data_root
         self.col = col
+        self.frame_lengths = []
 
     def collect_files(self):
         meta = join(self.data_root, "train.txt")
         with open(meta, "rb") as f:
             lines = f.readlines()
+        self.frame_lengths = list(
+            map(lambda l: int(l.decode("utf-8").split("|")[2]), lines))
         lines = list(map(lambda l: l.decode("utf-8").split("|")[self.col], lines))
         paths = list(map(lambda f: join(self.data_root, f), lines))
+
         return paths
 
     def collect_features(self, path):
@@ -129,6 +139,50 @@ class MelSpecDataSource(_NPYDataSource):
 class LinearSpecDataSource(_NPYDataSource):
     def __init__(self, data_root):
         super(LinearSpecDataSource, self).__init__(data_root, 0)
+
+
+class PartialyRandomizedSimilarTimeLengthSampler(Sampler):
+    """Partially randmoized sampler
+
+    1. Sort by lengths
+    2. Pick a small patch and randomize it
+    3. Permutate mini-batchs
+    """
+
+    def __init__(self, lengths, batch_size=16, batch_group_size=None,
+                 permutate=True):
+        self.lengths, self.sorted_indices = torch.sort(torch.LongTensor(lengths))
+        self.batch_size = batch_size
+        if batch_group_size is None:
+            batch_group_size = batch_size * 32
+        self.batch_group_size = batch_group_size
+        assert batch_group_size % batch_size == 0
+        self.permutate = permutate
+
+    def __iter__(self):
+        indices = self.sorted_indices.clone()
+        batch_group_size = self.batch_group_size
+        s, e = 0, 0
+        for i in range(len(indices) // batch_group_size):
+            s = i * batch_group_size
+            e = s + batch_group_size
+            random.shuffle(indices[s:e])
+
+        # Permutate batches
+        if self.permutate:
+            perm = np.arange(len(indices[:e]) // self.batch_size)
+            random.shuffle(perm)
+            indices[:e] = indices[:e].view(-1, self.batch_size)[perm, :].view(-1)
+
+        # Handle last elements
+        s += batch_group_size
+        if s < len(indices):
+            random.shuffle(indices[s:])
+
+        return iter(indices)
+
+    def __len__(self):
+        return len(self.sorted_indices)
 
 
 class PyTorchDataset(object):
@@ -239,8 +293,13 @@ def collate_fn(batch):
         (text_positions, frame_positions), done, target_lengths
 
 
+def time_string():
+    return datetime.now().strftime('%Y-%m-%d %H:%M')
+
+
 def save_alignment(path, attn):
-    plot_alignment(attn.T, path, info="deepvoice3, step={}".format(global_step))
+    plot_alignment(attn.T, path, info="{}, {}, step={}".format(
+        hparams.builder, time_string(), global_step))
 
 
 def prepare_spec_image(spectrogram):
@@ -641,11 +700,16 @@ if __name__ == "__main__":
     Mel = FileSourceDataset(MelSpecDataSource(data_root))
     Y = FileSourceDataset(LinearSpecDataSource(data_root))
 
+    # Prepare sampler
+    frame_lengths = Mel.file_data_source.frame_lengths
+    sampler = PartialyRandomizedSimilarTimeLengthSampler(
+        frame_lengths, batch_size=hparams.batch_size)
+
     # Dataset and Dataloader setup
     dataset = PyTorchDataset(X, Mel, Y)
     data_loader = data_utils.DataLoader(
         dataset, batch_size=hparams.batch_size,
-        num_workers=hparams.num_workers, shuffle=True,
+        num_workers=hparams.num_workers, sampler=sampler,
         collate_fn=collate_fn, pin_memory=hparams.pin_memory)
 
     # Model
