@@ -122,7 +122,7 @@ if __name__ == "__main__":
                 dst_dir, "{}_{}{}_alignment.png".format(idx, checkpoint_name,
                                                         file_name_suffix))
             plot_alignment(alignment.T, dst_alignment_path,
-                           info="deepvoice3, {}".format(checkpoint_path))
+                           info="{}, {}".format(hparams.builder, basename(checkpoint_path)))
             audio.save_wav(waveform, dst_wav_path)
             from os.path import basename, splitext
             name = splitext(basename(text_list_file_path))[0]

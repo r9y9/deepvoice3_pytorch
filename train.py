@@ -62,15 +62,11 @@ _frontend = None  # to be set later
 
 
 def _pad(seq, max_len, constant_values=0):
-    if max_len - len(seq) == 0:
-        return seq
     return np.pad(seq, (0, max_len - len(seq)),
                   mode='constant', constant_values=constant_values)
 
 
 def _pad_2d(x, max_len, b_pad=0):
-    if max_len - len(x) - b_pad == 0:
-        return x
     x = np.pad(x, [(b_pad, max_len - len(x) - b_pad), (0, 0)],
                mode="constant", constant_values=0)
     return x
