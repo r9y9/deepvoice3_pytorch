@@ -413,7 +413,7 @@ def spec_loss(y_hat, y, mask, priority_bin=None, priority_w=0):
             priority_loss = l1(y_hat[:, :, :priority_bin], y[:, :, :priority_bin])
         l1_loss = (1 - priority_w) * l1_loss + priority_w * priority_loss
 
-    # Binary div loss
+    # Binary divergence loss
     if hparams.binary_divergence_weight <= 0:
         binary_div = Variable(y.data.new(1).zero_())
     else:

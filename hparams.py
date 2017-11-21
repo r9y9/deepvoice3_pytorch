@@ -40,7 +40,7 @@ hparams = tf.contrib.training.HParams(
     downsample_step=4,  # must be 4 when builder="build_nyanko"
     outputs_per_step=1,  # must be 1 when builder="build_nyanko"
     padding_idx=0,
-    dropout=0,  # 1 - 0.95,
+    dropout=1 - 0.95,
     kernel_size=3,
     text_embed_dim=128,
     encoder_channels=256,
@@ -62,8 +62,9 @@ hparams = tf.contrib.training.HParams(
     priority_freq_weight=0.0,  # (1-w)*linear_loss + w*priority_linear_loss
     # https://arxiv.org/pdf/1710.08969.pdf
     # Adding the divergence to the loss stabilizes training, expecially for
-    # very deep (> 10 layers) networks
-    binary_divergence_weight=0.5,  # set 0 to disable
+    # very deep (> 10 layers) networks.
+    # Binary div loss seems has approx 10x scale compared to L1 loss, so I choose 0.1.
+    binary_divergence_weight=0.1,  # set 0 to disable
     use_guided_attention=True,
     guided_attention_sigma=0.2,
 
