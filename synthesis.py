@@ -10,7 +10,7 @@ options:
     --checkpoint-postnet=<path>       Load postnet model from checkpoint path.
     --file-name-suffix=<s>            File name suffix [default: ].
     --max-decoder-steps=<N>           Max decoder steps [default: 500].
-    --replace_pronunciation_prop=<N>  Prob [default: 0.0].
+    --replace_pronunciation_prob=<N>  Prob [default: 0.0].
     -h, --help               Show help message.
 """
 from docopt import docopt
@@ -80,7 +80,7 @@ if __name__ == "__main__":
     checkpoint_postnet_path = args["--checkpoint-postnet"]
     max_decoder_steps = int(args["--max-decoder-steps"])
     file_name_suffix = args["--file-name-suffix"]
-    replace_pronunciation_prob = float(args["--replace_pronunciation_prop"])
+    replace_pronunciation_prob = float(args["--replace_pronunciation_prob"])
 
     # Override hyper parameters
     hparams.parse(args["--hparams"])
