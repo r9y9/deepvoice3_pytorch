@@ -7,14 +7,6 @@ import tensorflow as tf
 hparams = tf.contrib.training.HParams(
     name="deepvoice3",
 
-    # Convenient model builder
-    # [deepvoice3, nyanko, latest]
-    # Definitions can be found at deepvoice3_pytorch/builder.py
-    # deepvoice3: build DeepVoice3　https://arxiv.org/abs/1710.07654
-    # nyanko: https://arxiv.org/abs/1710.08969
-    # latest: Latest model I (@r9y9) have been working on.
-    builder="latest",
-
     # Text:
     # [en, jp]
     frontend='en',
@@ -27,6 +19,55 @@ hparams = tf.contrib.training.HParams(
     # [0 ~ 1.0]: 0 means no replacement happens.
     replace_pronunciation_prob=0.5,
 
+    # Convenient model builder
+    # [deepvoice3, nyanko, latest]
+    # Definitions can be found at deepvoice3_pytorch/builder.py
+    # deepvoice3: build DeepVoice3　https://arxiv.org/abs/1710.07654
+    # nyanko: https://arxiv.org/abs/1710.08969
+    # latest: Latest model I (@r9y9) have been working on.
+    builder="latest",
+
+    # Presets known to work good.
+    # NOTE: If True, this will overwride params with presets[builder]
+    use_preset=False,
+    presets={
+        "deepvoice3": {
+            "downsample_step": 1,
+            "outputs_per_step": 4,
+            "dropout": 1 - 0.95,
+            "kernel_size": 7,
+            "text_embed_dim": 256,
+            "encoder_channels": 256,
+            "decoder_channels": 256,
+            "converter_channels": 256,
+            "use_guided_attention": True,
+            "guided_attention_sigma": 0.2,
+            "binary_divergence_weight": 0.0,
+            "use_decoder_state_for_postnet_input": True,
+
+            "clip_thresh": 1.0,
+            "initial_learning_rate": 1e-3,
+        },
+        "nyanko": {
+            "downsample_step": 4,
+            "outputs_per_step": 1,
+            "dropout": 1 - 0.95,
+            "kernel_size": 3,
+            "text_embed_dim": 128,
+            "encoder_channels": 256,
+            "decoder_channels": 256,
+            "converter_channels": 256,
+            "use_guided_attention": True,
+            "guided_attention_sigma": 0.2,
+            "binary_divergence_weight": 0.1,
+            "use_decoder_state_for_postnet_input": False,
+
+            "clip_thresh": 0.1,
+            "initial_learning_rate": 5e-4,
+        },
+        "latest": {},
+    },
+
     # Audio:
     num_mels=80,
     fft_size=1024,
@@ -37,8 +78,8 @@ hparams = tf.contrib.training.HParams(
     ref_level_db=20,
 
     # Model:
-    downsample_step=4,  # must be 4 when builder="build_nyanko"
-    outputs_per_step=1,  # must be 1 when builder="build_nyanko"
+    downsample_step=4,  # must be 4 when builder="nyanko"
+    outputs_per_step=1,  # must be 1 when builder="nyanko"
     padding_idx=0,
     dropout=1 - 0.95,
     kernel_size=3,
