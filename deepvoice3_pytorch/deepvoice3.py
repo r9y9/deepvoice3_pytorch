@@ -11,7 +11,7 @@ from fairseq.modules import GradMultiply
 from fairseq.modules.conv_tbc import ConvTBC as _ConvTBC
 
 from .modules import Conv1d, LinearizedConv1d, ConvTBC, Embedding, Linear
-from .modules import get_mask_from_lengths
+from .modules import get_mask_from_lengths, position_encoding_init
 
 
 def has_dilation(convolutions):
@@ -178,19 +178,6 @@ class AttentionLayer(nn.Module):
         return x, attn_scores
 
 
-def position_encoding_init(n_position, d_pos_vec, position_rate=1.0):
-    ''' Init the sinusoid position encoding table '''
-
-    # keep dim 0 for padding token position encoding zero vector
-    position_enc = np.array([
-        [position_rate * pos / np.power(10000, 2 * i / d_pos_vec) for i in range(d_pos_vec)]
-        if pos != 0 else np.zeros(d_pos_vec) for pos in range(n_position)])
-
-    position_enc[1:, 0::2] = np.sin(position_enc[1:, 0::2])  # dim 2i
-    position_enc[1:, 1::2] = np.cos(position_enc[1:, 1::2])  # dim 2i+1
-    return torch.from_numpy(position_enc).type(torch.FloatTensor)
-
-
 class Decoder(nn.Module):
     def __init__(self, embed_dim, n_speakers, speaker_embed_dim,
                  in_dim=80, r=5,
@@ -333,13 +320,17 @@ class Decoder(nn.Module):
         # Back to batch first
         x = x.transpose(0, 1) if use_convtbc else x.transpose(1, 2)
 
+        # decoder state:
+        # internal representation before compressed to output dimention
+        decoder_states = x
+
         # project to mel-spectorgram
-        outputs = F.sigmoid(self.fc2(x))
+        outputs = F.sigmoid(self.fc2(decoder_states))
 
         # Done flag
-        done = F.sigmoid(self.fc3(x))
+        done = F.sigmoid(self.fc3(decoder_states))
 
-        return outputs, torch.stack(alignments), done
+        return outputs, torch.stack(alignments), done, decoder_states
 
     def incremental_forward(self, encoder_out, text_positions,
                             initial_input=None, test_inputs=None):
@@ -353,6 +344,7 @@ class Decoder(nn.Module):
         # transpose only once to speed up attention layers
         keys = keys.transpose(1, 2).contiguous()
 
+        decoder_states = []
         outputs = []
         alignments = []
         dones = []
@@ -411,12 +403,14 @@ class Decoder(nn.Module):
                 # residual
                 x = (x + residual) * math.sqrt(0.5)
 
+            decoder_state = x
             ave_alignment = ave_alignment.div_(num_attention_layers)
 
             # Ooutput & done flag predictions
-            output = F.sigmoid(self.fc2(x))
-            done = F.sigmoid(self.fc3(x))
+            output = F.sigmoid(self.fc2(decoder_state))
+            done = F.sigmoid(self.fc3(decoder_state))
 
+            decoder_states += [decoder_state]
             outputs += [output]
             alignments += [ave_alignment]
             dones += [done]
@@ -430,13 +424,15 @@ class Decoder(nn.Module):
 
         # Remove 1-element time axis
         alignments = list(map(lambda x: x.squeeze(1), alignments))
+        decoder_states = list(map(lambda x: x.squeeze(1), decoder_states))
         outputs = list(map(lambda x: x.squeeze(1), outputs))
 
         # Combine outputs for all time steps
         alignments = torch.stack(alignments).transpose(0, 1)
+        decoder_states = torch.stack(decoder_states).transpose(0, 1).contiguous()
         outputs = torch.stack(outputs).transpose(0, 1).contiguous()
 
-        return outputs, alignments, dones
+        return outputs, alignments, dones, decoder_states
 
     def start_fresh_sequence(self):
         for conv in self.convolutions:

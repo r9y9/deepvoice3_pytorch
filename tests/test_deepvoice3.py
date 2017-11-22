@@ -25,7 +25,9 @@ outputs_per_step = 4
 padding_idx = 0
 
 
-def _get_model(n_speakers=1, speaker_embed_dim=None, force_monotonic_attention=False):
+def _get_model(n_speakers=1, speaker_embed_dim=None,
+               force_monotonic_attention=False,
+               use_decoder_state_for_postnet_input=False):
     model = deepvoice3(n_vocab=n_vocab,
                        embed_dim=256,
                        mel_dim=num_mels,
@@ -40,6 +42,7 @@ def _get_model(n_speakers=1, speaker_embed_dim=None, force_monotonic_attention=F
                        decoder_channels=256,
                        converter_channels=256,
                        force_monotonic_attention=force_monotonic_attention,
+                       use_decoder_state_for_postnet_input=use_decoder_state_for_postnet_input,
                        )
     return model
 
@@ -109,8 +112,9 @@ def _deepvoice3(n_vocab, embed_dim=256, mel_dim=80,
 def test_single_speaker_deepvoice3():
     x, y = _test_data()
 
-    model = _get_model()
-    mel_outputs, linear_outputs, alignments, done = model(x, y)
+    for v in [False, True]:
+        model = _get_model(use_decoder_state_for_postnet_input=v)
+        mel_outputs, linear_outputs, alignments, done = model(x, y)
 
 
 def test_dilated_convolution_support():
@@ -199,13 +203,13 @@ def test_incremental_correctness():
     encoder_outs = model.seq2seq.encoder(x)
 
     # Off line decoding
-    mel_outputs_offline, alignments_offline, done = model.seq2seq.decoder(
+    mel_outputs_offline, alignments_offline, done, _ = model.seq2seq.decoder(
         encoder_outs, mel_reshaped,
         text_positions=text_positions, frame_positions=frame_positions)
 
     # Online decoding with test inputs
     model.seq2seq.decoder.start_fresh_sequence()
-    mel_outputs_online, alignments, dones_online = model.seq2seq.decoder.incremental_forward(
+    mel_outputs_online, alignments, dones_online, _ = model.seq2seq.decoder.incremental_forward(
         encoder_outs, text_positions,
         test_inputs=mel_reshaped)
 

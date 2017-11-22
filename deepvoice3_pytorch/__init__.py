@@ -15,13 +15,15 @@ class MultiSpeakerTTSModel(nn.Module):
     def __init__(self, seq2seq, postnet,
                  mel_dim=80, linear_dim=513,
                  n_speakers=1, speaker_embed_dim=16, padding_idx=None,
-                 trainable_positional_encodings=False):
+                 trainable_positional_encodings=False,
+                 use_decoder_state_for_postnet_input=False):
         super(MultiSpeakerTTSModel, self).__init__()
         self.seq2seq = seq2seq
         self.postnet = postnet  # referred as "Converter" in DeepVoice3
         self.mel_dim = mel_dim
         self.linear_dim = linear_dim
         self.trainable_positional_encodings = trainable_positional_encodings
+        self.use_decoder_state_for_postnet_input = use_decoder_state_for_postnet_input
 
         # Speaker embedding
         if n_speakers > 1:
@@ -62,7 +64,7 @@ class MultiSpeakerTTSModel(nn.Module):
 
         # Apply seq2seq
         # (B, T//r, mel_dim*r)
-        mel_outputs, alignments, done = self.seq2seq(
+        mel_outputs, alignments, done, decoder_states = self.seq2seq(
             text_sequences, mel_targets, speaker_embed,
             text_positions, frame_positions, input_lengths)
 
@@ -70,9 +72,16 @@ class MultiSpeakerTTSModel(nn.Module):
         # (B, T, mel_dim)
         mel_outputs = mel_outputs.view(B, -1, self.mel_dim)
 
+        # Prepare postnet inputs
+        if self.use_decoder_state_for_postnet_input:
+            postnet_inputs = decoder_states.view(B, mel_outputs.size(1), -1)
+        else:
+            postnet_inputs = mel_outputs
+
         # (B, T, linear_dim)
-        # Convert coarse mel-spectrogram to high resolution spectrogram
-        linear_outputs = self.postnet(mel_outputs)
+        # Convert coarse mel-spectrogram (or decoder hidden states) to
+        # high resolution spectrogram
+        linear_outputs = self.postnet(postnet_inputs)
         assert linear_outputs.size(-1) == self.linear_dim
 
         return mel_outputs, linear_outputs, alignments, done
@@ -99,9 +108,9 @@ class AttentionSeq2Seq(nn.Module):
         # Mel: (B, T//r, mel_dim*r)
         # Alignments: (N, B, T_target, T_input)
         # Done: (B, T//r, 1)
-        mel_outputs, alignments, done = self.decoder(
+        mel_outputs, alignments, done, decoder_states = self.decoder(
             encoder_outputs, mel_targets,
             text_positions=text_positions, frame_positions=frame_positions,
             speaker_embed=speaker_embed, lengths=input_lengths)
 
-        return mel_outputs, alignments, done
+        return mel_outputs, alignments, done, decoder_states

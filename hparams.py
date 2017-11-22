@@ -51,6 +51,9 @@ hparams = tf.contrib.training.HParams(
     key_position_rate=1.385,  # 2.37 for jsut
     use_memory_mask=True,
     trainable_positional_encodings=False,
+    # If True, use decoder's internal representation for postnet inputs,
+    # otherwise use mel-spectrogram.
+    use_decoder_state_for_postnet_input=False,
 
     # Data loader
     pin_memory=True,

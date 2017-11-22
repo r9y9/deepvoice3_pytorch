@@ -50,6 +50,15 @@ def _pad_2d(x, max_len, b_pad=0):
     return x
 
 
+def test_nyanko_basics():
+    x, y = _test_data()
+
+    for v in [False, True]:
+        model = nyanko(n_vocab, mel_dim=num_mels, linear_dim=num_freq, r=1,
+                       use_decoder_state_for_postnet_input=v)
+        mel_outputs, linear_outputs, alignments, done = model(x, y)
+
+
 @attr("local_only")
 def test_incremental_correctness():
     texts = ["they discarded this for a more completely Roman and far less beautiful letter."]
@@ -80,13 +89,13 @@ def test_incremental_correctness():
     encoder_outs = model.seq2seq.encoder(x)
 
     # Off line decoding
-    mel_outputs_offline, alignments_offline, done = model.seq2seq.decoder(
+    mel_outputs_offline, alignments_offline, done, _ = model.seq2seq.decoder(
         encoder_outs, mel_reshaped,
         text_positions=text_positions, frame_positions=frame_positions)
 
     # Online decoding with test inputs
     model.seq2seq.decoder.start_fresh_sequence()
-    mel_outputs_online, alignments, dones_online = model.seq2seq.decoder.incremental_forward(
+    mel_outputs_online, alignments, dones_online, _ = model.seq2seq.decoder.incremental_forward(
         encoder_outs, text_positions,
         test_inputs=mel_reshaped)
 
@@ -148,7 +157,7 @@ def test_nyanko():
 
     # Off line decoding
     print("Offline decoding")
-    mel_outputs_offline, alignments_offline, done = seq2seq.decoder(
+    mel_outputs_offline, alignments_offline, done, _ = seq2seq.decoder(
         encoder_outs, mel_reshaped,
         text_positions=text_positions, frame_positions=frame_positions)
 
@@ -157,7 +166,7 @@ def test_nyanko():
     # Online decoding with test inputs
     print("Online decoding")
     seq2seq.decoder.start_fresh_sequence()
-    mel_outputs_online, alignments, dones_online = seq2seq.decoder.incremental_forward(
+    mel_outputs_online, alignments, dones_online, _ = seq2seq.decoder.incremental_forward(
         encoder_outs, text_positions,
         test_inputs=mel_reshaped)
 

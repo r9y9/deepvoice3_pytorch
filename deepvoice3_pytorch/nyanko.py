@@ -145,9 +145,8 @@ class Decoder(nn.Module):
             nn.ReLU(),
             Conv1d(D, D, kernel_size=1, padding=0, dilation=1, std_mul=2.0),
             nn.ReLU(),
-
-            Conv1d(D, F, kernel_size=1, padding=0, dilation=1, std_mul=2.0),
         ])
+        self.last_conv = Conv1d(D, F, kernel_size=1, padding=0, dilation=1, std_mul=2.0)
 
         # Done prediction
         self.fc = Linear(F, 1)
@@ -213,8 +212,8 @@ class Decoder(nn.Module):
 
         # Attention modules assume query as (B, T, C)
         x = x.transpose(1, 2)
-        R, alignments = self.attention(
-            x + frame_pos_embed, (keys, values), mask=mask)
+        x = x if frame_positions is None else x + frame_pos_embed
+        R, alignments = self.attention(x, (keys, values), mask=mask)
         R = R.transpose(1, 2)
 
         # (B, C*2, T)
@@ -224,6 +223,8 @@ class Decoder(nn.Module):
         # Apply audio decoder
         for f in self.audio_decoder_modules:
             x = f(x)
+        decoder_states = x.transpose(1, 2).contiguous()
+        x = self.last_conv(x)
 
         # (B, T, C)
         x = x.transpose(1, 2)
@@ -237,7 +238,7 @@ class Decoder(nn.Module):
         # Adding extra dim for convenient
         alignments = alignments.unsqueeze(0)
 
-        return outputs, alignments, done
+        return outputs, alignments, done, decoder_states
 
     def incremental_forward(self, encoder_out, text_positions,
                             initial_input=None, test_inputs=None):
@@ -252,6 +253,7 @@ class Decoder(nn.Module):
         # transpose only once to speed up attention layers
         keys = keys.transpose(1, 2).contiguous()
 
+        decoder_states = []
         outputs = []
         alignments = []
         dones = []
@@ -298,11 +300,14 @@ class Decoder(nn.Module):
                     x = f.incremental_forward(x)
                 except AttributeError as e:
                     x = f(x)
+            decoder_state = x
+            x = self.last_conv.incremental_forward(x)
 
             # Ooutput & done flag predictions
             output = F.sigmoid(x)
             done = F.sigmoid(self.fc(x))
 
+            decoder_states += [decoder_state]
             outputs += [output]
             alignments += [alignment]
             dones += [done]
@@ -316,13 +321,15 @@ class Decoder(nn.Module):
 
         # Remove 1-element time axis
         alignments = list(map(lambda x: x.squeeze(1), alignments))
+        decoder_states = list(map(lambda x: x.squeeze(1), decoder_states))
         outputs = list(map(lambda x: x.squeeze(1), outputs))
 
         # Combine outputs for all time steps
         alignments = torch.stack(alignments).transpose(0, 1)
+        decoder_states = torch.stack(decoder_states).transpose(0, 1).contiguous()
         outputs = torch.stack(outputs).transpose(0, 1).contiguous()
 
-        return outputs, alignments, dones
+        return outputs, alignments, dones, decoder_states
 
     def start_fresh_sequence(self):
         _clear_modules(self.audio_encoder_modules)
