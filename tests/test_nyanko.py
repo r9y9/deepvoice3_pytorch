@@ -13,7 +13,7 @@ import numpy as np
 
 from nose.plugins.attrib import attr
 
-from deepvoice3_pytorch.builder import build_nyanko
+from deepvoice3_pytorch.builder import nyanko
 from deepvoice3_pytorch import MultiSpeakerTTSModel, AttentionSeq2Seq
 
 from fairseq.modules.conv_tbc import ConvTBC
@@ -72,8 +72,8 @@ def test_incremental_correctness():
     text_positions = Variable(torch.LongTensor(text_positions))
     frame_positions = Variable(torch.LongTensor(frame_positions))
 
-    model = build_nyanko(n_vocab, mel_dim=mel_dim, linear_dim=513,
-                         r=r, force_monotonic_attention=False)
+    model = nyanko(n_vocab, mel_dim=mel_dim, linear_dim=513,
+                   r=r, force_monotonic_attention=False)
     model.eval()
 
     # Encoder
@@ -117,8 +117,8 @@ def test_nyanko():
     text_positions = Variable(torch.LongTensor(text_positions))
     frame_positions = Variable(torch.LongTensor(frame_positions))
 
-    model = build_nyanko(n_vocab, mel_dim=mel_dim, linear_dim=513,
-                         r=r, force_monotonic_attention=False)
+    model = nyanko(n_vocab, mel_dim=mel_dim, linear_dim=513,
+                   r=r, force_monotonic_attention=False)
     model.eval()
 
     def _plot(mel, mel_predicted, alignments):

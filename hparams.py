@@ -8,12 +8,12 @@ hparams = tf.contrib.training.HParams(
     name="deepvoice3",
 
     # Convenient model builder
-    # [build_deepvoice3, build_nyanko, build_latest]
+    # [deepvoice3, nyanko, latest]
     # Definitions can be found at deepvoice3_pytorch/builder.py
-    # build_deepvoice3: build DeepVoice3　https://arxiv.org/abs/1710.07654
-    # build_nyanko: https://arxiv.org/abs/1710.08969
-    # build_latest: Latest model I (@r9y9) have been working on.
-    builder="build_latest",
+    # deepvoice3: build DeepVoice3　https://arxiv.org/abs/1710.07654
+    # nyanko: https://arxiv.org/abs/1710.08969
+    # latest: Latest model I (@r9y9) have been working on.
+    builder="latest",
 
     # Text:
     # [en, jp]

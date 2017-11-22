@@ -4,18 +4,18 @@ from torch import nn
 from deepvoice3_pytorch import MultiSpeakerTTSModel, AttentionSeq2Seq
 
 
-def build_deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=513, r=4,
-                     n_speakers=1, speaker_embed_dim=16, padding_idx=0,
-                     dropout=(1 - 0.95), kernel_size=5,
-                     encoder_channels=128,
-                     decoder_channels=256,
-                     converter_channels=256,
-                     query_position_rate=1.0,
-                     key_position_rate=1.29,
-                     use_memory_mask=False,
-                     trainable_positional_encodings=False,
-                     force_monotonic_attention=True,
-                     ):
+def deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=513, r=4,
+               n_speakers=1, speaker_embed_dim=16, padding_idx=0,
+               dropout=(1 - 0.95), kernel_size=5,
+               encoder_channels=128,
+               decoder_channels=256,
+               converter_channels=256,
+               query_position_rate=1.0,
+               key_position_rate=1.29,
+               use_memory_mask=False,
+               trainable_positional_encodings=False,
+               force_monotonic_attention=True,
+               ):
     """Build deepvoice3
     """
     from deepvoice3_pytorch.deepvoice3 import Encoder, Decoder, Converter
@@ -67,17 +67,17 @@ def build_deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=513, r=4,
     return model
 
 
-def build_nyanko(n_vocab, embed_dim=128, mel_dim=80, linear_dim=513, r=4,
-                 n_speakers=1, speaker_embed_dim=16, padding_idx=0,
-                 dropout=(1 - 0.95), kernel_size=3,
-                 encoder_channels=256,
-                 decoder_channels=256,
-                 converter_channels=512,
-                 query_position_rate=1.0,
-                 key_position_rate=1.29,
-                 use_memory_mask=False,
-                 trainable_positional_encodings=False,
-                 force_monotonic_attention=True):
+def nyanko(n_vocab, embed_dim=128, mel_dim=80, linear_dim=513, r=4,
+           n_speakers=1, speaker_embed_dim=16, padding_idx=0,
+           dropout=(1 - 0.95), kernel_size=3,
+           encoder_channels=256,
+           decoder_channels=256,
+           converter_channels=512,
+           query_position_rate=1.0,
+           key_position_rate=1.29,
+           use_memory_mask=False,
+           trainable_positional_encodings=False,
+           force_monotonic_attention=True):
     from deepvoice3_pytorch.nyanko import Encoder, Decoder, Converter
     assert encoder_channels == decoder_channels
 
@@ -116,4 +116,4 @@ def build_nyanko(n_vocab, embed_dim=128, mel_dim=80, linear_dim=513, r=4,
 
 
 # TODO:
-build_latest = build_nyanko
+latest = nyanko

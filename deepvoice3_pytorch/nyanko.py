@@ -9,7 +9,8 @@ import numpy as np
 
 from .modules import Embedding, Linear, Conv1d, ConvTranspose1d
 from .modules import HighwayConv1d, get_mask_from_lengths
-from .deepvoice3 import position_encoding_init, AttentionLayer
+from .modules import position_encoding_init
+from .deepvoice3 import AttentionLayer
 
 
 class Encoder(nn.Module):

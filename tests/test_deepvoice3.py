@@ -13,7 +13,7 @@ import numpy as np
 
 from nose.plugins.attrib import attr
 
-from deepvoice3_pytorch.builder import build_deepvoice3
+from deepvoice3_pytorch.builder import deepvoice3
 from deepvoice3_pytorch import MultiSpeakerTTSModel, AttentionSeq2Seq
 
 from fairseq.modules.conv_tbc import ConvTBC
@@ -26,21 +26,21 @@ padding_idx = 0
 
 
 def _get_model(n_speakers=1, speaker_embed_dim=None, force_monotonic_attention=False):
-    model = build_deepvoice3(n_vocab=n_vocab,
-                             embed_dim=256,
-                             mel_dim=num_mels,
-                             linear_dim=num_freq,
-                             r=outputs_per_step,
-                             padding_idx=padding_idx,
-                             n_speakers=n_speakers,
-                             speaker_embed_dim=speaker_embed_dim,
-                             dropout=1 - 0.95,
-                             kernel_size=5,
-                             encoder_channels=128,
-                             decoder_channels=256,
-                             converter_channels=256,
-                             force_monotonic_attention=force_monotonic_attention,
-                             )
+    model = deepvoice3(n_vocab=n_vocab,
+                       embed_dim=256,
+                       mel_dim=num_mels,
+                       linear_dim=num_freq,
+                       r=outputs_per_step,
+                       padding_idx=padding_idx,
+                       n_speakers=n_speakers,
+                       speaker_embed_dim=speaker_embed_dim,
+                       dropout=1 - 0.95,
+                       kernel_size=5,
+                       encoder_channels=128,
+                       decoder_channels=256,
+                       converter_channels=256,
+                       force_monotonic_attention=force_monotonic_attention,
+                       )
     return model
 
 
@@ -63,11 +63,11 @@ def _test_data():
     return x, y
 
 
-def _build_deepvoice3(n_vocab, embed_dim=256, mel_dim=80,
-                      linear_dim=4096, r=5,
-                      n_speakers=1, speaker_embed_dim=16,
-                      padding_idx=None,
-                      dropout=(1 - 0.95), dilation=1):
+def _deepvoice3(n_vocab, embed_dim=256, mel_dim=80,
+                linear_dim=4096, r=5,
+                n_speakers=1, speaker_embed_dim=16,
+                padding_idx=None,
+                dropout=(1 - 0.95), dilation=1):
 
     from deepvoice3_pytorch.deepvoice3 import Encoder, Decoder, Converter
     h = 128
@@ -117,16 +117,16 @@ def test_dilated_convolution_support():
     x, y = _test_data()
 
     for dilation in [1, 2]:
-        model = _build_deepvoice3(n_vocab=n_vocab,
-                                  embed_dim=256,
-                                  mel_dim=num_mels,
-                                  linear_dim=num_freq,
-                                  r=outputs_per_step,
-                                  padding_idx=padding_idx,
-                                  n_speakers=1,
-                                  speaker_embed_dim=16,
-                                  dilation=dilation,
-                                  )
+        model = _deepvoice3(n_vocab=n_vocab,
+                            embed_dim=256,
+                            mel_dim=num_mels,
+                            linear_dim=num_freq,
+                            r=outputs_per_step,
+                            padding_idx=padding_idx,
+                            n_speakers=1,
+                            speaker_embed_dim=16,
+                            dilation=dilation,
+                            )
         if dilation > 1:
             for conv in [model.seq2seq.encoder.convolutions[0],
                          model.seq2seq.decoder.convolutions[0],
