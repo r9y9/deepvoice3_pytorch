@@ -28,7 +28,7 @@ class Encoder(nn.Module):
         D = channels
         self.convnet = nn.Sequential(
             Conv1d(E, 2 * D, kernel_size=1, padding=0, dilation=1, std_mul=1.0),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             Conv1d(2 * D, 2 * D, kernel_size=1, padding=0, dilation=1, std_mul=2.0),
 
             HighwayConv1d(2 * D, 2 * D, kernel_size=kernel_size, padding=None,
@@ -91,9 +91,9 @@ class Decoder(nn.Module):
         F = in_dim * r  # should be r = 1 to replicate
         self.audio_encoder_modules = nn.ModuleList([
             Conv1d(F, D, kernel_size=1, padding=0, dilation=1, std_mul=1.0),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             Conv1d(D, D, kernel_size=1, padding=0, dilation=1, std_mul=2.0),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             Conv1d(D, D, kernel_size=1, padding=0, dilation=1, std_mul=2.0),
 
             HighwayConv1d(D, D, kernel_size=kernel_size, padding=None,
@@ -140,11 +140,11 @@ class Decoder(nn.Module):
                           dilation=1, causal=True, std_mul=1.0, dropout=dropout),
 
             Conv1d(D, D, kernel_size=1, padding=0, dilation=1, std_mul=1.0),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             Conv1d(D, D, kernel_size=1, padding=0, dilation=1, std_mul=2.0),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             Conv1d(D, D, kernel_size=1, padding=0, dilation=1, std_mul=2.0),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
         ])
         self.last_conv = Conv1d(D, F, kernel_size=1, padding=0, dilation=1, std_mul=2.0)
 
@@ -383,9 +383,9 @@ class Converter(nn.Module):
             Conv1d(2 * C, Fd, kernel_size=1, padding=0, dilation=1, std_mul=1.0),
 
             Conv1d(Fd, Fd, kernel_size=1, padding=0, dilation=1, std_mul=1.0),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             Conv1d(Fd, Fd, kernel_size=1, padding=0, dilation=1, std_mul=2.0),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
 
             Conv1d(Fd, Fd, kernel_size=1, padding=0, dilation=1, std_mul=2.0),
             nn.Sigmoid(),
