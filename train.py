@@ -688,7 +688,7 @@ if __name__ == "__main__":
     checkpoint_postnet_path = args["--checkpoint-postnet"]
     data_root = args["--data-root"]
     if data_root is None:
-        data_root = join(expanduser("~"), "data", "ljspeech")
+        data_root = join(dirname(__file__), "data", "ljspeech")
 
     log_event_path = args["--log-event-path"]
     reset_optimizer = args["--reset-optimizer"]
