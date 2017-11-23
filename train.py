@@ -1,15 +1,19 @@
-"""Trainining script for Tacotron speech synthesis model.
+"""Trainining script for seq2seq text-to-speech synthesis model.
 
 usage: train.py [options]
 
 options:
-    --data-root=<dir>         Directory contains preprocessed features.
-    --checkpoint-dir=<dir>    Directory where to save model checkpoints [default: checkpoints].
-    --checkpoint-path=<name>  Restore model from checkpoint path if given.
-    --hparams=<parmas>        Hyper parameters [default: ].
-    --log-event-path=<name>     Log event path.
-    --reset-optimizer         Reset optimizer.
-    -h, --help                Show this help message and exit
+    --data-root=<dir>            Directory contains preprocessed features.
+    --checkpoint-dir=<dir>       Directory where to save model checkpoints [default: checkpoints].
+    --hparams=<parmas>           Hyper parameters [default: ].
+    --checkpoint=<path>          Restore model from checkpoint path if given.
+    --checkpoint-seq2seq=<path>  Restore seq2seq model from checkpoint path.
+    --checkpoint-postnet=<path>  Restore postnet model from checkpoint path.
+    --train-seq2seq-only         Train only seq2seq model.
+    --train-postnet-only         Train only postnet model.
+    --log-event-path=<name>      Log event path.
+    --reset-optimizer            Reset optimizer.
+    -h, --help                   Show this help message and exit
 """
 from docopt import docopt
 
@@ -19,7 +23,7 @@ from tqdm import tqdm, trange
 from datetime import datetime
 
 # The deepvoice3 model
-from deepvoice3_pytorch import frontend, build_deepvoice3
+from deepvoice3_pytorch import frontend, builder
 import audio
 import lrschedule
 
@@ -30,11 +34,13 @@ from torch import nn
 from torch import optim
 import torch.backends.cudnn as cudnn
 from torch.utils import data as data_utils
+from torch.utils.data.sampler import Sampler
 import numpy as np
 from numba import jit
 
 from nnmnkwii.datasets import FileSourceDataset, FileDataSource
 from os.path import join, expanduser
+import random
 
 import librosa.display
 from matplotlib import pyplot as plt
@@ -50,7 +56,7 @@ global_step = 0
 global_epoch = 0
 use_cuda = torch.cuda.is_available()
 if use_cuda:
-    cudnn.benchmark = True
+    cudnn.benchmark = False
 
 _frontend = None  # to be set later
 
@@ -81,6 +87,7 @@ def plot_alignment(alignment, path, info=None):
     plt.ylabel('Encoder timestep')
     plt.tight_layout()
     plt.savefig(path, format='png')
+    plt.close()
 
 
 class TextDataSource(FileDataSource):
@@ -103,13 +110,17 @@ class _NPYDataSource(FileDataSource):
     def __init__(self, data_root, col):
         self.data_root = data_root
         self.col = col
+        self.frame_lengths = []
 
     def collect_files(self):
         meta = join(self.data_root, "train.txt")
         with open(meta, "rb") as f:
             lines = f.readlines()
+        self.frame_lengths = list(
+            map(lambda l: int(l.decode("utf-8").split("|")[2]), lines))
         lines = list(map(lambda l: l.decode("utf-8").split("|")[self.col], lines))
         paths = list(map(lambda f: join(self.data_root, f), lines))
+
         return paths
 
     def collect_features(self, path):
@@ -124,6 +135,50 @@ class MelSpecDataSource(_NPYDataSource):
 class LinearSpecDataSource(_NPYDataSource):
     def __init__(self, data_root):
         super(LinearSpecDataSource, self).__init__(data_root, 0)
+
+
+class PartialyRandomizedSimilarTimeLengthSampler(Sampler):
+    """Partially randmoized sampler
+
+    1. Sort by lengths
+    2. Pick a small patch and randomize it
+    3. Permutate mini-batchs
+    """
+
+    def __init__(self, lengths, batch_size=16, batch_group_size=None,
+                 permutate=True):
+        self.lengths, self.sorted_indices = torch.sort(torch.LongTensor(lengths))
+        self.batch_size = batch_size
+        if batch_group_size is None:
+            batch_group_size = batch_size * 32
+        self.batch_group_size = batch_group_size
+        assert batch_group_size % batch_size == 0
+        self.permutate = permutate
+
+    def __iter__(self):
+        indices = self.sorted_indices.clone()
+        batch_group_size = self.batch_group_size
+        s, e = 0, 0
+        for i in range(len(indices) // batch_group_size):
+            s = i * batch_group_size
+            e = s + batch_group_size
+            random.shuffle(indices[s:e])
+
+        # Permutate batches
+        if self.permutate:
+            perm = np.arange(len(indices[:e]) // self.batch_size)
+            random.shuffle(perm)
+            indices[:e] = indices[:e].view(-1, self.batch_size)[perm, :].view(-1)
+
+        # Handle last elements
+        s += batch_group_size
+        if s < len(indices):
+            random.shuffle(indices[s:])
+
+        return iter(indices)
+
+    def __len__(self):
+        return len(self.sorted_indices)
 
 
 class PyTorchDataset(object):
@@ -234,8 +289,13 @@ def collate_fn(batch):
         (text_positions, frame_positions), done, target_lengths
 
 
+def time_string():
+    return datetime.now().strftime('%Y-%m-%d %H:%M')
+
+
 def save_alignment(path, attn):
-    plot_alignment(attn.T, path, info="deepvoice3, step={}".format(global_step))
+    plot_alignment(attn.T, path, info="{}, {}, step={}".format(
+        hparams.builder, time_string(), global_step))
 
 
 def prepare_spec_image(spectrogram):
@@ -255,7 +315,7 @@ def save_states(global_step, writer, mel_outputs, linear_outputs, attn, mel, y,
 
     # Alignment
     # Multi-hop attention
-    if attn.dim() == 4:
+    if attn is not None and attn.dim() == 4:
         for i, alignment in enumerate(attn):
             alignment = alignment[idx].cpu().data.numpy()
             tag = "alignment_layer{}".format(i + 1)
@@ -277,40 +337,42 @@ def save_states(global_step, writer, mel_outputs, linear_outputs, attn, mel, y,
 
         tag = "averaged_alignment"
         writer.add_image(tag, np.uint8(cm.viridis(np.flip(alignment, 1).T) * 255), global_step)
-    else:
-        assert False
 
     # Predicted mel spectrogram
-    mel_output = mel_outputs[idx].cpu().data.numpy()
-    mel_output = prepare_spec_image(audio._denormalize(mel_output))
-    writer.add_image("Predicted mel spectrogram", mel_output, global_step)
+    if mel_outputs is not None:
+        mel_output = mel_outputs[idx].cpu().data.numpy()
+        mel_output = prepare_spec_image(audio._denormalize(mel_output))
+        writer.add_image("Predicted mel spectrogram", mel_output, global_step)
 
     # Predicted spectrogram
-    linear_output = linear_outputs[idx].cpu().data.numpy()
-    spectrogram = prepare_spec_image(audio._denormalize(linear_output))
-    writer.add_image("Predicted linear spectrogram", spectrogram, global_step)
+    if linear_outputs is not None:
+        linear_output = linear_outputs[idx].cpu().data.numpy()
+        spectrogram = prepare_spec_image(audio._denormalize(linear_output))
+        writer.add_image("Predicted linear spectrogram", spectrogram, global_step)
 
-    # Predicted audio signal
-    signal = audio.inv_spectrogram(linear_output.T)
-    signal /= np.max(np.abs(signal))
-    path = join(checkpoint_dir, "step{:09d}_predicted.wav".format(
-        global_step))
-    try:
-        writer.add_audio("Predicted audio signal", signal, global_step, sample_rate=fs)
-    except:
-        # TODO:
-        pass
-    audio.save_wav(signal, path)
+        # Predicted audio signal
+        signal = audio.inv_spectrogram(linear_output.T)
+        signal /= np.max(np.abs(signal))
+        path = join(checkpoint_dir, "step{:09d}_predicted.wav".format(
+            global_step))
+        try:
+            writer.add_audio("Predicted audio signal", signal, global_step, sample_rate=fs)
+        except:
+            # TODO:
+            pass
+        audio.save_wav(signal, path)
 
     # Target mel spectrogram
-    mel_output = mel[idx].cpu().data.numpy()
-    mel_output = prepare_spec_image(audio._denormalize(mel_output))
-    writer.add_image("Target mel spectrogram", mel_output, global_step)
+    if mel_outputs is not None:
+        mel_output = mel[idx].cpu().data.numpy()
+        mel_output = prepare_spec_image(audio._denormalize(mel_output))
+        writer.add_image("Target mel spectrogram", mel_output, global_step)
 
     # Target spectrogram
-    linear_output = y[idx].cpu().data.numpy()
-    spectrogram = prepare_spec_image(audio._denormalize(linear_output))
-    writer.add_image("Target linear spectrogram", spectrogram, global_step)
+    if linear_outputs is not None:
+        linear_output = y[idx].cpu().data.numpy()
+        spectrogram = prepare_spec_image(audio._denormalize(linear_output))
+        writer.add_image("Target linear spectrogram", spectrogram, global_step)
 
 
 def logit(x, eps=1e-8):
@@ -326,20 +388,37 @@ def masked_mean(y, mask):
 def spec_loss(y_hat, y, mask, priority_bin=None, priority_w=0):
     masked_l1 = MaskedL1Loss()
     l1 = nn.L1Loss()
-    l1_loss = 0.5 * masked_l1(y_hat, y, mask=mask) + 0.5 * l1(y_hat, y)
+
+    w = hparams.masked_loss_weight
+
+    # L1 loss
+    if w > 0:
+        assert mask is not None
+        l1_loss = w * masked_l1(y_hat, y, mask=mask) + (1 - w) * l1(y_hat, y)
+    else:
+        assert mask is None
+        l1_loss = l1(y_hat, y)
+
+    # Priority L1 loss
     if priority_bin is not None and priority_w > 0:
-        priority_loss = 0.5 * masked_l1(
-            y_hat[:, :, :priority_bin], y[:, :, :priority_bin], mask=mask) \
-            + 0.5 * l1(y_hat[:, :, :priority_bin], y[:, :, :priority_bin])
+        if w > 0:
+            priority_loss = w * masked_l1(
+                y_hat[:, :, :priority_bin], y[:, :, :priority_bin], mask=mask) \
+                + (1 - w) * l1(y_hat[:, :, :priority_bin], y[:, :, :priority_bin])
+        else:
+            priority_loss = l1(y_hat[:, :, :priority_bin], y[:, :, :priority_bin])
         l1_loss = (1 - priority_w) * l1_loss + priority_w * priority_loss
 
+    # Binary divergence loss
     if hparams.binary_divergence_weight <= 0:
         binary_div = Variable(y.data.new(1).zero_())
     else:
-        # TODO: I cannot get good results with this yet
         y_hat_logits = logit(y_hat)
         z = -y * y_hat_logits + torch.log(1 + torch.exp(y_hat_logits))
-        binary_div = 0.5 * masked_mean(z, mask) + 0.5 * z.mean()
+        if w > 0:
+            binary_div = w * masked_mean(z, mask) + (1 - w) * z.mean()
+        else:
+            binary_div = z.mean()
 
     return l1_loss, binary_div
 
@@ -366,7 +445,8 @@ def guided_attentions(input_lengths, target_lengths, max_target_len, g=0.2):
 def train(model, data_loader, optimizer, writer,
           init_lr=0.002,
           checkpoint_dir=None, checkpoint_interval=None, nepochs=None,
-          clip_thresh=1.0):
+          clip_thresh=1.0,
+          train_seq2seq=True, train_postnet=True):
     model.train()
     if use_cuda:
         model = model.cuda()
@@ -376,6 +456,8 @@ def train(model, data_loader, optimizer, writer,
     current_lr = init_lr
 
     binary_criterion = nn.BCELoss()
+
+    assert train_seq2seq or train_postnet
 
     global global_step, global_epoch
     while global_epoch < nepochs:
@@ -409,50 +491,83 @@ def train(model, data_loader, optimizer, writer,
             done = Variable(done)
             target_lengths = Variable(target_lengths)
             if use_cuda:
-                x, mel, y = x.cuda(), mel.cuda(), y.cuda()
-                text_positions = text_positions.cuda()
-                frame_positions = frame_positions.cuda()
+                if train_seq2seq:
+                    x = x.cuda()
+                    text_positions = text_positions.cuda()
+                    frame_positions = frame_positions.cuda()
+                if train_postnet:
+                    y = y.cuda()
+                mel = mel.cuda()
                 done, target_lengths = done.cuda(), target_lengths.cuda()
 
-            # decoder output domain mask
-            decoder_target_mask = sequence_mask(
-                target_lengths / (r * downsample_step),
-                max_len=mel.size(1)).unsqueeze(-1)
-            if downsample_step > 1:
-                # spectrogram-domain mask
-                target_mask = sequence_mask(
-                    target_lengths, max_len=y.size(1)).unsqueeze(-1)
+            # Create mask if we use masked loss
+            if hparams.masked_loss_weight > 0:
+                # decoder output domain mask
+                decoder_target_mask = sequence_mask(
+                    target_lengths / (r * downsample_step),
+                    max_len=mel.size(1)).unsqueeze(-1)
+                if downsample_step > 1:
+                    # spectrogram-domain mask
+                    target_mask = sequence_mask(
+                        target_lengths, max_len=y.size(1)).unsqueeze(-1)
+                else:
+                    target_mask = decoder_target_mask
+                # shift mask
+                decoder_target_mask = decoder_target_mask[:, r:, :]
+                target_mask = target_mask[:, r:, :]
             else:
-                target_mask = decoder_target_mask
+                decoder_target_mask, target_mask = None, None
 
-            mel_outputs, linear_outputs, attn, done_hat = model(
-                x, mel,
-                text_positions=text_positions, frame_positions=frame_positions,
-                input_lengths=input_lengths)
+            # Apply model
+            if train_seq2seq and train_postnet:
+                mel_outputs, linear_outputs, attn, done_hat = model(
+                    x, mel,
+                    text_positions=text_positions, frame_positions=frame_positions,
+                    input_lengths=input_lengths)
+            elif train_seq2seq:
+                mel_outputs, attn, done_hat = model.seq2seq(
+                    x, mel,
+                    text_positions=text_positions, frame_positions=frame_positions,
+                    input_lengths=input_lengths)
+                # reshape
+                mel_outputs = mel_outputs.view(len(mel), -1, mel.size(-1))
+                linear_outputs = None
+            elif train_postnet:
+                linear_outputs = model.postnet(mel)
+                mel_outputs, attn, done_hat = None, None, None
 
             # Losses
             w = hparams.binary_divergence_weight
 
             # mel:
-            mel_l1_loss, mel_binary_div = spec_loss(
-                mel_outputs[:, :-r, :], mel[:, r:, :], decoder_target_mask[:, r:, :])
-            mel_loss = (1 - w) * mel_l1_loss + w * mel_binary_div
+            if train_seq2seq:
+                mel_l1_loss, mel_binary_div = spec_loss(
+                    mel_outputs[:, :-r, :], mel[:, r:, :], decoder_target_mask)
+                mel_loss = (1 - w) * mel_l1_loss + w * mel_binary_div
 
             # done:
-            done_loss = binary_criterion(done_hat, done)
+            if train_seq2seq:
+                done_loss = binary_criterion(done_hat, done)
 
             # linear:
-            n_priority_freq = int(hparams.priority_freq / (fs * 0.5) * linear_dim)
-            linear_l1_loss, linear_binary_div = spec_loss(
-                linear_outputs[:, :-r, :], y[:, r:, :], target_mask[:, r:, :],
-                priority_bin=n_priority_freq,
-                priority_w=hparams.priority_freq_weight)
-            linear_loss = (1 - w) * linear_l1_loss + w * linear_binary_div
+            if train_postnet:
+                n_priority_freq = int(hparams.priority_freq / (fs * 0.5) * linear_dim)
+                linear_l1_loss, linear_binary_div = spec_loss(
+                    linear_outputs[:, :-r, :], y[:, r:, :], target_mask,
+                    priority_bin=n_priority_freq,
+                    priority_w=hparams.priority_freq_weight)
+                linear_loss = (1 - w) * linear_l1_loss + w * linear_binary_div
 
-            loss = mel_loss + linear_loss + done_loss
+            # Combine losses
+            if train_seq2seq and train_postnet:
+                loss = mel_loss + linear_loss + done_loss
+            elif train_seq2seq:
+                loss = mel_loss + done_loss
+            elif train_postnet:
+                loss = linear_loss
 
             # attention
-            if hparams.use_guided_attention:
+            if train_seq2seq and hparams.use_guided_attention:
                 soft_mask = guided_attentions(input_lengths, decoder_lengths,
                                               attn.size(-2),
                                               g=hparams.guided_attention_sigma)
@@ -466,7 +581,8 @@ def train(model, data_loader, optimizer, writer,
                     global_step, writer, mel_outputs, linear_outputs, attn,
                     mel, y, input_lengths, checkpoint_dir)
                 save_checkpoint(
-                    model, optimizer, global_step, checkpoint_dir, global_epoch)
+                    model, optimizer, global_step, checkpoint_dir, global_epoch,
+                    train_seq2seq, train_postnet)
 
             # Update
             loss.backward()
@@ -477,16 +593,18 @@ def train(model, data_loader, optimizer, writer,
 
             # Logs
             writer.add_scalar("loss", float(loss.data[0]), global_step)
-            writer.add_scalar("done_loss", float(done_loss.data[0]), global_step)
-            writer.add_scalar("mel loss", float(mel_loss.data[0]), global_step)
-            writer.add_scalar("mel_l1_loss", float(mel_l1_loss.data[0]), global_step)
-            writer.add_scalar("mel_binary_div", float(mel_binary_div.data[0]), global_step)
-            writer.add_scalar("linear_loss", float(linear_loss.data[0]), global_step)
-            writer.add_scalar("linear_l1_loss", float(linear_l1_loss.data[0]), global_step)
-            writer.add_scalar("linear_binary_div", float(linear_binary_div.data[0]), global_step)
-            if hparams.use_guided_attention:
+            if train_seq2seq:
+                writer.add_scalar("done_loss", float(done_loss.data[0]), global_step)
+                writer.add_scalar("mel loss", float(mel_loss.data[0]), global_step)
+                writer.add_scalar("mel_l1_loss", float(mel_l1_loss.data[0]), global_step)
+                writer.add_scalar("mel_binary_div_loss", float(mel_binary_div.data[0]), global_step)
+            if train_postnet:
+                writer.add_scalar("linear_loss", float(linear_loss.data[0]), global_step)
+                writer.add_scalar("linear_l1_loss", float(linear_l1_loss.data[0]), global_step)
+                writer.add_scalar("linear_binary_div_loss", float(
+                    linear_binary_div.data[0]), global_step)
+            if train_seq2seq and hparams.use_guided_attention:
                 writer.add_scalar("attn_loss", float(attn_loss.data[0]), global_step)
-
             if clip_thresh > 0:
                 writer.add_scalar("gradient norm", grad_norm, global_step)
             writer.add_scalar("learning rate", current_lr, global_step)
@@ -501,11 +619,22 @@ def train(model, data_loader, optimizer, writer,
         global_epoch += 1
 
 
-def save_checkpoint(model, optimizer, step, checkpoint_dir, epoch):
+def save_checkpoint(model, optimizer, step, checkpoint_dir, epoch,
+                    train_seq2seq, train_postnet):
+    if train_seq2seq and train_postnet:
+        suffix = ""
+        m = model
+    elif train_seq2seq:
+        suffix = "_seq2seq"
+        m = model.seq2seq
+    elif train_postnet:
+        suffix = "_postnet"
+        m = model.postnet
+
     checkpoint_path = join(
-        checkpoint_dir, "checkpoint_step{:09d}.pth".format(global_step))
+        checkpoint_dir, "checkpoint_step{:09d}{}.pth".format(global_step, suffix))
     torch.save({
-        "state_dict": model.state_dict(),
+        "state_dict": m.state_dict(),
         "optimizer": optimizer.state_dict(),
         "global_step": step,
         "global_epoch": epoch,
@@ -514,20 +643,39 @@ def save_checkpoint(model, optimizer, step, checkpoint_dir, epoch):
 
 
 def build_model():
-    model = build_deepvoice3(n_vocab=_frontend.n_vocab,
-                             embed_dim=hparams.text_embed_dim,
-                             mel_dim=hparams.num_mels,
-                             linear_dim=hparams.fft_size // 2 + 1,
-                             r=hparams.outputs_per_step,
-                             padding_idx=hparams.padding_idx,
-                             dropout=hparams.dropout,
-                             kernel_size=hparams.kernel_size,
-                             encoder_channels=hparams.encoder_channels,
-                             decoder_channels=hparams.decoder_channels,
-                             converter_channels=hparams.converter_channels,
-                             use_memory_mask=hparams.use_memory_mask,
-                             trainable_positional_encodings=hparams.trainable_positional_encodings
-                             )
+    model = getattr(builder, hparams.builder)(
+        n_vocab=_frontend.n_vocab,
+        embed_dim=hparams.text_embed_dim,
+        mel_dim=hparams.num_mels,
+        linear_dim=hparams.fft_size // 2 + 1,
+        r=hparams.outputs_per_step,
+        padding_idx=hparams.padding_idx,
+        dropout=hparams.dropout,
+        kernel_size=hparams.kernel_size,
+        encoder_channels=hparams.encoder_channels,
+        decoder_channels=hparams.decoder_channels,
+        converter_channels=hparams.converter_channels,
+        use_memory_mask=hparams.use_memory_mask,
+        trainable_positional_encodings=hparams.trainable_positional_encodings,
+        force_monotonic_attention=hparams.force_monotonic_attention,
+        use_decoder_state_for_postnet_input=hparams.use_decoder_state_for_postnet_input,
+    )
+    return model
+
+
+def load_checkpoint(path, model, optimizer, reset_optimizer):
+    global global_step
+    global global_epoch
+
+    print("Load checkpoint from: {}".format(path))
+    checkpoint = torch.load(path)
+    model.load_state_dict(checkpoint["state_dict"])
+    if not reset_optimizer:
+        print("Load optimizer state from {}".format(path))
+        optimizer.load_state_dict(checkpoint["optimizer"])
+    global_step = checkpoint["global_step"]
+    global_epoch = checkpoint["global_epoch"]
+
     return model
 
 
@@ -535,17 +683,42 @@ if __name__ == "__main__":
     args = docopt(__doc__)
     print("Command line args:\n", args)
     checkpoint_dir = args["--checkpoint-dir"]
-    checkpoint_path = args["--checkpoint-path"]
+    checkpoint_path = args["--checkpoint"]
+    checkpoint_seq2seq_path = args["--checkpoint-seq2seq"]
+    checkpoint_postnet_path = args["--checkpoint-postnet"]
     data_root = args["--data-root"]
     if data_root is None:
-        data_root = join(expanduser("~"), "data", "ljspeech")
+        data_root = join(dirname(__file__), "data", "ljspeech")
 
     log_event_path = args["--log-event-path"]
     reset_optimizer = args["--reset-optimizer"]
 
+    # Which model to be trained
+    train_seq2seq = args["--train-seq2seq-only"]
+    train_postnet = args["--train-postnet-only"]
+    # train both if not specified
+    if not train_seq2seq and not train_postnet:
+        print("Training whole model")
+        train_seq2seq, train_postnet = True, True
+    if train_seq2seq:
+        print("Training seq2seq model")
+    elif train_postnet:
+        print("Training postnet model")
+    else:
+        assert False, "must be specified wrong args"
+
     # Override hyper parameters
     hparams.parse(args["--hparams"])
+    print(hparams_debug_string())
     assert hparams.name == "deepvoice3"
+
+    # Presets
+    if hparams.use_preset:
+        preset = hparams.presets[hparams.builder]
+        import json
+        hparams.parse_json(json.dumps(preset))
+        print("Override hyper parameters with preset \"{}\": {}".format(
+            hparams.builder, json.dumps(preset, indent=4)))
 
     _frontend = getattr(frontend, hparams.frontend)
 
@@ -556,11 +729,16 @@ if __name__ == "__main__":
     Mel = FileSourceDataset(MelSpecDataSource(data_root))
     Y = FileSourceDataset(LinearSpecDataSource(data_root))
 
+    # Prepare sampler
+    frame_lengths = Mel.file_data_source.frame_lengths
+    sampler = PartialyRandomizedSimilarTimeLengthSampler(
+        frame_lengths, batch_size=hparams.batch_size)
+
     # Dataset and Dataloader setup
     dataset = PyTorchDataset(X, Mel, Y)
     data_loader = data_utils.DataLoader(
         dataset, batch_size=hparams.batch_size,
-        num_workers=hparams.num_workers, shuffle=True,
+        num_workers=hparams.num_workers, sampler=sampler,
         collate_fn=collate_fn, pin_memory=hparams.pin_memory)
 
     # Model
@@ -571,23 +749,21 @@ if __name__ == "__main__":
         hparams.adam_beta1, hparams.adam_beta2),
         eps=hparams.adam_eps, weight_decay=hparams.weight_decay)
 
-    # Load checkpoint
-    if checkpoint_path:
-        print("Load checkpoint from: {}".format(checkpoint_path))
-        checkpoint = torch.load(checkpoint_path)
-        model.load_state_dict(checkpoint["state_dict"])
-        if not reset_optimizer:
-            optimizer.load_state_dict(checkpoint["optimizer"])
-        global_step = checkpoint["global_step"]
-        global_epoch = checkpoint["global_epoch"]
+    # Load checkpoints
+    if checkpoint_postnet_path is not None:
+        load_checkpoint(checkpoint_postnet_path, model.postnet, optimizer, reset_optimizer)
+
+    if checkpoint_seq2seq_path is not None:
+        load_checkpoint(checkpoint_seq2seq_path, model.seq2seq, optimizer, reset_optimizer)
+
+    if checkpoint_path is not None:
+        load_checkpoint(checkpoint_path, model, optimizer, reset_optimizer)
 
     # Setup summary writer for tensorboard
     if log_event_path is None:
         log_event_path = "log/run-test" + str(datetime.now()).replace(" ", "_")
     print("Los event path: {}".format(log_event_path))
     writer = SummaryWriter(log_dir=log_event_path)
-
-    print(hparams_debug_string())
 
     # Train!
     try:
@@ -596,10 +772,12 @@ if __name__ == "__main__":
               checkpoint_dir=checkpoint_dir,
               checkpoint_interval=hparams.checkpoint_interval,
               nepochs=hparams.nepochs,
-              clip_thresh=hparams.clip_thresh)
+              clip_thresh=hparams.clip_thresh,
+              train_seq2seq=train_seq2seq, train_postnet=train_postnet)
     except KeyboardInterrupt:
         save_checkpoint(
-            model, optimizer, global_step, checkpoint_dir, global_epoch)
+            model, optimizer, global_step, checkpoint_dir, global_epoch,
+            train_seq2seq, train_postnet)
 
     print("Finished")
     sys.exit(0)

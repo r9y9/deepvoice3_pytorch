@@ -2,14 +2,12 @@
 
 [![Build Status](https://travis-ci.org/r9y9/deepvoice3_pytorch.svg?branch=master)](https://travis-ci.org/r9y9/deepvoice3_pytorch)
 
-PyTorch implementation of Deep Voice 3, a convolutional text-to-speech synthesis model described in https://arxiv.org/abs/1710.07654.
+PyTorch implementation of convolutional networks-based text-to-speech synthesis models:
 
+1. [arXiv:1710.07654](https://arxiv.org/abs/1710.07654): Deep Voice 3: 2000-Speaker Neural Text-to-Speech.
+2. [arXiv:1710.08969](https://arxiv.org/abs/1710.08969): Efficiently Trainable Text-to-Speech System Based on Deep Convolutional Networks with Guided Attention.
 
 Current progress and planned TO-DOs can be found at [#1](https://github.com/r9y9/deepvoice3_pytorch/issues/1).
-
-## Audio samples
-
-- [WIP] Samples from the model trained on LJ Speech Dataset: https://www.dropbox.com/sh/uq4tsfptxt0y17l/AADBL4LsPJRP2PjAAJRSH5eta?dl=0
 
 ## Highlights
 
@@ -17,10 +15,36 @@ Current progress and planned TO-DOs can be found at [#1](https://github.com/r9y9
 - Preprocessor for [LJSpeech (en)](https://keithito.com/LJ-Speech-Dataset/) and [JSUT (jp)](https://sites.google.com/site/shinnosuketakamichi/publication/jsut) datasets
 - Language-dependent frontend text processor for English and Japanese
 
+Support for multi-speaker models is planned but not completed yet.
+
+## Audio samples
+
+- [DeepVoice3] Samples from the model trained on LJ Speech Dataset: https://www.dropbox.com/sh/uq4tsfptxt0y17l/AADBL4LsPJRP2PjAAJRSH5eta?dl=0
+- [Nyanko] Samples from the model trained on LJ Speech Dataset: https://www.dropbox.com/sh/q9xfgscgh3k5lqa/AACPgWCprBfNgjRravscdDYCa?dl=0
+
+## Notes on hyper parameters
+
+- Default hyper parameters, used during preprocessing/training/synthesis stages, are turned for English TTS using LJSpeech dataset. You will have to change some of parameters if you want to try other datasets. See `hparams.py` for details.
+- `builder` specifies which model you want to use. `deepvoice3` [1] and `nyanko` [2] are surpprted.
+- `presets` represents hyper parameters known to work well for LJSpeech dataset from my experiments. Before you try to find your best parameters, I would recommend you to try those presets by setting `use_preset=True`. E.g,
+```
+python train.py --data-root=./data/ljspeech --checkpoint-dir=checkpoints_deepvoice3 \
+    --hparams="use_preset=True,builder=deepvoice3" \
+    --log-event-path=log/deepvoice3_preset
+```
+or
+```
+python train.py --data-root=./data/ljspeech --checkpoint-dir=checkpoints_nyanko \
+    --hparams="use_preset=True,builder=nyanko" \
+    --log-event-path=log/nyanko_preset
+```
+- Hyper parameters described in DeepVoice3 paper for single speaker didn't work for LJSpeech dataset, so I changed a few things. Add dilated convolution, more channels, more layers and add guided loss, etc. See code for details.
+
+
 ## Requirements
 
 - Python 3
-- PyTorch >= v0.2
+- PyTorch >= v0.2 (Note: I'm using v0.3.0 branch)
 - TensorFlow >= v1.3
 - [tensorboard-pytorch](https://github.com/lanpa/tensorboard-pytorch) (master)
 - [fairseq](https://github.com/facebookresearch/fairseq-py) (master)
@@ -43,8 +67,6 @@ pip install -e ".[jp]"
 ```
 
 ## Getting started
-
-**Note**: Default hyper parameters, used during preprocessing/training/synthesis stages, are turned for English TTS using LJSpeech dataset. You will have to change some of parameters if you want to try other datasets. See `hparams.py` for details.
 
 ### 0. Download dataset
 
@@ -69,29 +91,29 @@ When this is done, you will see extracted features (mel-spectrograms and linear 
 
 ### 2. Training
 
-`train.py` is the script for training models. Basic usage is:
+Basic usage of `train.py` is:
 
 ```
 python train.py --data-root=${data-root} --hparams="parameters you want to override"
 ```
 
-Suppose you will want to build an English TTS model using LJSpeech dataset with default hyper parameters, then you can train your model by:
+Suppose you will want to build a DeepVoice3-style model using LJSpeech dataset with default hyper parameters, then you can train your model by:
 
 ```
-python train.py --data-root=./data/ljspeech/
+python train.py --data-root=./data/ljspeech/ --hparams="use_preset=True,builder=deepvoice3"
 ```
 
-Model checkpoints, alignments and predicted/target spectrograms are saved in `./checkpoints` directory per 5000 steps by default.
+Model checkpoints (.pth) and alignments (.png) are saved in `./checkpoints` directory per 5000 steps by default.
 
 If you are building a Japaneses TTS model, then for example,
 
 ```
-python train.py --data-root=./data/jsut --hparams="frontend=jp"
+python train.py --data-root=./data/jsut --hparams="frontend=jp" --hparams="use_preset=True,builder=deepvoice3"
 ```
 
 `frontend=jp` tell the training script to use Japanese text processing frontend. Default is `en` and uses English text processing frontend.
 
-Note that there are many hyper parameters and design choices. Some are configurable by `hparams.py` and some are hardcoded in `deepvoice3_pytorch/deepvoice3.py` (e.g., dilation factor for each convolution layer). If you find better hyper parameters or model architectures, please let me know!
+Note that there are many hyper parameters and design choices. Some are configurable by `hparams.py` and some are hardcoded in the source (e.g., dilation factor for each convolution layer). If you find better hyper parameters, please let me know!
 
 
 ### 4. Moniter with Tensorboard
