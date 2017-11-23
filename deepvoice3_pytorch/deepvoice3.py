@@ -137,7 +137,7 @@ class AttentionLayer(nn.Module):
         self.dropout = dropout
 
     def forward(self, query, encoder_out, mask=None, last_attended=None,
-                window_size=3):
+                window_ahead=3, window_backward=1):
         keys, values = encoder_out
         residual = query
 
@@ -151,9 +151,10 @@ class AttentionLayer(nn.Module):
             x.data.masked_fill_(mask, mask_value)
 
         if last_attended is not None:
-            if last_attended > 0:
-                x[:, :, :last_attended] = mask_value
-            ahead = last_attended + window_size
+            backward = last_attended - window_backward
+            if backward > 0:
+                x[:, :, :backward] = mask_value
+            ahead = last_attended + window_ahead
             if ahead < x.size(-1):
                 x[:, :, ahead:] = mask_value
 
