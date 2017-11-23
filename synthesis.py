@@ -46,6 +46,7 @@ def tts(model, text, p=0):
     if use_cuda:
         model = model.cuda()
     model.eval()
+    model.make_generation_fast_()
 
     sequence = np.array(_frontend.text_to_sequence(text, p=p))
     sequence = Variable(torch.from_numpy(sequence)).unsqueeze(0)
