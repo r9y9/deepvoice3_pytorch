@@ -11,6 +11,7 @@ options:
     --file-name-suffix=<s>            File name suffix [default: ].
     --max-decoder-steps=<N>           Max decoder steps [default: 500].
     --replace_pronunciation_prob=<N>  Prob [default: 0.0].
+    --output-html                     Output html for blog post.
     -h, --help               Show help message.
 """
 from docopt import docopt
@@ -82,6 +83,7 @@ if __name__ == "__main__":
     max_decoder_steps = int(args["--max-decoder-steps"])
     file_name_suffix = args["--file-name-suffix"]
     replace_pronunciation_prob = float(args["--replace_pronunciation_prob"])
+    output_html = args["--output-html"]
 
     # Override hyper parameters
     hparams.parse(args["--hparams"])
@@ -118,7 +120,6 @@ if __name__ == "__main__":
     model.seq2seq.decoder.max_decoder_steps = max_decoder_steps
 
     os.makedirs(dst_dir, exist_ok=True)
-
     with open(text_list_file_path, "rb") as f:
         lines = f.readlines()
         for idx, line in enumerate(lines):
@@ -135,20 +136,23 @@ if __name__ == "__main__":
             audio.save_wav(waveform, dst_wav_path)
             from os.path import basename, splitext
             name = splitext(basename(text_list_file_path))[0]
-            print("""
+            if output_html:
+                print("""
 {}
 
 ({} chars, {} words)
 
 <audio controls="controls" >
-<source src="/audio/deepvoice3/{}/{}{}.wav" autoplay/>
+<source src="/audio/{}/{}/{}" autoplay/>
 Your browser does not support the audio element.
 </audio>
 
-<div align="center"><img src="/audio/deepvoice3/{}/{}{}_alignment.png" /></div>
+<div align="center"><img src="/audio/{}/{}/{}" /></div>
                   """.format(text, len(text), len(words),
-                             name, idx, file_name_suffix,
-                             name, idx, file_name_suffix))
+                             hparams.builder, name, basename(dst_wav_path),
+                             hparams.builder, name, basename(dst_alignment_path)))
+            else:
+                print(idx, ": {}\n ({} chars, {} words)".format(text, len(text), len(words)))
 
     print("Finished! Check out {} for generated audio samples.".format(dst_dir))
     sys.exit(0)
