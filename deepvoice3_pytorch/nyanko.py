@@ -16,8 +16,7 @@ from .deepvoice3 import AttentionLayer
 class Encoder(nn.Module):
     def __init__(self, n_vocab, embed_dim, channels, kernel_size=3,
                  n_speakers=1, speaker_embed_dim=16,
-                 padding_idx=None,
-                 max_positions=512, dropout=0.1):
+                 padding_idx=None, dropout=0.1):
         super(Encoder, self).__init__()
         self.dropout = dropout
 

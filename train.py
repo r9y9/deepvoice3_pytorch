@@ -659,6 +659,7 @@ def build_model():
         trainable_positional_encodings=hparams.trainable_positional_encodings,
         force_monotonic_attention=hparams.force_monotonic_attention,
         use_decoder_state_for_postnet_input=hparams.use_decoder_state_for_postnet_input,
+        max_positions=hparams.max_positions,
     )
     return model
 

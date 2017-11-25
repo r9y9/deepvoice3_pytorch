@@ -81,6 +81,7 @@ hparams = tf.contrib.training.HParams(
     downsample_step=4,  # must be 4 when builder="nyanko"
     outputs_per_step=1,  # must be 1 when builder="nyanko"
     padding_idx=0,
+    max_positions=512,
     dropout=1 - 0.95,
     kernel_size=3,
     text_embed_dim=128,
