@@ -60,7 +60,7 @@ hparams = tf.contrib.training.HParams(
             "use_guided_attention": True,
             "guided_attention_sigma": 0.2,
             "binary_divergence_weight": 0.1,
-            "use_decoder_state_for_postnet_input": False,
+            "use_decoder_state_for_postnet_input": True,
 
             "clip_thresh": 0.1,
             "initial_learning_rate": 5e-4,
@@ -95,7 +95,7 @@ hparams = tf.contrib.training.HParams(
     trainable_positional_encodings=False,
     # If True, use decoder's internal representation for postnet inputs,
     # otherwise use mel-spectrogram.
-    use_decoder_state_for_postnet_input=False,
+    use_decoder_state_for_postnet_input=True,
 
     # Data loader
     pin_memory=True,
