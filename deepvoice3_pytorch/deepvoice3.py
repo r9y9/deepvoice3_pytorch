@@ -8,9 +8,8 @@ import math
 import numpy as np
 
 from fairseq.modules import GradMultiply
-from fairseq.modules.conv_tbc import ConvTBC as _ConvTBC
 
-from .modules import Conv1d, LinearizedConv1d, ConvTBC, Embedding, Linear
+from .modules import Conv1d, ConvTranspose1d, Embedding, Linear
 from .modules import get_mask_from_lengths, SinusoidalEncoding, Conv1dGLU
 
 
@@ -21,9 +20,8 @@ def has_dilation(convolutions):
 class Encoder(nn.Module):
     def __init__(self, n_vocab, embed_dim, n_speakers, speaker_embed_dim,
                  padding_idx=None, convolutions=((64, 5, .1),) * 7,
-                 max_positions=512, dropout=0.1, use_glu=True):
+                 max_positions=512, dropout=0.1):
         super(Encoder, self).__init__()
-        self.use_glu = use_glu
         self.dropout = dropout
         self.num_attention_layers = None
 
@@ -43,7 +41,7 @@ class Encoder(nn.Module):
             Conv1d(embed_dim, in_channels, kernel_size=1, padding=0, dilation=1,
                    std_mul=1.0, dropout=dropout)
         ])
-        std_mul = 4.0 if use_glu else 1.0
+        std_mul = 1.0
         for (out_channels, kernel_size, dilation) in convolutions:
             assert in_channels == out_channels
             self.convolutions.append(
@@ -51,9 +49,10 @@ class Encoder(nn.Module):
                           in_channels, out_channels, kernel_size, causal=False,
                           dilation=dilation, dropout=dropout, std_mul=std_mul))
             in_channels = out_channels
+            std_mul = 4.0
         # Last 1x1 convolution
         self.convolutions.append(Conv1d(in_channels, embed_dim, kernel_size=1,
-                                        padding=0, dilation=1, std_mul=1.0,
+                                        padding=0, dilation=1, std_mul=std_mul,
                                         dropout=dropout))
 
     def forward(self, text_sequences, text_positions=None, lengths=None,
@@ -165,14 +164,12 @@ class Decoder(nn.Module):
                  use_memory_mask=False,
                  force_monotonic_attention=False,
                  query_position_rate=1.0,
-                 key_position_rate=1.29,
-                 use_glu=True,
+                 key_position_rate=1.29
                  ):
         super(Decoder, self).__init__()
         self.dropout = dropout
         self.in_dim = in_dim
         self.r = r
-        self.use_glu = use_glu
         self.query_position_rate = query_position_rate
         self.key_position_rate = key_position_rate
 
@@ -195,11 +192,11 @@ class Decoder(nn.Module):
 
         # Prenet: causal convolution blocks
         in_channels = preattention[0][0]
-        std_mul = 4.0 if use_glu else 1.0
+        std_mul = 1.0
         self.preattention = nn.ModuleList([
             # 1x1 convolution first
             Conv1d(in_dim * r, in_channels, kernel_size=1, padding=0, dilation=1,
-                   std_mul=1.0, dropout=dropout)
+                   std_mul=std_mul, dropout=dropout)
         ])
         for out_channels, kernel_size, dilation in preattention:
             assert in_channels == out_channels
@@ -208,6 +205,7 @@ class Decoder(nn.Module):
                           in_channels, out_channels, kernel_size, causal=True,
                           dilation=dilation, dropout=dropout, std_mul=std_mul))
             in_channels = out_channels
+            std_mul = 4.0
 
         # Causal convolution blocks + attention layers
         self.convolutions = nn.ModuleList()
@@ -223,9 +221,10 @@ class Decoder(nn.Module):
                                                  dropout=dropout)
                                   if attention[i] else None)
             in_channels = out_channels
+            std_mul = 4.0
         # Last 1x1 convolution
         self.last_conv = Conv1d(in_channels, in_dim * r, kernel_size=1,
-                                padding=0, dilation=1, std_mul=1.0,
+                                padding=0, dilation=1, std_mul=std_mul,
                                 dropout=dropout)
 
         # Mel-spectrogram (before sigmoid) -> Done binary flag
@@ -468,32 +467,58 @@ class Decoder(nn.Module):
 class Converter(nn.Module):
     def __init__(self, n_speakers, speaker_embed_dim,
                  in_dim, out_dim, convolutions=((256, 5, 1),) * 4,
-                 dropout=0.1, use_glu=True):
+                 time_upsampling=False,
+                 dropout=0.1):
         super(Converter, self).__init__()
         self.dropout = dropout
         self.in_dim = in_dim
         self.out_dim = out_dim
-        self.use_glu = use_glu
         self.n_speakers = n_speakers
 
         # Non causual convolution blocks
         in_channels = convolutions[0][0]
-        self.convolutions = nn.ModuleList([
-            # 1x1 convolution first
-            Conv1d(in_dim, in_channels, kernel_size=1, padding=0, dilation=1,
-                   std_mul=1.0, dropout=dropout)
-        ])
-        std_mul = 4.0 if use_glu else 1.0
+        # Idea from nyanko
+        if time_upsampling:
+            self.convolutions = nn.ModuleList([
+                Conv1d(in_dim, in_channels, kernel_size=1, padding=0, dilation=1,
+                       std_mul=1.0),
+                ConvTranspose1d(in_channels, in_channels, kernel_size=2,
+                                padding=0, stride=2, std_mul=1.0),
+                Conv1dGLU(n_speakers, speaker_embed_dim,
+                          in_channels, in_channels, kernel_size=3, causal=False,
+                          dilation=1, dropout=dropout, std_mul=1.0),
+                Conv1dGLU(n_speakers, speaker_embed_dim,
+                          in_channels, in_channels, kernel_size=3, causal=False,
+                          dilation=3, dropout=dropout, std_mul=4.0),
+                ConvTranspose1d(in_channels, in_channels, kernel_size=2,
+                                padding=0, stride=2, std_mul=4.0),
+                Conv1dGLU(n_speakers, speaker_embed_dim,
+                          in_channels, in_channels, kernel_size=3, causal=False,
+                          dilation=1, dropout=dropout, std_mul=1.0),
+                Conv1dGLU(n_speakers, speaker_embed_dim,
+                          in_channels, in_channels, kernel_size=3, causal=False,
+                          dilation=3, dropout=dropout, std_mul=4.0),
+            ])
+        else:
+            self.convolutions = nn.ModuleList([
+                # 1x1 convolution first
+                Conv1d(in_dim, in_channels, kernel_size=1, padding=0, dilation=1,
+                       std_mul=1.0),
+                Conv1dGLU(n_speakers, speaker_embed_dim,
+                          in_channels, in_channels, kernel_size=3, causal=False,
+                          dilation=3, dropout=dropout, std_mul=4.0),
+            ])
+
         for (out_channels, kernel_size, dilation) in convolutions:
             assert in_channels == out_channels
             self.convolutions.append(
                 Conv1dGLU(n_speakers, speaker_embed_dim,
                           in_channels, out_channels, kernel_size, causal=False,
-                          dilation=dilation, dropout=dropout, std_mul=std_mul))
+                          dilation=dilation, dropout=dropout, std_mul=4.0))
             in_channels = out_channels
         # Last 1x1 convolution
         self.convolutions.append(Conv1d(in_channels, out_dim, kernel_size=1,
-                                        padding=0, dilation=1, std_mul=1.0,
+                                        padding=0, dilation=1, std_mul=4.0,
                                         dropout=dropout))
 
     def forward(self, x, speaker_embed=None):
@@ -513,6 +538,11 @@ class Converter(nn.Module):
         x = x.transpose(1, 2)
 
         for conv in self.convolutions:
+            # Case for upsampling
+            if speaker_embed is not None and speaker_embed_btc.size(1) != x.size(-1):
+                ss = speaker_embed.size()
+                speaker_embed_btc = speaker_embed.unsqueeze(1).expand(
+                    ss[0], x.size(-1), ss[-1])
             if isinstance(conv, Conv1dGLU):
                 x = conv(x, speaker_embed_btc)
             else:
