@@ -18,6 +18,37 @@ def has_dilation(convolutions):
     return np.any(np.array(list(map(lambda x: x[2], convolutions))) > 1)
 
 
+class ResidualConv1dGLU(nn.Module):
+    """Conv1d + Gated linear unit + Residual connection
+
+    optionally with speaker embedding
+    """
+
+    def __init__(self, n_speakers, speaker_embed_dim,
+                 in_channels, out_channels, kernel_size,
+                 dropout, *args, **kwargs):
+        super(ResidualConv1dGLU, self).__init__()
+        self.dropout = dropout
+        self.conv = Conv1d(in_channels, 2 * out_channels, kernel_size,
+                           dropout=dropout, *args, **kwargs)
+        if n_speakers > 1:
+            self.speaker_proj = Linear(speaker_embed_dim, out_channels)
+        else:
+            self.speaker_proj = None
+
+    def forward(self, x, speaker_embed_btc=None):
+        residual = x
+        x = F.dropout(x, p=self.dropout, training=self.training)
+        x = self.conv(x)
+        a, b = x.split(x.size(1) // 2, dim=1)
+        if self.speaker_proj is not None:
+            # Since conv layer assumes BCT, we need to transpose
+            softsign = F.softsign(self.speaker_proj(speaker_embed_btc)).transpose(1, 2)
+            a = a + softsign
+        x = a * F.sigmoid(b)
+        return (x + residual) * math.sqrt(0.5)
+
+
 class Encoder(nn.Module):
     def __init__(self, n_vocab, embed_dim, n_speakers, speaker_embed_dim,
                  padding_idx=None, convolutions=((64, 5, .1),) * 7,
@@ -36,27 +67,26 @@ class Encoder(nn.Module):
             self.speaker_fc2 = Linear(speaker_embed_dim, embed_dim)
         self.n_speakers = n_speakers
 
-        # Non-causual convolutions
+        # Non causual convolution blocks
         in_channels = convolutions[0][0]
-        self.fc1 = Linear(embed_dim, in_channels, dropout=dropout)
-        self.projections = nn.ModuleList()
-        self.speaker_projections = nn.ModuleList()
-        self.convolutions = nn.ModuleList()
-
-        Conv1dLayer = Conv1d if has_dilation(convolutions) else ConvTBC
+        self.convolutions = nn.ModuleList([
+            # 1x1 convolution first
+            Conv1d(embed_dim, in_channels, kernel_size=1, padding=0, dilation=1,
+                   std_mul=1.0, dropout=0)
+        ])
         std_mul = 4.0 if use_glu else 1.0
         for (out_channels, kernel_size, dilation) in convolutions:
+            assert in_channels == out_channels
             pad = (kernel_size - 1) // 2 * dilation
             dilation = (dilation,)
-            self.projections.append(Linear(in_channels, out_channels)
-                                    if in_channels != out_channels else None)
-            self.speaker_projections.append(
-                Linear(speaker_embed_dim, out_channels) if n_speakers > 1 else None)
             self.convolutions.append(
-                Conv1dLayer(in_channels, out_channels * 2, kernel_size, padding=pad,
-                            dilation=dilation, dropout=dropout, std_mul=std_mul))
+                ResidualConv1dGLU(n_speakers, speaker_embed_dim,
+                                  in_channels, out_channels, kernel_size, padding=pad,
+                                  dilation=dilation, dropout=dropout, std_mul=std_mul))
             in_channels = out_channels
-        self.fc2 = Linear(in_channels, embed_dim)
+        # Last 1x1 convolution
+        self.convolutions.append(Conv1d(in_channels, embed_dim, kernel_size=1,
+                                        padding=0, dilation=1, std_mul=1.0, dropout=0.0))
 
     def forward(self, text_sequences, text_positions=None, lengths=None,
                 speaker_embed=None):
@@ -64,7 +94,6 @@ class Encoder(nn.Module):
 
         # embed text_sequences
         x = self.embed_tokens(text_sequences)
-
         x = F.dropout(x, p=self.dropout, training=self.training)
 
         # embed speakers
@@ -77,42 +106,21 @@ class Encoder(nn.Module):
             speaker_embed_btc = speaker_embed
             speaker_embed_tbc = speaker_embed.transpose(0, 1)
             x = x + F.softsign(self.speaker_fc1(speaker_embed_btc))
-
         input_embedding = x
 
-        # project to size of convolution
-        x = self.fc1(x)
-
-        use_convtbc = isinstance(self.convolutions[0], _ConvTBC)
-        # TBC case: B x T x C -> T x B x C
-        # Generic case: B x T x C -> B x C x T
-        x = x.transpose(0, 1) if use_convtbc else x.transpose(1, 2)
+        # B x T x C -> B x C x T
+        x = x.transpose(1, 2)
 
         # １D conv blocks
-        for proj, speaker_proj, conv in zip(
-                self.projections, self.speaker_projections, self.convolutions):
-            residual = x if proj is None else proj(x)
-            x = F.dropout(x, p=self.dropout, training=self.training)
-            x = conv(x)
-            splitdim = -1 if use_convtbc else 1
-            a, b = x.split(x.size(splitdim) // 2, dim=splitdim)
-            if speaker_proj is not None:
-                softsign = F.softsign(speaker_proj(
-                    speaker_embed_tbc if use_convtbc else speaker_embed_btc))
-                softsign = softsign if use_convtbc else softsign.transpose(1, 2)
-                a = a + softsign
-            T = F.sigmoid(b)
-            if self.use_glu:
-                x = a * T
-                x = (x + residual) * math.sqrt(0.5)
+        for f in self.convolutions:
+            if speaker_embed is not None and isinstance(f, ResidualConv1dGLU):
+                x = f(x, speaker_embed_btc)
             else:
-                x = T * a + (1 - T) * residual
+                x = f(x)
 
-        # Back to batch first
-        x = x.transpose(0, 1) if use_convtbc else x.transpose(1, 2)
+        # Back to B x T x C
+        keys = x.transpose(1, 2)
 
-        # project back to size of embedding
-        keys = self.fc2(x)
         if speaker_embed is not None:
             keys = keys + F.softsign(self.speaker_fc2(speaker_embed_btc))
 
@@ -259,6 +267,16 @@ class Decoder(nn.Module):
         if inputs.size(-1) == self.in_dim:
             inputs = inputs.view(inputs.size(0), inputs.size(1) // self.r, -1)
         assert inputs.size(-1) == self.in_dim * self.r
+
+        # embed speakers
+        if speaker_embed is not None:
+            # expand speaker embedding for all time steps
+            # (B, N) -> (B, T, N)
+            ss = speaker_embed.size()
+            speaker_embed = speaker_embed.unsqueeze(1).expand(
+                ss[0], inputs.size(1), ss[-1])
+            speaker_embed_btc = speaker_embed
+            speaker_embed_tbc = speaker_embed.transpose(0, 1)
 
         keys, values = encoder_out
 

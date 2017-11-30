@@ -136,12 +136,6 @@ def test_dilated_convolution_support():
                          model.seq2seq.decoder.convolutions[0],
                          model.postnet.convolutions[0]]:
                 assert isinstance(conv, nn.Conv1d)
-        else:
-            assert dilation == 1
-            for conv in [model.seq2seq.encoder.convolutions[0],
-                         model.seq2seq.decoder.convolutions[0],
-                         model.postnet.convolutions[0]]:
-                assert isinstance(conv, ConvTBC)
         mel_outputs, linear_outputs, alignments, done = model(x, y)
 
 
