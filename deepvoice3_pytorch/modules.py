@@ -100,6 +100,63 @@ def ConvTBC(in_channels, out_channels, kernel_size, dilation=(1,), std_mul=4.0,
     return nn.utils.weight_norm(m, dim=2)
 
 
+class Conv1dGLU(nn.Module):
+    """(Dilated) Conv1d + Gated linear unit + (optionally) speaker embedding
+    """
+
+    def __init__(self, n_speakers, speaker_embed_dim,
+                 in_channels, out_channels, kernel_size,
+                 dropout, padding=None, dilation=1, causal=False,
+                 *args, **kwargs):
+        super(Conv1dGLU, self).__init__()
+        self.dropout = dropout
+        if padding is None:
+            # no future time stamps available
+            if causal:
+                padding = (kernel_size - 1) * dilation
+            else:
+                padding = (kernel_size - 1) // 2 * dilation
+        self.causal = causal
+
+        self.conv = Conv1d(in_channels, 2 * out_channels, kernel_size,
+                           dropout=dropout, padding=padding, dilation=dilation,
+                           *args, **kwargs)
+        if n_speakers > 1:
+            self.speaker_proj = Linear(speaker_embed_dim, out_channels)
+        else:
+            self.speaker_proj = None
+
+    def forward(self, x, speaker_embed=None):
+        return self._forward(x, speaker_embed, False)
+
+    def incremental_forward(self, x, speaker_embed=None):
+        return self._forward(x, speaker_embed, True)
+
+    def _forward(self, x, speaker_embed, is_incremental):
+        residual = x
+        x = F.dropout(x, p=self.dropout, training=self.training)
+        if is_incremental:
+            splitdim = -1
+            x = self.conv.incremental_forward(x)
+        else:
+            splitdim = 1
+            x = self.conv(x)
+            # remove future time steps
+            x = x[:, :, :residual.size(-1)] if self.causal else x
+
+        a, b = x.split(x.size(splitdim) // 2, dim=splitdim)
+        if self.speaker_proj is not None:
+            softsign = F.softsign(self.speaker_proj(speaker_embed))
+            # Since conv layer assumes BCT, we need to transpose
+            softsign = softsign if is_incremental else softsign.transpose(1, 2)
+            a = a + softsign
+        x = a * F.sigmoid(b)
+        return x
+
+    def clear_buffer(self):
+        self.conv.clear_buffer()
+
+
 class HighwayConv1d(nn.Module):
     """Weight normzlized Conv1d + Highway network (support incremental forward)
     """

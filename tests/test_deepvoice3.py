@@ -18,7 +18,7 @@ from deepvoice3_pytorch import MultiSpeakerTTSModel, AttentionSeq2Seq
 
 from fairseq.modules.conv_tbc import ConvTBC
 
-use_cuda = torch.cuda.is_available()
+use_cuda = torch.cuda.is_available() and False
 num_mels = 80
 num_freq = 513
 outputs_per_step = 4
@@ -169,8 +169,6 @@ def test_multi_speaker_deepvoice3():
 
 @attr("local_only")
 def test_incremental_correctness():
-    model = _get_model(force_monotonic_attention=False)
-
     texts = ["they discarded this for a more completely Roman and far less beautiful letter."]
     seqs = np.array([text_to_sequence(t) for t in texts])
     text_positions = np.arange(1, len(seqs[0]) + 1).reshape(1, len(seqs[0]))
@@ -191,25 +189,33 @@ def test_incremental_correctness():
     text_positions = Variable(torch.LongTensor(text_positions))
     frame_positions = Variable(torch.LongTensor(frame_positions))
 
-    model.eval()
+    for model, speaker_ids in [
+            (_get_model(force_monotonic_attention=False), None),
+            (_get_model(force_monotonic_attention=False, n_speakers=32, speaker_embed_dim=16), Variable(torch.LongTensor([1])))]:
+        model.eval()
 
-    # Encoder
-    encoder_outs = model.seq2seq.encoder(x)
+        if speaker_ids is not None:
+            speaker_embed = model.embed_speakers(speaker_ids)
+        else:
+            speaker_embed = None
 
-    # Off line decoding
-    mel_outputs_offline, alignments_offline, done, _ = model.seq2seq.decoder(
-        encoder_outs, mel_reshaped,
-        text_positions=text_positions, frame_positions=frame_positions)
+        # Encoder
+        encoder_outs = model.seq2seq.encoder(x, speaker_embed=speaker_embed)
 
-    # Online decoding with test inputs
-    model.seq2seq.decoder.start_fresh_sequence()
-    mel_outputs_online, alignments, dones_online, _ = model.seq2seq.decoder.incremental_forward(
-        encoder_outs, text_positions,
-        test_inputs=mel_reshaped)
+        # Off line decoding
+        mel_outputs_offline, alignments_offline, done, _ = model.seq2seq.decoder(
+            encoder_outs, mel_reshaped, speaker_embed=speaker_embed,
+            text_positions=text_positions, frame_positions=frame_positions)
 
-    # Should get same result
-    assert np.allclose(mel_outputs_offline.cpu().data.numpy(),
-                       mel_outputs_online.cpu().data.numpy())
+        # Online decoding with test inputs
+        model.seq2seq.decoder.start_fresh_sequence()
+        mel_outputs_online, alignments, dones_online, _ = model.seq2seq.decoder.incremental_forward(
+            encoder_outs, text_positions, speaker_embed=speaker_embed,
+            test_inputs=mel_reshaped)
+
+        # Should get same result
+        assert np.allclose(mel_outputs_offline.cpu().data.numpy(),
+                           mel_outputs_online.cpu().data.numpy())
 
 
 @attr("local_only")
