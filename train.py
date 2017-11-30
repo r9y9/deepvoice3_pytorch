@@ -649,6 +649,7 @@ def build_model():
         mel_dim=hparams.num_mels,
         linear_dim=hparams.fft_size // 2 + 1,
         r=hparams.outputs_per_step,
+        downsample_step=hparams.downsample_step,
         padding_idx=hparams.padding_idx,
         dropout=hparams.dropout,
         kernel_size=hparams.kernel_size,

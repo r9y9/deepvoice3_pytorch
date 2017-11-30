@@ -241,7 +241,6 @@ class Decoder(nn.Module):
     def forward(self, encoder_out, inputs=None,
                 text_positions=None, frame_positions=None,
                 speaker_embed=None, lengths=None):
-
         if inputs is None:
             assert text_positions is not None
             self.start_fresh_sequence()

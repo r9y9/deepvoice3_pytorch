@@ -5,6 +5,7 @@ from deepvoice3_pytorch import MultiSpeakerTTSModel, AttentionSeq2Seq
 
 
 def deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=513, r=4,
+               downsample_step=1,
                n_speakers=1, speaker_embed_dim=16, padding_idx=0,
                dropout=(1 - 0.95), kernel_size=5,
                encoder_channels=128,
@@ -22,6 +23,11 @@ def deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=513, r=4,
     """
     from deepvoice3_pytorch.deepvoice3 import Encoder, Decoder, Converter
 
+    if downsample_step == 4 and r == 1:
+        time_upsampling = True
+    else:
+        time_upsampling = False
+
     # Seq2seq
     h = encoder_channels  # hidden dim (channels)
     k = kernel_size   # kernel size
@@ -30,9 +36,9 @@ def deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=513, r=4,
         n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
         dropout=dropout, max_positions=max_positions,
         # (channels, kernel_size, dilation)
-        convolutions=[(h, k, 1), (h, k, 1), (h, k, 1), (h, k, 1),
-                      (h, k, 2), (h, k, 4), (h, k, 8)],
-        use_glu=True,
+        convolutions=[(h, k, 1), (h, k, 3), (h, k, 9), (h, k, 27),
+                      (h, k, 1), (h, k, 3), (h, k, 9), (h, k, 27),
+                      (h, k, 1), (h, k, 1), (h, k, 1)],
     )
 
     h = decoder_channels
@@ -40,14 +46,15 @@ def deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=513, r=4,
         embed_dim, in_dim=mel_dim, r=r, padding_idx=padding_idx,
         n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
         dropout=dropout, max_positions=max_positions,
-        preattention=[(h, k, 1), (h, k, 2), (h, k, 4), (h, k, 8)],
-        convolutions=[(h, k, 1), (h, k, 1), (h, k, 2), (h, k, 4), (h, k, 8)],
-        attention=[True, False, False, False, True],
+        preattention=[(h, k, 1), (h, k, 3), (h, k, 9), (h, k, 27),
+                      (h, k, 1), (h, k, 3), (h, k, 9), (h, k, 27)],
+        convolutions=[(h, k, 1), (h, k, 3), (h, k, 9), (h, k, 27),
+                      (h, k, 1), (h, k, 1)],
+        attention=[True, False, False, False, False, True],
         force_monotonic_attention=force_monotonic_attention,
         query_position_rate=query_position_rate,
         key_position_rate=key_position_rate,
         use_memory_mask=use_memory_mask,
-        use_glu=True,
     )
 
     seq2seq = AttentionSeq2Seq(encoder, decoder)
@@ -61,8 +68,10 @@ def deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=513, r=4,
     converter = Converter(
         n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
         in_dim=in_dim, out_dim=linear_dim, dropout=dropout,
-        convolutions=[(h, k, 1), (h, k, 1), (h, k, 2), (h, k, 4), (h, k, 8)],
-        use_glu=True,
+        time_upsampling=time_upsampling,
+        convolutions=[(h, k, 1), (h, k, 3), (h, k, 1), (h, k, 3),
+                      (h, k, 1), (h, k, 3), (h, k, 1), (h, k, 3),
+                      (h, k, 1), (h, k, 3), (h, k, 1), (h, k, 3), ],
     )
 
     # Seq2seq + post net
@@ -77,6 +86,7 @@ def deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=513, r=4,
 
 
 def nyanko(n_vocab, embed_dim=128, mel_dim=80, linear_dim=513, r=1,
+           downsample_step=1,
            n_speakers=1, speaker_embed_dim=16, padding_idx=0,
            dropout=(1 - 0.95), kernel_size=3,
            encoder_channels=256,
@@ -91,6 +101,9 @@ def nyanko(n_vocab, embed_dim=128, mel_dim=80, linear_dim=513, r=1,
            max_positions=512):
     from deepvoice3_pytorch.nyanko import Encoder, Decoder, Converter
     assert encoder_channels == decoder_channels
+
+    if not (downsample_step == 4 and r == 1):
+        raise RuntimeError("Not supported. You need to change hardcoded parameters")
 
     # Seq2seq
     encoder = Encoder(
