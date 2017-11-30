@@ -21,8 +21,9 @@ def has_dilation(convolutions):
 class Encoder(nn.Module):
     def __init__(self, n_vocab, embed_dim, n_speakers, speaker_embed_dim,
                  padding_idx=None, convolutions=((64, 5, .1),) * 7,
-                 max_positions=512, dropout=0.1):
+                 max_positions=512, dropout=0.1, use_glu=True):
         super(Encoder, self).__init__()
+        self.use_glu = use_glu
         self.dropout = dropout
         self.num_attention_layers = None
 
@@ -49,7 +50,7 @@ class Encoder(nn.Module):
         self.convolutions = nn.ModuleList()
 
         Conv1dLayer = Conv1d if has_dilation(convolutions) else ConvTBC
-
+        std_mul = 4.0 if use_glu else 1.0
         for (out_channels, kernel_size, dilation) in convolutions:
             pad = (kernel_size - 1) // 2 * dilation
             dilation = (dilation,)
@@ -59,7 +60,7 @@ class Encoder(nn.Module):
                 Linear(speaker_embed_dim, out_channels) if n_speakers > 1 else None)
             self.convolutions.append(
                 Conv1dLayer(in_channels, out_channels * 2, kernel_size, padding=pad,
-                            dilation=dilation, dropout=dropout))
+                            dilation=dilation, dropout=dropout, std_mul=std_mul))
             in_channels = out_channels
         self.fc2 = Linear(in_channels, embed_dim)
 
@@ -108,8 +109,12 @@ class Encoder(nn.Module):
                     speaker_embed_tbc if use_convtbc else speaker_embed_btc))
                 softsign = softsign if use_convtbc else softsign.transpose(1, 2)
                 a = a + softsign
-            x = a * F.sigmoid(b)
-            x = (x + residual) * math.sqrt(0.5)
+            T = F.sigmoid(b)
+            if self.use_glu:
+                x = a * T
+                x = (x + residual) * math.sqrt(0.5)
+            else:
+                x = T * a + (1 - T) * residual
 
         # Back to batch first
         x = x.transpose(0, 1) if use_convtbc else x.transpose(1, 2)
@@ -189,11 +194,13 @@ class Decoder(nn.Module):
                  force_monotonic_attention=False,
                  query_position_rate=1.0,
                  key_position_rate=1.29,
+                 use_glu=True,
                  ):
         super(Decoder, self).__init__()
         self.dropout = dropout
         self.in_dim = in_dim
         self.r = r
+        self.use_glu = use_glu
 
         in_channels = in_dim * r
         if isinstance(attention, bool):
@@ -219,6 +226,7 @@ class Decoder(nn.Module):
         self.attention = nn.ModuleList()
 
         Conv1dLayer = Conv1d if has_dilation(convolutions) else LinearizedConv1d
+        std_mul = 4.0 if use_glu else 1.0
 
         for i, (out_channels, kernel_size, dilation) in enumerate(convolutions):
             pad = (kernel_size - 1) * dilation
@@ -227,7 +235,8 @@ class Decoder(nn.Module):
                                     if in_channels != out_channels else None)
             self.convolutions.append(
                 Conv1dLayer(in_channels, out_channels * 2, kernel_size,
-                            padding=pad, dilation=dilation, dropout=dropout))
+                            padding=pad, dilation=dilation, dropout=dropout,
+                            std_mul=std_mul))
             self.attention.append(AttentionLayer(out_channels, embed_dim,
                                                  dropout=dropout)
                                   if attention[i] else None)
@@ -303,7 +312,11 @@ class Decoder(nn.Module):
             else:
                 x = x[:, :, :residual.size(-1)]
             a, b = x.split(x.size(splitdim) // 2, dim=splitdim)
-            x = a * F.sigmoid(b)
+            T = F.sigmoid(b)
+            if self.use_glu:
+                x = a * T
+            else:
+                x = T * a + (1 - T) * residual
 
             # Feed conv output to attention layer as query
             if attention is not None:
@@ -316,7 +329,8 @@ class Decoder(nn.Module):
                 alignments += [alignment]
 
             # residual
-            x = (x + residual) * math.sqrt(0.5)
+            if self.use_glu:
+                x = (x + residual) * math.sqrt(0.5)
 
         # Back to batch first
         x = x.transpose(0, 1) if use_convtbc else x.transpose(1, 2)
@@ -387,7 +401,11 @@ class Decoder(nn.Module):
                     x = F.dropout(x, p=self.dropout, training=self.training)
                 x = conv.incremental_forward(x)
                 a, b = x.split(x.size(-1) // 2, dim=-1)
-                x = a * F.sigmoid(b)
+                T = F.sigmoid(b)
+                if self.use_glu:
+                    x = a * T
+                else:
+                    x = T * a + (1 - T) * residual
 
                 # attention
                 if attention is not None:
@@ -402,7 +420,8 @@ class Decoder(nn.Module):
                         ave_alignment = ave_alignment + ave_alignment
 
                 # residual
-                x = (x + residual) * math.sqrt(0.5)
+                if self.use_glu:
+                    x = (x + residual) * math.sqrt(0.5)
 
             decoder_state = x
             ave_alignment = ave_alignment.div_(num_attention_layers)
@@ -441,11 +460,13 @@ class Decoder(nn.Module):
 
 
 class Converter(nn.Module):
-    def __init__(self, in_dim, out_dim, convolutions=((256, 5, 1),) * 4, dropout=0.1):
+    def __init__(self, in_dim, out_dim, convolutions=((256, 5, 1),) * 4,
+                 dropout=0.1, use_glu=True):
         super(Converter, self).__init__()
         self.dropout = dropout
         self.in_dim = in_dim
         self.out_dim = out_dim
+        self.use_glu = use_glu
 
         # Non-causual convolutions
         in_channels = convolutions[0][0]
@@ -454,6 +475,7 @@ class Converter(nn.Module):
         self.convolutions = nn.ModuleList()
 
         Conv1dLayer = Conv1d if has_dilation(convolutions) else ConvTBC
+        std_mul = 4.0 if use_glu else 1.0
         for (out_channels, kernel_size, dilation) in convolutions:
             pad = (kernel_size - 1) // 2 * dilation
             dilation = (dilation,)
@@ -461,7 +483,8 @@ class Converter(nn.Module):
                                     if in_channels != out_channels else None)
             self.convolutions.append(
                 Conv1dLayer(in_channels, out_channels * 2, kernel_size,
-                            padding=pad, dilation=dilation, dropout=dropout))
+                            padding=pad, dilation=dilation, dropout=dropout,
+                            std_mul=std_mul))
             in_channels = out_channels
         self.fc2 = Linear(in_channels, out_dim)
 
@@ -482,8 +505,12 @@ class Converter(nn.Module):
             x = conv(x)
             splitdim = -1 if use_convtbc else 1
             a, b = x.split(x.size(splitdim) // 2, dim=splitdim)
-            x = a * F.sigmoid(b)
-            x = (x + residual) * math.sqrt(0.5)
+            T = F.sigmoid(b)
+            if self.use_glu:
+                x = a * T
+                x = (x + residual) * math.sqrt(0.5)
+            else:
+                x = T * a + (1 - T) * residual
 
         # Back to batch first
         x = x.transpose(0, 1) if use_convtbc else x.transpose(1, 2)

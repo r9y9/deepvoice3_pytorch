@@ -32,6 +32,7 @@ def deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=513, r=4,
         # (channels, kernel_size, dilation)
         convolutions=[(h, k, 1), (h, k, 1), (h, k, 1), (h, k, 1),
                       (h, k, 2), (h, k, 4), (h, k, 8)],
+        use_glu=True,
     )
 
     h = decoder_channels
@@ -44,7 +45,9 @@ def deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=513, r=4,
         force_monotonic_attention=force_monotonic_attention,
         query_position_rate=query_position_rate,
         key_position_rate=key_position_rate,
-        use_memory_mask=use_memory_mask)
+        use_memory_mask=use_memory_mask,
+        use_glu=True,
+    )
 
     seq2seq = AttentionSeq2Seq(encoder, decoder)
 
@@ -56,7 +59,9 @@ def deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=513, r=4,
     h = converter_channels
     converter = Converter(
         in_dim=in_dim, out_dim=linear_dim, dropout=dropout,
-        convolutions=[(h, k, 1), (h, k, 1), (h, k, 2), (h, k, 4), (h, k, 8)])
+        convolutions=[(h, k, 1), (h, k, 1), (h, k, 2), (h, k, 4), (h, k, 8)],
+        use_glu=True,
+    )
 
     # Seq2seq + post net
     model = MultiSpeakerTTSModel(
