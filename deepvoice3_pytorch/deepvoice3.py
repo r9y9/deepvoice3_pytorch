@@ -159,6 +159,7 @@ class Decoder(nn.Module):
     def __init__(self, embed_dim, n_speakers, speaker_embed_dim,
                  in_dim=80, r=5,
                  max_positions=512, padding_idx=None,
+                 preattention=((128, 5, 1),) * 4,
                  convolutions=((128, 5, 1),) * 4,
                  attention=True, dropout=0.1,
                  use_memory_mask=False,
@@ -192,15 +193,26 @@ class Decoder(nn.Module):
         else:
             self.speaker_proj1, self.speaker_proj2 = None, None
 
-        # Causual convolution blocks + attention layers
-        in_channels = convolutions[0][0]
-        self.convolutions = nn.ModuleList([
+        # Prenet: causal convolution blocks
+        in_channels = preattention[0][0]
+        std_mul = 4.0 if use_glu else 1.0
+        self.preattention = nn.ModuleList([
             # 1x1 convolution first
             Conv1d(in_dim * r, in_channels, kernel_size=1, padding=0, dilation=1,
                    std_mul=1.0, dropout=dropout)
         ])
-        self.attention = nn.ModuleList([None])
-        std_mul = 4.0 if use_glu else 1.0
+        for out_channels, kernel_size, dilation in preattention:
+            assert in_channels == out_channels
+            self.preattention.append(
+                Conv1dGLU(n_speakers, speaker_embed_dim,
+                          in_channels, out_channels, kernel_size, causal=True,
+                          dilation=dilation, dropout=dropout, std_mul=std_mul))
+            in_channels = out_channels
+
+        # Causal convolution blocks + attention layers
+        self.convolutions = nn.ModuleList()
+        self.attention = nn.ModuleList()
+
         for i, (out_channels, kernel_size, dilation) in enumerate(convolutions):
             assert in_channels == out_channels
             self.convolutions.append(
@@ -226,7 +238,6 @@ class Decoder(nn.Module):
             self.force_monotonic_attention = [force_monotonic_attention] * len(convolutions)
         else:
             self.force_monotonic_attention = force_monotonic_attention
-        self.force_monotonic_attention = [None] + self.force_monotonic_attention
 
     def forward(self, encoder_out, inputs=None,
                 text_positions=None, frame_positions=None,
@@ -281,7 +292,17 @@ class Decoder(nn.Module):
         # Generic case: B x T x C -> B x C x T
         x = x.transpose(1, 2)
 
-        # temporal convolutions
+        # Prenet
+        for conv in self.preattention:
+            residual = x
+            if speaker_embed is not None and isinstance(conv, Conv1dGLU):
+                x = conv(x, speaker_embed_btc)
+            else:
+                x = conv(x)
+            if isinstance(conv, Conv1dGLU):
+                x = (x + residual) * math.sqrt(0.5)
+
+        # Casual convolutions + Multi-hop attentions
         alignments = []
         for conv, attention in zip(self.convolutions, self.attention):
             residual = x
@@ -370,9 +391,20 @@ class Decoder(nn.Module):
             x = current_input
             x = F.dropout(x, p=self.dropout, training=self.training)
 
-            # temporal convolutions
+            # Prenet
+            for conv in self.preattention:
+                residual = x
+                if speaker_embed is not None and isinstance(conv, Conv1dGLU):
+                    x = conv.incremental_forward(x, speaker_embed)
+                else:
+                    x = conv.incremental_forward(x)
+                if isinstance(conv, Conv1dGLU):
+                    x = (x + residual) * math.sqrt(0.5)
+
+            # Casual convolutions + Multi-hop attentions
             ave_alignment = None
-            for idx, (conv, attention) in enumerate(zip(self.convolutions, self.attention)):
+            for idx, (conv, attention) in enumerate(zip(self.convolutions,
+                                                        self.attention)):
                 residual = x
                 if speaker_embed is not None and isinstance(conv, Conv1dGLU):
                     x = conv.incremental_forward(x, speaker_embed)

@@ -87,6 +87,7 @@ def _deepvoice3(n_vocab, embed_dim=256, mel_dim=80,
         embed_dim, in_dim=mel_dim, r=r, padding_idx=padding_idx,
         n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
         dropout=dropout,
+        preattention=[(h, 3, 1)],
         convolutions=[(h, 3, dilation), (h, 3, dilation), (h, 3, dilation),
                       (h, 3, dilation), (h, 3, dilation)],
         attention=[True, False, False, False, True],
@@ -114,28 +115,6 @@ def test_single_speaker_deepvoice3():
 
     for v in [False, True]:
         model = _get_model(use_decoder_state_for_postnet_input=v)
-        mel_outputs, linear_outputs, alignments, done = model(x, y)
-
-
-def test_dilated_convolution_support():
-    x, y = _test_data()
-
-    for dilation in [1, 2]:
-        model = _deepvoice3(n_vocab=n_vocab,
-                            embed_dim=256,
-                            mel_dim=num_mels,
-                            linear_dim=num_freq,
-                            r=outputs_per_step,
-                            padding_idx=padding_idx,
-                            n_speakers=1,
-                            speaker_embed_dim=16,
-                            dilation=dilation,
-                            )
-        if dilation > 1:
-            for conv in [model.seq2seq.encoder.convolutions[0],
-                         model.seq2seq.decoder.convolutions[0],
-                         model.postnet.convolutions[0]]:
-                assert isinstance(conv, nn.Conv1d)
         mel_outputs, linear_outputs, alignments, done = model(x, y)
 
 
