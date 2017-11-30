@@ -58,6 +58,7 @@ class MultiSpeakerTTSModel(nn.Module):
         B = text_sequences.size(0)
 
         if speaker_ids is not None:
+            assert self.n_speakers > 1
             speaker_embed = self.embed_speakers(speaker_ids)
         else:
             speaker_embed = None
@@ -81,7 +82,7 @@ class MultiSpeakerTTSModel(nn.Module):
         # (B, T, linear_dim)
         # Convert coarse mel-spectrogram (or decoder hidden states) to
         # high resolution spectrogram
-        linear_outputs = self.postnet(postnet_inputs)
+        linear_outputs = self.postnet(postnet_inputs, speaker_embed)
         assert linear_outputs.size(-1) == self.linear_dim
 
         return mel_outputs, linear_outputs, alignments, done

@@ -390,5 +390,5 @@ class Converter(nn.Module):
             nn.Sigmoid(),
         )
 
-    def forward(self, x):
+    def forward(self, x, speaker_embed=None):
         return self.convnet(x.transpose(1, 2)).transpose(1, 2)

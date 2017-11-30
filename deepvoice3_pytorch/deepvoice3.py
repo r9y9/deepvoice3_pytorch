@@ -217,7 +217,7 @@ class Decoder(nn.Module):
                                 dropout=dropout)
 
         # Mel-spectrogram (before sigmoid) -> Done binary flag
-        self.fc3 = Linear(in_dim * r, 1)
+        self.fc = Linear(in_dim * r, 1)
 
         self.max_decoder_steps = 200
         self.min_decoder_steps = 10
@@ -317,7 +317,7 @@ class Decoder(nn.Module):
         outputs = F.sigmoid(x)
 
         # Done flag
-        done = F.sigmoid(self.fc3(x))
+        done = F.sigmoid(self.fc(x))
 
         return outputs, torch.stack(alignments), done, decoder_states
 
@@ -402,7 +402,7 @@ class Decoder(nn.Module):
 
             # Ooutput & done flag predictions
             output = F.sigmoid(x)
-            done = F.sigmoid(self.fc3(x))
+            done = F.sigmoid(self.fc(x))
 
             decoder_states += [decoder_state]
             outputs += [output]
@@ -434,59 +434,59 @@ class Decoder(nn.Module):
 
 
 class Converter(nn.Module):
-    def __init__(self, in_dim, out_dim, convolutions=((256, 5, 1),) * 4,
+    def __init__(self, n_speakers, speaker_embed_dim,
+                 in_dim, out_dim, convolutions=((256, 5, 1),) * 4,
                  dropout=0.1, use_glu=True):
         super(Converter, self).__init__()
         self.dropout = dropout
         self.in_dim = in_dim
         self.out_dim = out_dim
         self.use_glu = use_glu
+        self.n_speakers = n_speakers
 
-        # Non-causual convolutions
+        # Non causual convolution blocks
         in_channels = convolutions[0][0]
-        self.fc1 = Linear(in_dim, in_channels)
-        self.projections = nn.ModuleList()
-        self.convolutions = nn.ModuleList()
-
-        Conv1dLayer = Conv1d if has_dilation(convolutions) else ConvTBC
+        self.convolutions = nn.ModuleList([
+            # 1x1 convolution first
+            Conv1d(in_dim, in_channels, kernel_size=1, padding=0, dilation=1,
+                   std_mul=1.0, dropout=dropout)
+        ])
         std_mul = 4.0 if use_glu else 1.0
         for (out_channels, kernel_size, dilation) in convolutions:
-            pad = (kernel_size - 1) // 2 * dilation
-            dilation = (dilation,)
-            self.projections.append(Linear(in_channels, out_channels)
-                                    if in_channels != out_channels else None)
+            assert in_channels == out_channels
             self.convolutions.append(
-                Conv1dLayer(in_channels, out_channels * 2, kernel_size,
-                            padding=pad, dilation=dilation, dropout=dropout,
-                            std_mul=std_mul))
+                Conv1dGLU(n_speakers, speaker_embed_dim,
+                          in_channels, out_channels, kernel_size, causal=False,
+                          dilation=dilation, dropout=dropout, std_mul=std_mul))
             in_channels = out_channels
-        self.fc2 = Linear(in_channels, out_dim)
+        # Last 1x1 convolution
+        self.convolutions.append(Conv1d(in_channels, out_dim, kernel_size=1,
+                                        padding=0, dilation=1, std_mul=1.0,
+                                        dropout=dropout))
 
-    def forward(self, x):
-        # project to size of convolution
-        x = F.relu(self.fc1(x), inplace=False)
+    def forward(self, x, speaker_embed=None):
+        assert self.n_speakers == 1 or speaker_embed is not None
 
-        use_convtbc = isinstance(self.convolutions[0], _ConvTBC)
-        # TBC case: B x T x C -> T x B x C
+        # embed speakers
+        if speaker_embed is not None:
+            # expand speaker embedding for all time steps
+            # (B, N) -> (B, T, N)
+            ss = speaker_embed.size()
+            speaker_embed_btc = speaker_embed.unsqueeze(1).expand(
+                ss[0], x.size(1), ss[-1])
+        else:
+            speaker_embed_btc = None
+
         # Generic case: B x T x C -> B x C x T
-        x = x.transpose(0, 1) if use_convtbc else x.transpose(1, 2)
+        x = x.transpose(1, 2)
 
-        # １D conv blocks
-        for idx, (proj, conv) in enumerate(zip(self.projections, self.convolutions)):
-            residual = x if proj is None else proj(x)
-            if idx > 0:
-                x = F.dropout(x, p=self.dropout, training=self.training)
-            x = conv(x)
-            splitdim = -1 if use_convtbc else 1
-            a, b = x.split(x.size(splitdim) // 2, dim=splitdim)
-            T = F.sigmoid(b)
-            if self.use_glu:
-                x = a * T
-                x = (x + residual) * math.sqrt(0.5)
+        for conv in self.convolutions:
+            if isinstance(conv, Conv1dGLU):
+                x = conv(x, speaker_embed_btc)
             else:
-                x = T * a + (1 - T) * residual
+                x = conv(x)
 
-        # Back to batch first
-        x = x.transpose(0, 1) if use_convtbc else x.transpose(1, 2)
+        # Back to B x T x C
+        x = x.transpose(1, 2)
 
-        return F.sigmoid(self.fc2(x))
+        return F.sigmoid(x)

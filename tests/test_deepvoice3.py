@@ -96,10 +96,10 @@ def _deepvoice3(n_vocab, embed_dim=256, mel_dim=80,
 
     in_dim = mel_dim
     h = 256
-    converter = Converter(
-        in_dim=in_dim, out_dim=linear_dim, dropout=dropout,
-        convolutions=[(h, 3, dilation), (h, 3, dilation), (h, 3, dilation),
-                      (h, 3, dilation), (h, 3, dilation)])
+    converter = Converter(n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
+                          in_dim=in_dim, out_dim=linear_dim, dropout=dropout,
+                          convolutions=[(h, 3, dilation), (h, 3, dilation), (h, 3, dilation),
+                                        (h, 3, dilation), (h, 3, dilation)])
 
     model = MultiSpeakerTTSModel(
         seq2seq, converter, padding_idx=padding_idx,
