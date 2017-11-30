@@ -8,7 +8,8 @@ from torch.nn import functional as F
 from fairseq.models.fconv import Linear, LinearizedConvolution
 
 
-def position_encoding_init(n_position, d_pos_vec, position_rate=1.0):
+def position_encoding_init(n_position, d_pos_vec, position_rate=1.0,
+                           sinusoidal=True):
     ''' Init the sinusoid position encoding table '''
 
     # keep dim 0 for padding token position encoding zero vector
@@ -16,9 +17,40 @@ def position_encoding_init(n_position, d_pos_vec, position_rate=1.0):
         [position_rate * pos / np.power(10000, 2 * i / d_pos_vec) for i in range(d_pos_vec)]
         if pos != 0 else np.zeros(d_pos_vec) for pos in range(n_position)])
 
-    position_enc[1:, 0::2] = np.sin(position_enc[1:, 0::2])  # dim 2i
-    position_enc[1:, 1::2] = np.cos(position_enc[1:, 1::2])  # dim 2i+1
-    return torch.from_numpy(position_enc).type(torch.FloatTensor)
+    position_enc = torch.from_numpy(position_enc).float()
+    if sinusoidal:
+        position_enc[1:, 0::2] = torch.sin(position_enc[1:, 0::2])  # dim 2i
+        position_enc[1:, 1::2] = torch.cos(position_enc[1:, 1::2])  # dim 2i+1
+
+    return position_enc
+
+
+def sinusoidal_encode(x, w):
+    y = w * x.clone()
+    y[1:, 0::2] = torch.sin(y[1:, 0::2])
+    y[1:, 1::2] = torch.cos(y[1:, 1::2])
+    return y
+
+
+class SinusoidalEncoding(nn.Embedding):
+    def __init__(self, num_embeddings, embedding_dim, padding_idx=0,
+                 *args, **kwargs):
+        super(SinusoidalEncoding, self).__init__(num_embeddings, embedding_dim,
+                                                 padding_idx, *args, **kwargs)
+        self.weight.data = position_encoding_init(num_embeddings, embedding_dim,
+                                                  position_rate=1.0,
+                                                  sinusoidal=False)
+
+    def forward(self, x, w=1.0):
+        weight = sinusoidal_encode(self.weight, w)
+        padding_idx = self.padding_idx
+        if padding_idx is None:
+            padding_idx = -1
+        return self._backend.Embedding.apply(
+            x, weight,
+            padding_idx, self.max_norm, self.norm_type,
+            self.scale_grad_by_freq, self.sparse
+        )
 
 
 def Embedding(num_embeddings, embedding_dim, padding_idx):

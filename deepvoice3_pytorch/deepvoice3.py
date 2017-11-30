@@ -11,7 +11,7 @@ from fairseq.modules import GradMultiply
 from fairseq.modules.conv_tbc import ConvTBC as _ConvTBC
 
 from .modules import Conv1d, LinearizedConv1d, ConvTBC, Embedding, Linear
-from .modules import get_mask_from_lengths, position_encoding_init
+from .modules import get_mask_from_lengths, SinusoidalEncoding
 
 
 def has_dilation(convolutions):
@@ -29,12 +29,6 @@ class Encoder(nn.Module):
 
         # Text input embeddings
         self.embed_tokens = Embedding(n_vocab, embed_dim, padding_idx)
-
-        # Text position embedding
-        self.embed_text_positions = Embedding(
-            max_positions, embed_dim, padding_idx)
-        self.embed_text_positions.weight.data = position_encoding_init(
-            max_positions, embed_dim)
 
         # Speaker embedding
         if n_speakers > 1:
@@ -70,8 +64,6 @@ class Encoder(nn.Module):
 
         # embed text_sequences
         x = self.embed_tokens(text_sequences)
-        if text_positions is not None:
-            x = x + self.embed_text_positions(text_positions)
 
         x = F.dropout(x, p=self.dropout, training=self.training)
 
@@ -201,6 +193,8 @@ class Decoder(nn.Module):
         self.in_dim = in_dim
         self.r = r
         self.use_glu = use_glu
+        self.query_position_rate = query_position_rate
+        self.key_position_rate = key_position_rate
 
         in_channels = in_dim * r
         if isinstance(attention, bool):
@@ -208,14 +202,10 @@ class Decoder(nn.Module):
             attention = [attention] * len(convolutions)
 
         # Position encodings for query (decoder states) and keys (encoder states)
-        self.embed_query_positions = Embedding(
+        self.embed_query_positions = SinusoidalEncoding(
             max_positions, convolutions[0][0], padding_idx)
-        self.embed_query_positions.weight.data = position_encoding_init(
-            max_positions, convolutions[0][0], position_rate=query_position_rate)
-        self.embed_keys_positions = Embedding(
+        self.embed_keys_positions = SinusoidalEncoding(
             max_positions, embed_dim, padding_idx)
-        self.embed_keys_positions.weight.data = position_encoding_init(
-            max_positions, embed_dim, position_rate=key_position_rate)
 
         self.fc1 = Linear(in_channels, convolutions[0][0], dropout=dropout)
         in_channels = convolutions[0][0]
@@ -279,10 +269,12 @@ class Decoder(nn.Module):
 
         # position encodings
         if text_positions is not None:
-            text_pos_embed = self.embed_keys_positions(text_positions)
+            text_pos_embed = self.embed_keys_positions(
+                text_positions, self.key_position_rate)
             keys = keys + text_pos_embed
         if frame_positions is not None:
-            frame_pos_embed = self.embed_query_positions(frame_positions)
+            frame_pos_embed = self.embed_query_positions(
+                frame_positions, self.query_position_rate)
 
         # transpose only once to speed up attention layers
         keys = keys.transpose(1, 2).contiguous()
@@ -353,7 +345,8 @@ class Decoder(nn.Module):
         B = keys.size(0)
 
         # position encodings
-        text_pos_embed = self.embed_keys_positions(text_positions)
+        text_pos_embed = self.embed_keys_positions(
+            text_positions, self.key_position_rate)
         keys = keys + text_pos_embed
 
         # transpose only once to speed up attention layers
@@ -377,7 +370,8 @@ class Decoder(nn.Module):
         while True:
             # frame pos start with 1.
             frame_pos = Variable(keys.data.new(B, 1).fill_(t + 1)).long()
-            frame_pos_embed = self.embed_query_positions(frame_pos)
+            frame_pos_embed = self.embed_query_positions(
+                frame_pos, self.query_position_rate)
 
             if test_inputs is not None:
                 if t >= test_inputs.size(1):
