@@ -525,7 +525,7 @@ def train(model, data_loader, optimizer, writer,
                     text_positions=text_positions, frame_positions=frame_positions,
                     input_lengths=input_lengths)
             elif train_seq2seq:
-                mel_outputs, attn, done_hat = model.seq2seq(
+                mel_outputs, attn, done_hat, _ = model.seq2seq(
                     x, mel,
                     text_positions=text_positions, frame_positions=frame_positions,
                     input_lengths=input_lengths)
