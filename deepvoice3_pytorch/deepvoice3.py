@@ -95,8 +95,8 @@ class Encoder(nn.Module):
             keys = keys + F.softsign(self.speaker_fc2(speaker_embed_btc))
 
         # scale gradients (this only affects backward, not forward)
-        if self.num_attention_layers is not None:
-            keys = GradMultiply.apply(keys, 1.0 / (2.0 * self.num_attention_layers))
+        # if self.num_attention_layers is not None:
+        #    keys = GradMultiply.apply(keys, 1.0 / (2.0 * self.num_attention_layers))
 
         # add output to input embedding for attention
         values = (keys + input_embedding) * math.sqrt(0.5)

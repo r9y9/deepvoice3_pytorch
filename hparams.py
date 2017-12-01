@@ -32,21 +32,21 @@ hparams = tf.contrib.training.HParams(
     use_preset=False,
     presets={
         "deepvoice3": {
-            "downsample_step": 1,
-            "outputs_per_step": 4,
+            "downsample_step": 4,
+            "outputs_per_step": 1,
             "dropout": 1 - 0.95,
-            "kernel_size": 7,
+            "kernel_size": 3,
             "text_embed_dim": 256,
-            "encoder_channels": 256,
+            "encoder_channels": 512,
             "decoder_channels": 256,
             "converter_channels": 256,
             "use_guided_attention": True,
             "guided_attention_sigma": 0.2,
-            "binary_divergence_weight": 0.0,
+            "binary_divergence_weight": 0.1,
             "use_decoder_state_for_postnet_input": True,
 
-            "clip_thresh": 1.0,
-            "initial_learning_rate": 1e-3,
+            "clip_thresh": 0.1,
+            "initial_learning_rate": 5e-4,
         },
         "nyanko": {
             "downsample_step": 4,
