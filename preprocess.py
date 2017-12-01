@@ -15,6 +15,7 @@ from tqdm import tqdm
 from hparams import hparams
 
 
+# TODO: simplify
 def preprocess_ljspeech(in_dir, out_root, num_workers):
     import ljspeech
     os.makedirs(out_dir, exist_ok=True)
@@ -26,6 +27,13 @@ def preprocess_jsut(in_dir, out_root, num_workers):
     import jsut
     os.makedirs(out_dir, exist_ok=True)
     metadata = jsut.build_from_path(in_dir, out_dir, num_workers, tqdm=tqdm)
+    write_metadata(metadata, out_dir)
+
+
+def preprocess_vctk(in_dir, out_root, num_workers):
+    import vctk
+    os.makedirs(out_dir, exist_ok=True)
+    metadata = vctk.build_from_path(in_dir, out_dir, num_workers, tqdm=tqdm)
     write_metadata(metadata, out_dir)
 
 
@@ -53,5 +61,7 @@ if __name__ == "__main__":
         preprocess_jsut(in_dir, out_dir, num_workers)
     elif name == 'ljspeech':
         preprocess_ljspeech(in_dir, out_dir, num_workers)
+    elif name == 'vctk':
+        preprocess_vctk(in_dir, out_dir, num_workers)
     else:
         assert False
