@@ -35,15 +35,16 @@ class Encoder(nn.Module):
         self.n_speakers = n_speakers
 
         # Non causual convolution blocks
-        in_channels = convolutions[0][0]
-        self.convolutions = nn.ModuleList([
-            # 1x1 convolution first
-            Conv1d(embed_dim, in_channels, kernel_size=1, padding=0, dilation=1,
-                   std_mul=1.0, dropout=dropout)
-        ])
+        in_channels = embed_dim
+        self.convolutions = nn.ModuleList()
         std_mul = 1.0
         for (out_channels, kernel_size, dilation) in convolutions:
-            assert in_channels == out_channels
+            if in_channels != out_channels:
+                self.convolutions.append(
+                    Conv1d(in_channels, out_channels, kernel_size=1, padding=0,
+                           dilation=1, std_mul=std_mul))
+                in_channels = out_channels
+                std_mul = 1.0
             self.convolutions.append(
                 Conv1dGLU(n_speakers, speaker_embed_dim,
                           in_channels, out_channels, kernel_size, causal=False,
@@ -508,16 +509,23 @@ class Converter(nn.Module):
                           dilation=3, dropout=dropout, std_mul=4.0),
             ])
 
+        std_mul = 4.0
         for (out_channels, kernel_size, dilation) in convolutions:
-            assert in_channels == out_channels
+            if in_channels != out_channels:
+                self.convolutions.append(
+                    Conv1d(in_channels, out_channels, kernel_size=1, padding=0,
+                           dilation=1, std_mul=std_mul))
+                in_channels = out_channels
+                std_mul = 1.0
             self.convolutions.append(
                 Conv1dGLU(n_speakers, speaker_embed_dim,
                           in_channels, out_channels, kernel_size, causal=False,
-                          dilation=dilation, dropout=dropout, std_mul=4.0))
+                          dilation=dilation, dropout=dropout, std_mul=std_mul))
             in_channels = out_channels
+            std_mul = 4.0
         # Last 1x1 convolution
         self.convolutions.append(Conv1d(in_channels, out_dim, kernel_size=1,
-                                        padding=0, dilation=1, std_mul=4.0,
+                                        padding=0, dilation=1, std_mul=std_mul,
                                         dropout=dropout))
 
     def forward(self, x, speaker_embed=None):
