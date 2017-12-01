@@ -42,15 +42,31 @@ class SinusoidalEncoding(nn.Embedding):
                                                   sinusoidal=False)
 
     def forward(self, x, w=1.0):
-        weight = sinusoidal_encode(self.weight, w)
+        isscaler = np.isscalar(w)
         padding_idx = self.padding_idx
         if padding_idx is None:
             padding_idx = -1
-        return self._backend.Embedding.apply(
-            x, weight,
-            padding_idx, self.max_norm, self.norm_type,
-            self.scale_grad_by_freq, self.sparse
-        )
+
+        if isscaler or w.size(0) == 1:
+            weight = sinusoidal_encode(self.weight, w)
+            return self._backend.Embedding.apply(
+                x, weight,
+                padding_idx, self.max_norm, self.norm_type,
+                self.scale_grad_by_freq, self.sparse
+            )
+        else:
+            # TODO: cannot simply apply for batch
+            # better to implement efficient function
+            pe = []
+            for batch_idx, we in enumerate(w):
+                weight = sinusoidal_encode(self.weight, we)
+                pe.append(self._backend.Embedding.apply(
+                    x[batch_idx], weight,
+                    padding_idx, self.max_norm, self.norm_type,
+                    self.scale_grad_by_freq, self.sparse
+                ))
+            pe = torch.stack(pe)
+            return pe
 
 
 def Embedding(num_embeddings, embedding_dim, padding_idx):

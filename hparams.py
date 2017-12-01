@@ -27,6 +27,9 @@ hparams = tf.contrib.training.HParams(
     # latest: Latest model I (@r9y9) have been working on.
     builder="latest",
 
+    # Must be configured depends on the dataset and model you use
+    n_speakers=1,
+
     # Presets known to work good.
     # NOTE: If True, this will overwride params with presets[builder]
     use_preset=False,

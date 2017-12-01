@@ -93,17 +93,35 @@ def plot_alignment(alignment, path, info=None):
 class TextDataSource(FileDataSource):
     def __init__(self, data_root):
         self.data_root = data_root
+        self.speaker_ids = None
+        self.multi_speaker = False
+        self.n_speakers = 1
 
     def collect_files(self):
         meta = join(self.data_root, "train.txt")
         with open(meta, "rb") as f:
             lines = f.readlines()
-        lines = list(map(lambda l: l.decode("utf-8").split("|")[-1], lines))
-        return lines
+        l = lines[0].decode("utf-8").split("|")
+        assert len(l) == 4 or len(l) == 5
+        self.multi_speaker = len(l) == 5
+        texts = list(map(lambda l: l.decode("utf-8").split("|")[3], lines))
+        if self.multi_speaker:
+            speaker_ids = list(map(lambda l: int(l.decode("utf-8").split("|")[-1]), lines))
+            self.n_speakers = len(np.unique(speaker_ids))
+            return texts, speaker_ids
+        else:
+            return texts
 
-    def collect_features(self, text):
+    def collect_features(self, *args):
+        if self.multi_speaker:
+            text, speaker_id = args
+        else:
+            text = args[0]
         seq = _frontend.text_to_sequence(text, p=hparams.replace_pronunciation_prob)
-        return np.asarray(seq, dtype=np.int32)
+        if self.multi_speaker:
+            return np.asarray(seq, dtype=np.int32), int(speaker_id)
+        else:
+            return np.asarray(seq, dtype=np.int32)
 
 
 class _NPYDataSource(FileDataSource):
@@ -186,9 +204,15 @@ class PyTorchDataset(object):
         self.X = X
         self.Mel = Mel
         self.Y = Y
+        # alias
+        self.multi_speaker = X.file_data_source.multi_speaker
 
     def __getitem__(self, idx):
-        return self.X[idx], self.Mel[idx], self.Y[idx]
+        if self.multi_speaker:
+            text, speaker_id = self.X[idx]
+            return text, self.Mel[idx], self.Y[idx], speaker_id
+        else:
+            return self.X[idx], self.Mel[idx], self.Y[idx]
 
     def __len__(self):
         return len(self.X)
@@ -231,6 +255,7 @@ def collate_fn(batch):
     """Create batch"""
     r = hparams.outputs_per_step
     downsample_step = hparams.downsample_step
+    multi_speaker = len(batch[0]) == 4
 
     # Lengths
     input_lengths = [len(x[0]) for x in batch]
@@ -285,8 +310,13 @@ def collate_fn(batch):
                      for x in batch])
     done = torch.FloatTensor(done).unsqueeze(-1)
 
+    if multi_speaker:
+        speaker_ids = torch.LongTensor([x[3] for x in batch])
+    else:
+        speaker_ids = None
+
     return x_batch, input_lengths, mel_batch, y_batch, \
-        (text_positions, frame_positions), done, target_lengths
+        (text_positions, frame_positions), done, target_lengths, speaker_ids
 
 
 def time_string():
@@ -462,7 +492,8 @@ def train(model, data_loader, optimizer, writer,
     global global_step, global_epoch
     while global_epoch < nepochs:
         running_loss = 0.
-        for step, (x, input_lengths, mel, y, positions, done, target_lengths) \
+        for step, (x, input_lengths, mel, y, positions, done, target_lengths,
+                   speaker_ids) \
                 in tqdm(enumerate(data_loader)):
             # Learning rate schedule
             if hparams.lr_schedule is not None:
@@ -490,6 +521,7 @@ def train(model, data_loader, optimizer, writer,
             frame_positions = Variable(frame_positions)
             done = Variable(done)
             target_lengths = Variable(target_lengths)
+            speaker_ids = None if speaker_ids is None else Variable(speaker_ids)
             if use_cuda:
                 if train_seq2seq:
                     x = x.cuda()
@@ -499,6 +531,7 @@ def train(model, data_loader, optimizer, writer,
                     y = y.cuda()
                 mel = mel.cuda()
                 done, target_lengths = done.cuda(), target_lengths.cuda()
+                speaker_ids = None if speaker_ids is None else speaker_ids.cuda()
 
             # Create mask if we use masked loss
             if hparams.masked_loss_weight > 0:
@@ -521,10 +554,11 @@ def train(model, data_loader, optimizer, writer,
             # Apply model
             if train_seq2seq and train_postnet:
                 mel_outputs, linear_outputs, attn, done_hat = model(
-                    x, mel,
+                    x, mel, speaker_ids=speaker_ids,
                     text_positions=text_positions, frame_positions=frame_positions,
                     input_lengths=input_lengths)
             elif train_seq2seq:
+                assert speaker_ids is None
                 mel_outputs, attn, done_hat, _ = model.seq2seq(
                     x, mel,
                     text_positions=text_positions, frame_positions=frame_positions,
@@ -533,6 +567,7 @@ def train(model, data_loader, optimizer, writer,
                 mel_outputs = mel_outputs.view(len(mel), -1, mel.size(-1))
                 linear_outputs = None
             elif train_postnet:
+                assert speaker_ids is None
                 linear_outputs = model.postnet(mel)
                 mel_outputs, attn, done_hat = None, None, None
 
@@ -644,6 +679,7 @@ def save_checkpoint(model, optimizer, step, checkpoint_dir, epoch,
 
 def build_model():
     model = getattr(builder, hparams.builder)(
+        n_speakers=hparams.n_speakers,
         n_vocab=_frontend.n_vocab,
         embed_dim=hparams.text_embed_dim,
         mel_dim=hparams.num_mels,
