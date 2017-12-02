@@ -68,7 +68,8 @@ def deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=513, r=4,
         n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
         in_dim=in_dim, out_dim=linear_dim, dropout=dropout,
         time_upsampling=time_upsampling,
-        convolutions=[(h, k, 1), (h, k, 3), (2 * h, k, 1), (2 * h, k, 3)],
+        convolutions=[(h, k, 1), (h, k, 3), (2 * h, k, 1), (2 * h, k, 3),
+                      (3 * h, k, 1)],
     )
 
     # Seq2seq + post net
