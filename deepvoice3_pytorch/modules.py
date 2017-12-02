@@ -5,7 +5,6 @@ from torch import nn
 import math
 import numpy as np
 from torch.nn import functional as F
-from fairseq.models.fconv import Linear, LinearizedConvolution
 
 
 def position_encoding_init(n_position, d_pos_vec, position_rate=1.0,
@@ -69,6 +68,27 @@ class SinusoidalEncoding(nn.Embedding):
             return pe
 
 
+class GradMultiply(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, x, scale):
+        ctx.scale = scale
+        res = x.new(x)
+        ctx.mark_shared_storage((x, res))
+        return res
+
+    @staticmethod
+    def backward(ctx, grad):
+        return grad * ctx.scale, None
+
+
+def Linear(in_features, out_features, dropout=0):
+    """Weight-normalized Linear layer (input: N x T x C)"""
+    m = nn.Linear(in_features, out_features)
+    m.weight.data.normal_(mean=0, std=math.sqrt((1 - dropout) / in_features))
+    m.bias.data.zero_()
+    return nn.utils.weight_norm(m)
+
+
 def Embedding(num_embeddings, embedding_dim, padding_idx):
     m = nn.Embedding(num_embeddings, embedding_dim, padding_idx=padding_idx)
     m.weight.data.normal_(0, 0.01)
@@ -91,29 +111,6 @@ def ConvTranspose1d(in_channels, out_channels, kernel_size, dropout=0,
     m.weight.data.normal_(mean=0, std=std)
     m.bias.data.zero_()
     return nn.utils.weight_norm(m)
-
-
-def LinearizedConv1d(in_channels, out_channels, kernel_size, dilation=(1,),
-                     std_mul=4.0, dropout=0, **kwargs):
-    """Weight-normalized Conv1d layer optimized for decoding"""
-    assert dilation[0] == 1
-    m = LinearizedConvolution(in_channels, out_channels, kernel_size, **kwargs)
-    std = math.sqrt((std_mul * (1.0 - dropout)) / (m.kernel_size[0] * in_channels))
-    m.weight.data.normal_(mean=0, std=std)
-    m.bias.data.zero_()
-    return nn.utils.weight_norm(m)
-
-
-def ConvTBC(in_channels, out_channels, kernel_size, dilation=(1,), std_mul=4.0,
-            dropout=0, **kwargs):
-    """Weight-normalized Conv1d layer"""
-    from fairseq.modules import ConvTBC
-    assert dilation[0] == 1
-    m = ConvTBC(in_channels, out_channels, kernel_size, **kwargs)
-    std = math.sqrt((std_mul * (1.0 - dropout)) / (m.kernel_size[0] * in_channels))
-    m.weight.data.normal_(mean=0, std=std)
-    m.bias.data.zero_()
-    return nn.utils.weight_norm(m, dim=2)
 
 
 class Conv1dGLU(nn.Module):

@@ -7,9 +7,7 @@ from torch.autograd import Variable
 import math
 import numpy as np
 
-from fairseq.modules import GradMultiply
-
-from .modules import Conv1d, ConvTranspose1d, Embedding, Linear
+from .modules import Conv1d, ConvTranspose1d, Embedding, Linear, GradMultiply
 from .modules import get_mask_from_lengths, SinusoidalEncoding, Conv1dGLU
 
 
@@ -27,10 +25,11 @@ def expand_speaker_embed(inputs_btc, speaker_embed=None):
 class Encoder(nn.Module):
     def __init__(self, n_vocab, embed_dim, n_speakers, speaker_embed_dim,
                  padding_idx=None, convolutions=((64, 5, .1),) * 7,
-                 max_positions=512, dropout=0.1):
+                 max_positions=512, dropout=0.1, apply_grad_scaling=False):
         super(Encoder, self).__init__()
         self.dropout = dropout
         self.num_attention_layers = None
+        self.apply_grad_scaling = apply_grad_scaling
 
         # Text input embeddings
         self.embed_tokens = Embedding(n_vocab, embed_dim, padding_idx)
@@ -95,8 +94,8 @@ class Encoder(nn.Module):
             keys = keys + F.softsign(self.speaker_fc2(speaker_embed_btc))
 
         # scale gradients (this only affects backward, not forward)
-        # if self.num_attention_layers is not None:
-        #    keys = GradMultiply.apply(keys, 1.0 / (2.0 * self.num_attention_layers))
+        if self.apply_grad_scaling and self.num_attention_layers is not None:
+            keys = GradMultiply.apply(keys, 1.0 / (2.0 * self.num_attention_layers))
 
         # add output to input embedding for attention
         values = (keys + input_embedding) * math.sqrt(0.5)

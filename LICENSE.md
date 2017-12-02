@@ -20,3 +20,7 @@ The deepvoice3_pytorch package is licensed under the MIT "Expat" License:
 > CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 > TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 > SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+# Part of code was adapted from https://github.com/facebookresearch/fairseq-py
+# Copyright (c) 2017-present, Facebook, Inc.
+# Thier licenses apply.
