@@ -11,14 +11,14 @@ from .modules import Conv1d, ConvTranspose1d, Embedding, Linear, GradMultiply
 from .modules import get_mask_from_lengths, SinusoidalEncoding, Conv1dGLU
 
 
-def expand_speaker_embed(inputs_btc, speaker_embed=None):
+def expand_speaker_embed(inputs_btc, speaker_embed=None, tdim=1):
     if speaker_embed is None:
         return None
     # expand speaker embedding for all time steps
     # (B, N) -> (B, T, N)
     ss = speaker_embed.size()
     speaker_embed_btc = speaker_embed.unsqueeze(1).expand(
-        ss[0], inputs_btc.size(1), ss[-1])
+        ss[0], inputs_btc.size(tdim), ss[-1])
     return speaker_embed_btc
 
 
@@ -533,8 +533,8 @@ class Converter(nn.Module):
 
         for f in self.convolutions:
             # Case for upsampling
-            if speaker_embed is not None and speaker_embed_btc.size(1) != x.size(-1):
-                speaker_embed_btc = expand_speaker_embed(x, speaker_embed)
+            if speaker_embed_btc is not None and speaker_embed_btc.size(1) != x.size(-1):
+                speaker_embed_btc = expand_speaker_embed(x, speaker_embed, tdim=-1)
             x = f(x, speaker_embed_btc) if isinstance(f, Conv1dGLU) else f(x)
 
         # Back to B x T x C
