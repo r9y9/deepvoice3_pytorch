@@ -122,10 +122,11 @@ class Conv1dGLU(nn.Module):
 
     def __init__(self, n_speakers, speaker_embed_dim,
                  in_channels, out_channels, kernel_size,
-                 dropout, padding=None, dilation=1, causal=False,
+                 dropout, padding=None, dilation=1, causal=False, residual=False,
                  *args, **kwargs):
         super(Conv1dGLU, self).__init__()
         self.dropout = dropout
+        self.residual = residual
         if padding is None:
             # no future time stamps available
             if causal:
@@ -167,7 +168,7 @@ class Conv1dGLU(nn.Module):
             softsign = softsign if is_incremental else softsign.transpose(1, 2)
             a = a + softsign
         x = a * F.sigmoid(b)
-        return x
+        return (x + residual) * math.sqrt(0.5) if self.residual else x
 
     def clear_buffer(self):
         self.conv.clear_buffer()

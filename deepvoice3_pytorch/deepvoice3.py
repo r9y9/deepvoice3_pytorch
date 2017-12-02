@@ -13,8 +13,15 @@ from .modules import Conv1d, ConvTranspose1d, Embedding, Linear
 from .modules import get_mask_from_lengths, SinusoidalEncoding, Conv1dGLU
 
 
-def has_dilation(convolutions):
-    return np.any(np.array(list(map(lambda x: x[2], convolutions))) > 1)
+def expand_speaker_embed(inputs_btc, speaker_embed=None):
+    if speaker_embed is None:
+        return None
+    # expand speaker embedding for all time steps
+    # (B, N) -> (B, T, N)
+    ss = speaker_embed.size()
+    speaker_embed_btc = speaker_embed.unsqueeze(1).expand(
+        ss[0], inputs_btc.size(1), ss[-1])
+    return speaker_embed_btc
 
 
 class Encoder(nn.Module):
@@ -40,15 +47,18 @@ class Encoder(nn.Module):
         std_mul = 1.0
         for (out_channels, kernel_size, dilation) in convolutions:
             if in_channels != out_channels:
+                # Conv1d + ReLU
                 self.convolutions.append(
                     Conv1d(in_channels, out_channels, kernel_size=1, padding=0,
                            dilation=1, std_mul=std_mul))
+                self.convolutions.append(nn.ReLU(inplace=True))
                 in_channels = out_channels
-                std_mul = 1.0
+                std_mul = 2.0
             self.convolutions.append(
                 Conv1dGLU(n_speakers, speaker_embed_dim,
                           in_channels, out_channels, kernel_size, causal=False,
-                          dilation=dilation, dropout=dropout, std_mul=std_mul))
+                          dilation=dilation, dropout=dropout, std_mul=std_mul,
+                          residual=True))
             in_channels = out_channels
             std_mul = 4.0
         # Last 1x1 convolution
@@ -64,35 +74,24 @@ class Encoder(nn.Module):
         x = self.embed_tokens(text_sequences)
         x = F.dropout(x, p=self.dropout, training=self.training)
 
-        # embed speakers
-        if speaker_embed is not None:
-            # expand speaker embedding for all time steps
-            # (B, N) -> (B, T, N)
-            ss = speaker_embed.size()
-            speaker_embed = speaker_embed.unsqueeze(1).expand(
-                ss[0], x.size(1), ss[-1])
-            speaker_embed_btc = speaker_embed
+        # expand speaker embedding for all time steps
+        speaker_embed_btc = expand_speaker_embed(x, speaker_embed)
+        if speaker_embed_btc is not None:
             x = x + F.softsign(self.speaker_fc1(speaker_embed_btc))
+
         input_embedding = x
 
         # B x T x C -> B x C x T
         x = x.transpose(1, 2)
 
         # １D conv blocks
-        for conv in self.convolutions:
-            residual = x
-            if speaker_embed is not None and isinstance(conv, Conv1dGLU):
-                x = conv(x, speaker_embed_btc)
-            else:
-                x = conv(x)
-
-            if isinstance(conv, Conv1dGLU):
-                x = (x + residual) * math.sqrt(0.5)
+        for f in self.convolutions:
+            x = f(x, speaker_embed_btc) if isinstance(f, Conv1dGLU) else f(x)
 
         # Back to B x T x C
         keys = x.transpose(1, 2)
 
-        if speaker_embed is not None:
+        if speaker_embed_btc is not None:
             keys = keys + F.softsign(self.speaker_fc2(speaker_embed_btc))
 
         # scale gradients (this only affects backward, not forward)
@@ -192,19 +191,23 @@ class Decoder(nn.Module):
             self.speaker_proj1, self.speaker_proj2 = None, None
 
         # Prenet: causal convolution blocks
-        in_channels = preattention[0][0]
+        self.preattention = nn.ModuleList()
+        in_channels = in_dim * r
         std_mul = 1.0
-        self.preattention = nn.ModuleList([
-            # 1x1 convolution first
-            Conv1d(in_dim * r, in_channels, kernel_size=1, padding=0, dilation=1,
-                   std_mul=std_mul, dropout=dropout)
-        ])
         for out_channels, kernel_size, dilation in preattention:
-            assert in_channels == out_channels
+            if in_channels != out_channels:
+                # Conv1d + ReLU
+                self.preattention.append(
+                    Conv1d(in_channels, out_channels, kernel_size=1, padding=0,
+                           dilation=1, std_mul=std_mul))
+                self.preattention.append(nn.ReLU(inplace=True))
+                in_channels = out_channels
+                std_mul = 2.0
             self.preattention.append(
                 Conv1dGLU(n_speakers, speaker_embed_dim,
                           in_channels, out_channels, kernel_size, causal=True,
-                          dilation=dilation, dropout=dropout, std_mul=std_mul))
+                          dilation=dilation, dropout=dropout, std_mul=std_mul,
+                          residual=True))
             in_channels = out_channels
             std_mul = 4.0
 
@@ -217,7 +220,8 @@ class Decoder(nn.Module):
             self.convolutions.append(
                 Conv1dGLU(n_speakers, speaker_embed_dim,
                           in_channels, out_channels, kernel_size, causal=True,
-                          dilation=dilation, dropout=dropout, std_mul=std_mul))
+                          dilation=dilation, dropout=dropout, std_mul=std_mul,
+                          residual=False))
             self.attention.append(AttentionLayer(out_channels, embed_dim,
                                                  dropout=dropout)
                                   if attention[i] else None)
@@ -253,13 +257,8 @@ class Decoder(nn.Module):
             inputs = inputs.view(inputs.size(0), inputs.size(1) // self.r, -1)
         assert inputs.size(-1) == self.in_dim * self.r
 
-        # embed speakers
-        if speaker_embed is not None:
-            # expand speaker embedding for all time steps
-            # (B, N) -> (B, T, N)
-            ss = speaker_embed.size()
-            speaker_embed_btc = speaker_embed.unsqueeze(1).expand(
-                ss[0], inputs.size(1), ss[-1])
+        # expand speaker embedding for all time steps
+        speaker_embed_btc = expand_speaker_embed(inputs, speaker_embed)
 
         keys, values = encoder_out
 
@@ -292,28 +291,19 @@ class Decoder(nn.Module):
         x = x.transpose(1, 2)
 
         # Prenet
-        for conv in self.preattention:
-            residual = x
-            if speaker_embed is not None and isinstance(conv, Conv1dGLU):
-                x = conv(x, speaker_embed_btc)
-            else:
-                x = conv(x)
-            if isinstance(conv, Conv1dGLU):
-                x = (x + residual) * math.sqrt(0.5)
+        for f in self.preattention:
+            x = f(x, speaker_embed_btc) if isinstance(f, Conv1dGLU) else f(x)
 
         # Casual convolutions + Multi-hop attentions
         alignments = []
-        for conv, attention in zip(self.convolutions, self.attention):
+        for f, attention in zip(self.convolutions, self.attention):
             residual = x
 
-            if speaker_embed is not None and isinstance(conv, Conv1dGLU):
-                x = conv(x, speaker_embed_btc)
-            else:
-                x = conv(x)
+            x = f(x, speaker_embed_btc) if isinstance(f, Conv1dGLU) else f(x)
 
             # Feed conv output to attention layer as query
             if attention is not None:
-                assert isinstance(conv, Conv1dGLU)
+                assert isinstance(f, Conv1dGLU)
                 # (B x T x C)
                 x = x.transpose(1, 2)
                 x = x if frame_positions is None else x + frame_pos_embed
@@ -322,7 +312,7 @@ class Decoder(nn.Module):
                 x = x.transpose(1, 2)
                 alignments += [alignment]
 
-            if isinstance(conv, Conv1dGLU):
+            if isinstance(f, Conv1dGLU):
                 x = (x + residual) * math.sqrt(0.5)
 
         # decoder state (B x T x C):
@@ -391,28 +381,31 @@ class Decoder(nn.Module):
             x = F.dropout(x, p=self.dropout, training=self.training)
 
             # Prenet
-            for conv in self.preattention:
-                residual = x
-                if speaker_embed is not None and isinstance(conv, Conv1dGLU):
-                    x = conv.incremental_forward(x, speaker_embed)
+            for f in self.preattention:
+                if isinstance(f, Conv1dGLU):
+                    x = f.incremental_forward(x, speaker_embed)
                 else:
-                    x = conv.incremental_forward(x)
-                if isinstance(conv, Conv1dGLU):
-                    x = (x + residual) * math.sqrt(0.5)
+                    try:
+                        x = f.incremental_forward(x)
+                    except AttributeError as e:
+                        x = f(x)
 
             # Casual convolutions + Multi-hop attentions
             ave_alignment = None
-            for idx, (conv, attention) in enumerate(zip(self.convolutions,
-                                                        self.attention)):
+            for idx, (f, attention) in enumerate(zip(self.convolutions,
+                                                     self.attention)):
                 residual = x
-                if speaker_embed is not None and isinstance(conv, Conv1dGLU):
-                    x = conv.incremental_forward(x, speaker_embed)
+                if isinstance(f, Conv1dGLU):
+                    x = f.incremental_forward(x, speaker_embed)
                 else:
-                    x = conv.incremental_forward(x)
+                    try:
+                        x = f.incremental_forward(x)
+                    except AttributeError as e:
+                        x = f(x)
 
                 # attention
                 if attention is not None:
-                    assert isinstance(conv, Conv1dGLU)
+                    assert isinstance(f, Conv1dGLU)
                     x = x + frame_pos_embed
                     x, alignment = attention(x, (keys, values),
                                              last_attended=last_attended[idx])
@@ -424,7 +417,7 @@ class Decoder(nn.Module):
                         ave_alignment = ave_alignment + ave_alignment
 
                 # residual
-                if isinstance(conv, Conv1dGLU):
+                if isinstance(f, Conv1dGLU):
                     x = (x + residual) * math.sqrt(0.5)
 
             decoder_state = x
@@ -486,18 +479,18 @@ class Converter(nn.Module):
                                 padding=0, stride=2, std_mul=1.0),
                 Conv1dGLU(n_speakers, speaker_embed_dim,
                           in_channels, in_channels, kernel_size=3, causal=False,
-                          dilation=1, dropout=dropout, std_mul=1.0),
+                          dilation=1, dropout=dropout, std_mul=1.0, residual=True),
                 Conv1dGLU(n_speakers, speaker_embed_dim,
                           in_channels, in_channels, kernel_size=3, causal=False,
-                          dilation=3, dropout=dropout, std_mul=4.0),
+                          dilation=3, dropout=dropout, std_mul=4.0, residual=True),
                 ConvTranspose1d(in_channels, in_channels, kernel_size=2,
                                 padding=0, stride=2, std_mul=4.0),
                 Conv1dGLU(n_speakers, speaker_embed_dim,
                           in_channels, in_channels, kernel_size=3, causal=False,
-                          dilation=1, dropout=dropout, std_mul=1.0),
+                          dilation=1, dropout=dropout, std_mul=1.0, residual=True),
                 Conv1dGLU(n_speakers, speaker_embed_dim,
                           in_channels, in_channels, kernel_size=3, causal=False,
-                          dilation=3, dropout=dropout, std_mul=4.0),
+                          dilation=3, dropout=dropout, std_mul=4.0, residual=True),
             ])
         else:
             self.convolutions = nn.ModuleList([
@@ -506,7 +499,7 @@ class Converter(nn.Module):
                        std_mul=1.0),
                 Conv1dGLU(n_speakers, speaker_embed_dim,
                           in_channels, in_channels, kernel_size=3, causal=False,
-                          dilation=3, dropout=dropout, std_mul=4.0),
+                          dilation=3, dropout=dropout, std_mul=4.0, residual=True),
             ])
 
         std_mul = 4.0
@@ -515,12 +508,14 @@ class Converter(nn.Module):
                 self.convolutions.append(
                     Conv1d(in_channels, out_channels, kernel_size=1, padding=0,
                            dilation=1, std_mul=std_mul))
+                self.convolutions.append(nn.ReLU(inplace=True))
                 in_channels = out_channels
-                std_mul = 1.0
+                std_mul = 2.0
             self.convolutions.append(
                 Conv1dGLU(n_speakers, speaker_embed_dim,
                           in_channels, out_channels, kernel_size, causal=False,
-                          dilation=dilation, dropout=dropout, std_mul=std_mul))
+                          dilation=dilation, dropout=dropout, std_mul=std_mul,
+                          residual=True))
             in_channels = out_channels
             std_mul = 4.0
         # Last 1x1 convolution
@@ -531,29 +526,17 @@ class Converter(nn.Module):
     def forward(self, x, speaker_embed=None):
         assert self.n_speakers == 1 or speaker_embed is not None
 
-        # embed speakers
-        if speaker_embed is not None:
-            # expand speaker embedding for all time steps
-            # (B, N) -> (B, T, N)
-            ss = speaker_embed.size()
-            speaker_embed_btc = speaker_embed.unsqueeze(1).expand(
-                ss[0], x.size(1), ss[-1])
-        else:
-            speaker_embed_btc = None
+        # expand speaker embedding for all time steps
+        speaker_embed_btc = expand_speaker_embed(x, speaker_embed)
 
         # Generic case: B x T x C -> B x C x T
         x = x.transpose(1, 2)
 
-        for conv in self.convolutions:
+        for f in self.convolutions:
             # Case for upsampling
             if speaker_embed is not None and speaker_embed_btc.size(1) != x.size(-1):
-                ss = speaker_embed.size()
-                speaker_embed_btc = speaker_embed.unsqueeze(1).expand(
-                    ss[0], x.size(-1), ss[-1])
-            if isinstance(conv, Conv1dGLU):
-                x = conv(x, speaker_embed_btc)
-            else:
-                x = conv(x)
+                speaker_embed_btc = expand_speaker_embed(x, speaker_embed)
+            x = f(x, speaker_embed_btc) if isinstance(f, Conv1dGLU) else f(x)
 
         # Back to B x T x C
         x = x.transpose(1, 2)
