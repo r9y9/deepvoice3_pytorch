@@ -38,8 +38,17 @@ def _process_utterance(out_dir, index, speaker_id, wav_path, text):
     # Load the audio to a numpy array:
     wav = audio.load_wav(wav_path)
 
-    # TODO
-    if False:
+    lab_path = wav_path.replace("wav48/", "lab/").replace(".wav", ".lab")
+
+    # Trim silence from hts labels if available
+    if exists(lab_path):
+        labels = hts.load(lab_path)
+        assert labels[0][-1] == "silB"
+        assert labels[-1][-1] == "silE"
+        b = int(labels[0][1] * 1e-7 * sr)
+        e = int(labels[-1][0] * 1e-7 * sr)
+        wav = wav[b:e]
+    else:
         wav, _ = librosa.effects.trim(wav, top_db=30)
 
     # Compute the linear-scale spectrogram from the wav:
