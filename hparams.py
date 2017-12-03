@@ -39,7 +39,7 @@ hparams = tf.contrib.training.HParams(
             "outputs_per_step": 1,
             "dropout": 1 - 0.95,
             "kernel_size": 3,
-            "text_embed_dim": 256,
+            "text_embed_dim": 128,
             "encoder_channels": 512,
             "decoder_channels": 256,
             "converter_channels": 256,
