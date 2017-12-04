@@ -14,10 +14,7 @@ def build_from_path(in_dir, out_dir, num_workers=1, tqdm=lambda x: x):
     executor = ProcessPoolExecutor(max_workers=num_workers)
     futures = []
 
-    # TODO: for debug
-    # remove this after I confirm it works
-    speakers = vctk.available_speakers[:16]
-    print(speakers)
+    speakers = vctk.available_speakers
 
     td = vctk.TranscriptionDataSource(in_dir, speakers=speakers)
     transcriptions = td.collect_files()
