@@ -11,6 +11,7 @@ options:
     --file-name-suffix=<s>            File name suffix [default: ].
     --max-decoder-steps=<N>           Max decoder steps [default: 500].
     --replace_pronunciation_prob=<N>  Prob [default: 0.0].
+    --speaker_id=<id>                 Speaker ID (for multi-speaker model).
     --output-html                     Output html for blog post.
     -h, --help               Show help message.
 """
@@ -37,7 +38,7 @@ use_cuda = torch.cuda.is_available()
 _frontend = None  # to be set later
 
 
-def tts(model, text, p=0):
+def tts(model, text, p=0, speaker_id=None):
     """Convert text to speech waveform given a deepvoice3 model.
 
     Args:
@@ -53,13 +54,15 @@ def tts(model, text, p=0):
     sequence = Variable(torch.from_numpy(sequence)).unsqueeze(0)
     text_positions = torch.arange(1, sequence.size(-1) + 1).unsqueeze(0).long()
     text_positions = Variable(text_positions)
+    speaker_ids = None if speaker_id is None else Variable(torch.LongTensor([speaker_id]))
     if use_cuda:
         sequence = sequence.cuda()
         text_positions = text_positions.cuda()
+        speaker_ids = None if speaker_ids is None else speaker_ids.cuda()
 
     # Greedy decoding
     mel_outputs, linear_outputs, alignments, done = model(
-        sequence, text_positions=text_positions)
+        sequence, text_positions=text_positions, speaker_ids=speaker_ids)
 
     linear_output = linear_outputs[0].cpu().data.numpy()
     spectrogram = audio._denormalize(linear_output)
@@ -84,6 +87,9 @@ if __name__ == "__main__":
     file_name_suffix = args["--file-name-suffix"]
     replace_pronunciation_prob = float(args["--replace_pronunciation_prob"])
     output_html = args["--output-html"]
+    speaker_id = args["--speaker_id"]
+    if speaker_id is not None:
+        speaker_id = int(speaker_id)
 
     # Override hyper parameters
     hparams.parse(args["--hparams"])
@@ -125,7 +131,8 @@ if __name__ == "__main__":
         for idx, line in enumerate(lines):
             text = line.decode("utf-8")[:-1]
             words = nltk.word_tokenize(text)
-            waveform, alignment, _, _ = tts(model, text, p=replace_pronunciation_prob)
+            waveform, alignment, _, _ = tts(
+                model, text, p=replace_pronunciation_prob, speaker_id=speaker_id)
             dst_wav_path = join(dst_dir, "{}_{}{}.wav".format(
                 idx, checkpoint_name, file_name_suffix))
             dst_alignment_path = join(
