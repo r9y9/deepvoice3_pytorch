@@ -28,7 +28,7 @@ class MultiSpeakerTTSModel(nn.Module):
         # Speaker embedding
         if n_speakers > 1:
             self.embed_speakers = Embedding(
-                n_speakers, speaker_embed_dim, padding_idx)
+                n_speakers, speaker_embed_dim, padding_idx=None)
         self.n_speakers = n_speakers
         self.speaker_embed_dim = speaker_embed_dim
 

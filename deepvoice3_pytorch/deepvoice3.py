@@ -248,7 +248,7 @@ class Decoder(nn.Module):
         if inputs is None:
             assert text_positions is not None
             self.start_fresh_sequence()
-            outputs = self.incremental_forward(encoder_out, text_positions)
+            outputs = self.incremental_forward(encoder_out, text_positions, speaker_embed)
             return outputs
 
         # Grouping multiple frames if necessary
