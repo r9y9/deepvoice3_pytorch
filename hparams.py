@@ -39,7 +39,7 @@ hparams = tf.contrib.training.HParams(
             "outputs_per_step": 1,
             "dropout": 1 - 0.95,
             "kernel_size": 3,
-            "text_embed_dim": 128,
+            "text_embed_dim": 256,
             "encoder_channels": 512,
             "decoder_channels": 256,
             "converter_channels": 256,
@@ -49,7 +49,7 @@ hparams = tf.contrib.training.HParams(
             "use_decoder_state_for_postnet_input": True,
 
             "clip_thresh": 0.1,
-            "initial_learning_rate": 5e-4,
+            "initial_learning_rate": 1e-3,
         },
         "nyanko": {
             "downsample_step": 4,
@@ -129,7 +129,7 @@ hparams = tf.contrib.training.HParams(
     clip_thresh=0.1,
 
     # Save
-    checkpoint_interval=5000,
+    checkpoint_interval=10000,
 
     # Eval:
     # this can be list for multple layers of attention

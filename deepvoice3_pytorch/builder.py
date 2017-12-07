@@ -38,7 +38,7 @@ def deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=513, r=4,
         # (channels, kernel_size, dilation)
         convolutions=[(h, k, 1), (h, k, 3), (h, k, 9), (h, k, 27),
                       (h, k, 1), (h, k, 3), (h, k, 9), (h, k, 27),
-                      (h, k, 1), (h, k, 1), (h, k, 1)],
+                      (h, k, 1), (h, k, 1)],
     )
 
     h = decoder_channels
@@ -46,10 +46,10 @@ def deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=513, r=4,
         embed_dim, in_dim=mel_dim, r=r, padding_idx=padding_idx,
         n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
         dropout=dropout, max_positions=max_positions,
-        preattention=[(h, k, 1)],
+        preattention=[(h, k, 1), (h, k, 3), (h, k, 1), (h, k, 3)],
         convolutions=[(h, k, 1), (h, k, 3), (h, k, 9), (h, k, 27),
                       (h, k, 1)],
-        attention=[True, False, False, False, False, False],
+        attention=[True, False, False, False, False, True],
         force_monotonic_attention=force_monotonic_attention,
         query_position_rate=query_position_rate,
         key_position_rate=key_position_rate,
