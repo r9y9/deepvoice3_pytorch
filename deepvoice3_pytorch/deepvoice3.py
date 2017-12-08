@@ -24,7 +24,8 @@ def expand_speaker_embed(inputs_btc, speaker_embed=None, tdim=1):
 
 class Encoder(nn.Module):
     def __init__(self, n_vocab, embed_dim, n_speakers, speaker_embed_dim,
-                 padding_idx=None, convolutions=((64, 5, .1),) * 7,
+                 padding_idx=None, embedding_weight_std=0.1,
+                 convolutions=((64, 5, .1),) * 7,
                  max_positions=512, dropout=0.1, apply_grad_scaling=False):
         super(Encoder, self).__init__()
         self.dropout = dropout
@@ -32,7 +33,8 @@ class Encoder(nn.Module):
         self.apply_grad_scaling = apply_grad_scaling
 
         # Text input embeddings
-        self.embed_tokens = Embedding(n_vocab, embed_dim, padding_idx)
+        self.embed_tokens = Embedding(
+            n_vocab, embed_dim, padding_idx, embedding_weight_std)
 
         # Speaker embedding
         if n_speakers > 1:

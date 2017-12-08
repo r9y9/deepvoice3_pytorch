@@ -37,6 +37,7 @@ hparams = tf.contrib.training.HParams(
         "deepvoice3": {
             "downsample_step": 4,
             "outputs_per_step": 1,
+            "embedding_weight_std": 0.1,
             "dropout": 1 - 0.95,
             "kernel_size": 3,
             "text_embed_dim": 256,
@@ -54,6 +55,7 @@ hparams = tf.contrib.training.HParams(
         "nyanko": {
             "downsample_step": 4,
             "outputs_per_step": 1,
+            "embedding_weight_std": 0.01,
             "dropout": 1 - 0.95,
             "kernel_size": 3,
             "text_embed_dim": 128,
@@ -83,6 +85,7 @@ hparams = tf.contrib.training.HParams(
     # Model:
     downsample_step=4,  # must be 4 when builder="nyanko"
     outputs_per_step=1,  # must be 1 when builder="nyanko"
+    embedding_weight_std=0.1,
     padding_idx=0,
     max_positions=512,
     dropout=1 - 0.95,
