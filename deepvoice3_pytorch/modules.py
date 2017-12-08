@@ -91,7 +91,7 @@ def Linear(in_features, out_features, dropout=0):
 
 def Embedding(num_embeddings, embedding_dim, padding_idx):
     m = nn.Embedding(num_embeddings, embedding_dim, padding_idx=padding_idx)
-    m.weight.data.normal_(0, 0.01)
+    m.weight.data.normal_(0, 0.1)
     return m
 
 
