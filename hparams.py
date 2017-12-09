@@ -35,8 +35,8 @@ hparams = tf.contrib.training.HParams(
     use_preset=False,
     presets={
         "deepvoice3": {
-            "downsample_step": 4,
-            "outputs_per_step": 1,
+            "downsample_step": 1,
+            "outputs_per_step": 4,
             "embedding_weight_std": 0.1,
             "dropout": 1 - 0.95,
             "kernel_size": 3,
