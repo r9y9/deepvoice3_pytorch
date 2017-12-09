@@ -16,7 +16,8 @@ class MultiSpeakerTTSModel(nn.Module):
                  mel_dim=80, linear_dim=513,
                  n_speakers=1, speaker_embed_dim=16, padding_idx=None,
                  trainable_positional_encodings=False,
-                 use_decoder_state_for_postnet_input=False):
+                 use_decoder_state_for_postnet_input=False,
+                 speaker_embedding_weight_std=0.01):
         super(MultiSpeakerTTSModel, self).__init__()
         self.seq2seq = seq2seq
         self.postnet = postnet  # referred as "Converter" in DeepVoice3
@@ -28,7 +29,8 @@ class MultiSpeakerTTSModel(nn.Module):
         # Speaker embedding
         if n_speakers > 1:
             self.embed_speakers = Embedding(
-                n_speakers, speaker_embed_dim, padding_idx=None)
+                n_speakers, speaker_embed_dim, padding_idx=None,
+                std=speaker_embedding_weight_std)
         self.n_speakers = n_speakers
         self.speaker_embed_dim = speaker_embed_dim
 

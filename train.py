@@ -745,6 +745,7 @@ def build_model():
         force_monotonic_attention=hparams.force_monotonic_attention,
         use_decoder_state_for_postnet_input=hparams.use_decoder_state_for_postnet_input,
         max_positions=hparams.max_positions,
+        speaker_embedding_weight_std=hparams.speaker_embedding_weight_std,
     )
     return model
 
