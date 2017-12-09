@@ -13,6 +13,7 @@ options:
     --train-postnet-only         Train only postnet model.
     --log-event-path=<name>      Log event path.
     --reset-optimizer            Reset optimizer.
+    --load-embedding=<path>      Load embedding from checkpoint.
     -h, --help                   Show this help message and exit
 """
 from docopt import docopt
@@ -768,6 +769,12 @@ def load_checkpoint(path, model, optimizer, reset_optimizer):
     return model
 
 
+def _load_embedding(path, model):
+    state = torch.load(path)["state_dict"]
+    key = "seq2seq.encoder.embed_tokens.weight"
+    model.seq2seq.encoder.embed_tokens.weight.data = state[key]
+
+
 if __name__ == "__main__":
     args = docopt(__doc__)
     print("Command line args:\n", args)
@@ -775,6 +782,7 @@ if __name__ == "__main__":
     checkpoint_path = args["--checkpoint"]
     checkpoint_seq2seq_path = args["--checkpoint-seq2seq"]
     checkpoint_postnet_path = args["--checkpoint-postnet"]
+    load_embedding = args["--load-embedding"]
     data_root = args["--data-root"]
     if data_root is None:
         data_root = join(dirname(__file__), "data", "ljspeech")
@@ -832,11 +840,17 @@ if __name__ == "__main__":
 
     # Model
     model = build_model()
+    if use_cuda:
+        model = model.cuda()
 
     optimizer = optim.Adam(model.get_trainable_parameters(),
                            lr=hparams.initial_learning_rate, betas=(
         hparams.adam_beta1, hparams.adam_beta2),
         eps=hparams.adam_eps, weight_decay=hparams.weight_decay)
+
+    # Load embedding
+    if load_embedding is not None:
+        _load_embedding(load_embedding, model)
 
     # Load checkpoints
     if checkpoint_postnet_path is not None:
