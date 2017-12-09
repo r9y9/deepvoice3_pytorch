@@ -373,7 +373,7 @@ def eval_model(global_step, writer, model, checkpoint_dir, ismultispeaker):
         try:
             writer.add_audio("(Eval) Predicted audio signal {}".format(idx),
                              signal, global_step, sample_rate=fs)
-        except e:
+        except Exception as e:
             warn(str(e))
             pass
 
@@ -430,7 +430,7 @@ def save_states(global_step, writer, mel_outputs, linear_outputs, attn, mel, y,
             global_step))
         try:
             writer.add_audio("Predicted audio signal", signal, global_step, sample_rate=fs)
-        except:
+        except Exception as e:
             warn(str(e))
             pass
         audio.save_wav(signal, path)
