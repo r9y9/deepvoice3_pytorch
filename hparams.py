@@ -133,6 +133,8 @@ hparams = tf.contrib.training.HParams(
 
     # Save
     checkpoint_interval=10000,
+    eval_interval=10000,
+    save_optimizer_state=True,
 
     # Eval:
     # this can be list for multple layers of attention

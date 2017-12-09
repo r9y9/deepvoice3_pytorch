@@ -38,7 +38,7 @@ use_cuda = torch.cuda.is_available()
 _frontend = None  # to be set later
 
 
-def tts(model, text, p=0, speaker_id=None):
+def tts(model, text, p=0, speaker_id=None, fast=False):
     """Convert text to speech waveform given a deepvoice3 model.
 
     Args:
@@ -48,7 +48,8 @@ def tts(model, text, p=0, speaker_id=None):
     if use_cuda:
         model = model.cuda()
     model.eval()
-    model.make_generation_fast_()
+    if fast:
+        model.make_generation_fast_()
 
     sequence = np.array(_frontend.text_to_sequence(text, p=p))
     sequence = Variable(torch.from_numpy(sequence)).unsqueeze(0)
@@ -68,6 +69,7 @@ def tts(model, text, p=0, speaker_id=None):
     spectrogram = audio._denormalize(linear_output)
     alignment = alignments[0].cpu().data.numpy()
     mel = mel_outputs[0].cpu().data.numpy()
+    mel = audio._denormalize(mel)
 
     # Predicted audio signal
     waveform = audio.inv_spectrogram(linear_output.T)
@@ -132,7 +134,7 @@ if __name__ == "__main__":
             text = line.decode("utf-8")[:-1]
             words = nltk.word_tokenize(text)
             waveform, alignment, _, _ = tts(
-                model, text, p=replace_pronunciation_prob, speaker_id=speaker_id)
+                model, text, p=replace_pronunciation_prob, speaker_id=speaker_id, fast=True)
             dst_wav_path = join(dst_dir, "{}_{}{}.wav".format(
                 idx, checkpoint_name, file_name_suffix))
             dst_alignment_path = join(

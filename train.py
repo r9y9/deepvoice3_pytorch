@@ -48,6 +48,7 @@ import sys
 import os
 from tensorboardX import SummaryWriter
 from matplotlib import cm
+from warnings import warn
 from hparams import hparams, hparams_debug_string
 
 fs = hparams.sample_rate
@@ -335,6 +336,48 @@ def prepare_spec_image(spectrogram):
     return np.uint8(cm.magma(spectrogram.T) * 255)
 
 
+def eval_model(global_step, writer, model, checkpoint_dir, ismultispeaker):
+    texts = [
+        "Scientists at the CERN laboratory say they have discovered a new particle.",
+        "There's a way to measure the acute emotional intelligence that has never gone out of style.",
+        "Generative adversarial network or variational auto-encoder.",
+    ]
+    import synthesis
+    synthesis._frontend = _frontend
+
+    eval_output_dir = join(checkpoint_dir, "eval")
+    os.makedirs(eval_output_dir, exist_ok=True)
+
+    speaker_id = 0 if ismultispeaker else None
+    for idx, text in enumerate(texts):
+        signal, alignment, _, mel = synthesis.tts(
+            model, text, p=0, speaker_id=speaker_id, fast=False)
+        signal /= np.max(np.abs(signal))
+
+        # Alignment
+        path = join(eval_output_dir, "step{:09d}_text{}_alignment.png".format(
+            global_step, idx))
+        save_alignment(path, alignment)
+        tag = "eval_averaged_alignment_{}".format(idx)
+        writer.add_image(tag, np.uint8(cm.viridis(np.flip(alignment, 1).T) * 255), global_step)
+
+        # Mel
+        writer.add_image("(Eval) Predicted mel spectrogram text{}".format(idx),
+                         prepare_spec_image(mel), global_step)
+
+        # Audio
+        path = join(eval_output_dir, "step{:09d}_text{}_predicted.wav".format(
+            global_step, idx))
+        audio.save_wav(signal, path)
+
+        try:
+            writer.add_audio("(Eval) Predicted audio signal {}".format(idx),
+                             signal, global_step, sample_rate=fs)
+        except e:
+            warn(str(e))
+            pass
+
+
 def save_states(global_step, writer, mel_outputs, linear_outputs, attn, mel, y,
                 input_lengths, checkpoint_dir=None):
     print("Save intermediate states at step {}".format(global_step))
@@ -388,7 +431,7 @@ def save_states(global_step, writer, mel_outputs, linear_outputs, attn, mel, y,
         try:
             writer.add_audio("Predicted audio signal", signal, global_step, sample_rate=fs)
         except:
-            # TODO:
+            warn(str(e))
             pass
         audio.save_wav(signal, path)
 
@@ -495,6 +538,7 @@ def train(model, data_loader, optimizer, writer,
         for step, (x, input_lengths, mel, y, positions, done, target_lengths,
                    speaker_ids) \
                 in tqdm(enumerate(data_loader)):
+            ismultispeaker = speaker_ids is not None
             # Learning rate schedule
             if hparams.lr_schedule is not None:
                 lr_schedule_f = getattr(lrschedule, hparams.lr_schedule)
@@ -521,7 +565,7 @@ def train(model, data_loader, optimizer, writer,
             frame_positions = Variable(frame_positions)
             done = Variable(done)
             target_lengths = Variable(target_lengths)
-            speaker_ids = None if speaker_ids is None else Variable(speaker_ids)
+            speaker_ids = Variable(speaker_ids) if ismultispeaker else None
             if use_cuda:
                 if train_seq2seq:
                     x = x.cuda()
@@ -531,7 +575,7 @@ def train(model, data_loader, optimizer, writer,
                     y = y.cuda()
                 mel = mel.cuda()
                 done, target_lengths = done.cuda(), target_lengths.cuda()
-                speaker_ids = None if speaker_ids is None else speaker_ids.cuda()
+                speaker_ids = speaker_ids.cuda() if ismultispeaker else None
 
             # Create mask if we use masked loss
             if hparams.masked_loss_weight > 0:
@@ -619,6 +663,9 @@ def train(model, data_loader, optimizer, writer,
                     model, optimizer, global_step, checkpoint_dir, global_epoch,
                     train_seq2seq, train_postnet)
 
+            if global_step > 0 and global_step % hparams.eval_interval == 0:
+                eval_model(global_step, writer, model, checkpoint_dir, ismultispeaker)
+
             # Update
             loss.backward()
             if clip_thresh > 0:
@@ -668,9 +715,10 @@ def save_checkpoint(model, optimizer, step, checkpoint_dir, epoch,
 
     checkpoint_path = join(
         checkpoint_dir, "checkpoint_step{:09d}{}.pth".format(global_step, suffix))
+    optimizer_state = optimizer.state_dict() if hparams.save_optimizer_state else None
     torch.save({
         "state_dict": m.state_dict(),
-        "optimizer": optimizer.state_dict(),
+        "optimizer": optimizer_state,
         "global_step": step,
         "global_epoch": epoch,
     }, checkpoint_path)
@@ -709,8 +757,10 @@ def load_checkpoint(path, model, optimizer, reset_optimizer):
     checkpoint = torch.load(path)
     model.load_state_dict(checkpoint["state_dict"])
     if not reset_optimizer:
-        print("Load optimizer state from {}".format(path))
-        optimizer.load_state_dict(checkpoint["optimizer"])
+        optimizer_state = checkpoint["optimizer"]
+        if optimizer_state is not None:
+            print("Load optimizer state from {}".format(path))
+            optimizer.load_state_dict(checkpoint["optimizer"])
     global_step = checkpoint["global_step"]
     global_epoch = checkpoint["global_epoch"]
 
