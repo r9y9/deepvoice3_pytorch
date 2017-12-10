@@ -747,6 +747,7 @@ def build_model():
         use_decoder_state_for_postnet_input=hparams.use_decoder_state_for_postnet_input,
         max_positions=hparams.max_positions,
         speaker_embedding_weight_std=hparams.speaker_embedding_weight_std,
+        freeze_embedding=hparams.freeze_embedding,
     )
     return model
 
@@ -850,6 +851,7 @@ if __name__ == "__main__":
 
     # Load embedding
     if load_embedding is not None:
+        print("Loading embedding from {}".format(load_embedding))
         _load_embedding(load_embedding, model)
 
     # Load checkpoints

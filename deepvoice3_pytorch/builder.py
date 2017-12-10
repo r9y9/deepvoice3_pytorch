@@ -20,6 +20,7 @@ def deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=513, r=4,
                max_positions=512,
                embedding_weight_std=0.1,
                speaker_embedding_weight_std=0.01,
+               freeze_embedding=False,
                ):
     """Build deepvoice3
     """
@@ -81,7 +82,8 @@ def deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=513, r=4,
         n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
         trainable_positional_encodings=trainable_positional_encodings,
         use_decoder_state_for_postnet_input=use_decoder_state_for_postnet_input,
-        speaker_embedding_weight_std=speaker_embedding_weight_std)
+        speaker_embedding_weight_std=speaker_embedding_weight_std,
+        freeze_embedding=freeze_embedding)
 
     return model
 
@@ -100,7 +102,8 @@ def nyanko(n_vocab, embed_dim=128, mel_dim=80, linear_dim=513, r=1,
            force_monotonic_attention=True,
            use_decoder_state_for_postnet_input=False,
            max_positions=512, embedding_weight_std=0.01,
-           speaker_embedding_weight_std=0.01):
+           speaker_embedding_weight_std=0.01,
+           freeze_embedding=False):
     from deepvoice3_pytorch.nyanko import Encoder, Decoder, Converter
     assert encoder_channels == decoder_channels
 
@@ -143,7 +146,8 @@ def nyanko(n_vocab, embed_dim=128, mel_dim=80, linear_dim=513, r=1,
         n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
         trainable_positional_encodings=trainable_positional_encodings,
         use_decoder_state_for_postnet_input=use_decoder_state_for_postnet_input,
-        speaker_embedding_weight_std=speaker_embedding_weight_std)
+        speaker_embedding_weight_std=speaker_embedding_weight_std,
+        freeze_embedding=freeze_embedding)
 
     return model
 

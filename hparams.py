@@ -38,6 +38,7 @@ hparams = tf.contrib.training.HParams(
             "downsample_step": 4,
             "outputs_per_step": 1,
             "embedding_weight_std": 0.1,
+            "speaker_embedding_weight_std": 0.01,
             "dropout": 1 - 0.95,
             "kernel_size": 3,
             "text_embed_dim": 256,
@@ -50,7 +51,7 @@ hparams = tf.contrib.training.HParams(
             "use_decoder_state_for_postnet_input": True,
 
             "clip_thresh": 0.1,
-            "initial_learning_rate": 1e-3,
+            "initial_learning_rate": 5e-4,
         },
         "nyanko": {
             "downsample_step": 4,
@@ -100,6 +101,7 @@ hparams = tf.contrib.training.HParams(
     key_position_rate=1.385,  # 2.37 for jsut
     use_memory_mask=True,
     trainable_positional_encodings=False,
+    freeze_embedding=False,
     # If True, use decoder's internal representation for postnet inputs,
     # otherwise use mel-spectrogram.
     use_decoder_state_for_postnet_input=True,
