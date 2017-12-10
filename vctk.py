@@ -46,7 +46,7 @@ def _process_utterance(out_dir, index, speaker_id, wav_path, text):
         e = int(labels[-1][0] * 1e-7 * sr)
         wav = wav[b:e]
     else:
-        wav, _ = librosa.effects.trim(wav, top_db=30)
+        wav, _ = librosa.effects.trim(wav, top_db=15)
 
     # Compute the linear-scale spectrogram from the wav:
     spectrogram = audio.spectrogram(wav).astype(np.float32)
