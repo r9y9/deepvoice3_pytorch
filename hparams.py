@@ -29,6 +29,7 @@ hparams = tf.contrib.training.HParams(
 
     # Must be configured depends on the dataset and model you use
     n_speakers=1,
+    speaker_embed_dim=16,
 
     # Presets known to work good.
     # NOTE: If True, this will overwride params with presets[builder]

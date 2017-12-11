@@ -730,6 +730,7 @@ def save_checkpoint(model, optimizer, step, checkpoint_dir, epoch,
 def build_model():
     model = getattr(builder, hparams.builder)(
         n_speakers=hparams.n_speakers,
+        speaker_embed_dim=hparams.speaker_embed_dim,
         n_vocab=_frontend.n_vocab,
         embed_dim=hparams.text_embed_dim,
         mel_dim=hparams.num_mels,
