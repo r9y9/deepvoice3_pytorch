@@ -152,5 +152,7 @@ def nyanko(n_vocab, embed_dim=128, mel_dim=80, linear_dim=513, r=1,
     return model
 
 
+deepvoice3_vctk = deepvoice3
+
 # TODO:
 latest = nyanko

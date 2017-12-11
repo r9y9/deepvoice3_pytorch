@@ -36,6 +36,27 @@ hparams = tf.contrib.training.HParams(
     use_preset=False,
     presets={
         "deepvoice3": {
+            "n_speakers": 1,
+            "downsample_step": 4,
+            "outputs_per_step": 1,
+            "embedding_weight_std": 0.1,
+            "dropout": 1 - 0.95,
+            "kernel_size": 3,
+            "text_embed_dim": 256,
+            "encoder_channels": 512,
+            "decoder_channels": 256,
+            "converter_channels": 256,
+            "use_guided_attention": True,
+            "guided_attention_sigma": 0.2,
+            "binary_divergence_weight": 0.1,
+            "use_decoder_state_for_postnet_input": True,
+
+            "clip_thresh": 0.1,
+            "initial_learning_rate": 5e-4,
+        },
+        "deepvoice3_vctk": {
+            "n_speakers": 108,
+            "speaker_embed_dim": 16,
             "downsample_step": 4,
             "outputs_per_step": 1,
             "embedding_weight_std": 0.1,
@@ -50,6 +71,9 @@ hparams = tf.contrib.training.HParams(
             "guided_attention_sigma": 0.2,
             "binary_divergence_weight": 0.1,
             "use_decoder_state_for_postnet_input": True,
+
+            "query_position_rate": 0.1,
+            "key_position_rate": 7.6,
 
             "clip_thresh": 0.1,
             "initial_learning_rate": 5e-4,
