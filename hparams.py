@@ -72,8 +72,8 @@ hparams = tf.contrib.training.HParams(
             "binary_divergence_weight": 0.1,
             "use_decoder_state_for_postnet_input": True,
 
-            "query_position_rate": 0.1,
-            "key_position_rate": 7.6,
+            "query_position_rate": 1.0,
+            "key_position_rate": 1.385,
 
             "clip_thresh": 0.1,
             "initial_learning_rate": 5e-4,
