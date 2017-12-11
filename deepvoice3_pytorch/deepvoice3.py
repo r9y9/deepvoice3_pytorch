@@ -108,7 +108,14 @@ class Encoder(nn.Module):
 class AttentionLayer(nn.Module):
     def __init__(self, conv_channels, embed_dim, dropout=0.1):
         super(AttentionLayer, self).__init__()
-        self.in_projection = Linear(conv_channels, embed_dim)
+        self.query_projection = Linear(conv_channels, embed_dim)
+        self.key_projection = Linear(embed_dim, embed_dim)
+        # According to the DeepVoice3 paper, intiailize weights to same values
+        # TODO: Does this really work well? not sure..
+        if conv_channels == embed_dim:
+            self.key_projection.weight.data = self.query_projection.weight.data.clone()
+        self.value_projection = Linear(embed_dim, embed_dim)
+
         self.out_projection = Linear(embed_dim, conv_channels)
         self.dropout = dropout
 
@@ -116,9 +123,12 @@ class AttentionLayer(nn.Module):
                 window_ahead=3, window_backward=1):
         keys, values = encoder_out
         residual = query
+        values = self.value_projection(values)
+        # TODO: yes, this is inefficient
+        keys = self.key_projection(keys.transpose(1, 2)).transpose(1, 2)
 
         # attention
-        x = query if self.in_projection is None else self.in_projection(query)
+        x = self.query_projection(query)
         x = torch.bmm(x, keys)
 
         mask_value = -float("inf")
@@ -150,7 +160,7 @@ class AttentionLayer(nn.Module):
         x = x * (s * math.sqrt(1.0 / s))
 
         # project back
-        x = x if self.out_projection is None else self.out_projection(x)
+        x = self.out_projection(x)
         x = (x + residual) * math.sqrt(0.5)
         return x, attn_scores
 
