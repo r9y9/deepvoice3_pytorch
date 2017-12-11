@@ -125,7 +125,8 @@ class AttentionLayer(nn.Module):
         residual = query
         values = self.value_projection(values)
         # TODO: yes, this is inefficient
-        keys = self.key_projection(keys.transpose(1, 2)).transpose(1, 2)
+        if self.key_projection is not None:
+            keys = self.key_projection(keys.transpose(1, 2)).transpose(1, 2)
 
         # attention
         x = self.query_projection(query)

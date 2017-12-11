@@ -782,7 +782,7 @@ def restore_parts(path, model):
     print("Restore part of the model from: {}".format(path))
     state = torch.load(path)["state_dict"]
     model_dict = model.state_dict()
-    valid_state_dict = {k: v for k, v in model_dict.items() if k in state}
+    valid_state_dict = {k: v for k, v in state.items() if k in model_dict}
     model_dict.update(valid_state_dict)
     model.load_state_dict(model_dict)
 
