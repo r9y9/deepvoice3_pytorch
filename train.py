@@ -11,6 +11,7 @@ options:
     --checkpoint-postnet=<path>  Restore postnet model from checkpoint path.
     --train-seq2seq-only         Train only seq2seq model.
     --train-postnet-only         Train only postnet model.
+    --restore-parts=<path>       Restore part of the model.
     --log-event-path=<name>      Log event path.
     --reset-optimizer            Reset optimizer.
     --load-embedding=<path>      Load embedding from checkpoint.
@@ -776,6 +777,16 @@ def _load_embedding(path, model):
     model.seq2seq.encoder.embed_tokens.weight.data = state[key]
 
 
+# https://discuss.pytorch.org/t/how-to-load-part-of-pre-trained-model/1113/3
+def restore_parts(path, model):
+    print("Restore part of the model from: {}".format(path))
+    state = torch.load(path)["state_dict"]
+    model_dict = model.state_dict()
+    valid_state_dict = {k: v for k, v in model_dict.items() if k in state}
+    model_dict.update(valid_state_dict)
+    model.load_state_dict(model_dict)
+
+
 if __name__ == "__main__":
     args = docopt(__doc__)
     print("Command line args:\n", args)
@@ -784,6 +795,8 @@ if __name__ == "__main__":
     checkpoint_seq2seq_path = args["--checkpoint-seq2seq"]
     checkpoint_postnet_path = args["--checkpoint-postnet"]
     load_embedding = args["--load-embedding"]
+    checkpoint_restore_parts = args["--restore-parts"]
+
     data_root = args["--data-root"]
     if data_root is None:
         data_root = join(dirname(__file__), "data", "ljspeech")
@@ -853,6 +866,9 @@ if __name__ == "__main__":
     if load_embedding is not None:
         print("Loading embedding from {}".format(load_embedding))
         _load_embedding(load_embedding, model)
+
+    if checkpoint_restore_parts is not None:
+        restore_parts(checkpoint_restore_parts, model)
 
     # Load checkpoints
     if checkpoint_postnet_path is not None:
