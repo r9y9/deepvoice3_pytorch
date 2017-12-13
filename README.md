@@ -44,10 +44,9 @@ python train.py --data-root=./data/ljspeech --checkpoint-dir=checkpoints_nyanko 
 ## Requirements
 
 - Python 3
-- PyTorch >= v0.2 (Note: I'm using v0.3.0 branch)
+- PyTorch >= v0.3
 - TensorFlow >= v1.3
 - [tensorboard-pytorch](https://github.com/lanpa/tensorboard-pytorch) (master)
-- [fairseq](https://github.com/facebookresearch/fairseq-py) (master)
 - [nnmnkwii](https://github.com/r9y9/nnmnkwii) >= v0.0.9
 - [MeCab](http://taku910.github.io/mecab/) (Japanese only)
 

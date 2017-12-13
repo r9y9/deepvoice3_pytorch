@@ -15,13 +15,14 @@ from .deepvoice3 import AttentionLayer
 
 class Encoder(nn.Module):
     def __init__(self, n_vocab, embed_dim, channels, kernel_size=3,
-                 n_speakers=1, speaker_embed_dim=16,
+                 n_speakers=1, speaker_embed_dim=16, embedding_weight_std=0.01,
                  padding_idx=None, dropout=0.1):
         super(Encoder, self).__init__()
         self.dropout = dropout
 
         # Text input embeddings
-        self.embed_tokens = Embedding(n_vocab, embed_dim, padding_idx)
+        self.embed_tokens = Embedding(
+            n_vocab, embed_dim, padding_idx, embedding_weight_std)
 
         E = embed_dim
         D = channels
@@ -390,5 +391,5 @@ class Converter(nn.Module):
             nn.Sigmoid(),
         )
 
-    def forward(self, x):
+    def forward(self, x, speaker_embed=None):
         return self.convnet(x.transpose(1, 2)).transpose(1, 2)

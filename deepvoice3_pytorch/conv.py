@@ -17,15 +17,6 @@ class Conv1d(nn.Conv1d):
         self._linearized_weight = None
         self.register_backward_hook(self._clear_linearized_weight)
 
-    def remove_future_timesteps(self, x):
-        """Remove future time steps created by padding."""
-        if self.kernel_size[0] > 1 and self.padding[0] > 0:
-            x = x[:-self.padding[0], :, :]
-        return x
-
-    # input: (B, C, T)
-    # forward
-
     def incremental_forward(self, input):
         # input: (B, T, C)
         if self.training:

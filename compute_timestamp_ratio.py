@@ -34,6 +34,8 @@ if __name__ == "__main__":
     out_sizes = []
     for i in trange(len(X)):
         x, m = X[i], Mel[i]
+        if X.file_data_source.multi_speaker:
+            x = x[0]
         in_sizes.append(x.shape[0])
         out_sizes.append(m.shape[0])
 

@@ -27,30 +27,61 @@ hparams = tf.contrib.training.HParams(
     # latest: Latest model I (@r9y9) have been working on.
     builder="latest",
 
+    # Must be configured depends on the dataset and model you use
+    n_speakers=1,
+    speaker_embed_dim=16,
+
     # Presets known to work good.
     # NOTE: If True, this will overwride params with presets[builder]
     use_preset=False,
     presets={
         "deepvoice3": {
-            "downsample_step": 1,
-            "outputs_per_step": 4,
+            "n_speakers": 1,
+            "downsample_step": 4,
+            "outputs_per_step": 1,
+            "embedding_weight_std": 0.1,
             "dropout": 1 - 0.95,
-            "kernel_size": 7,
+            "kernel_size": 3,
             "text_embed_dim": 256,
-            "encoder_channels": 256,
+            "encoder_channels": 512,
             "decoder_channels": 256,
             "converter_channels": 256,
             "use_guided_attention": True,
             "guided_attention_sigma": 0.2,
-            "binary_divergence_weight": 0.0,
+            "binary_divergence_weight": 0.1,
             "use_decoder_state_for_postnet_input": True,
 
-            "clip_thresh": 1.0,
-            "initial_learning_rate": 1e-3,
+            "clip_thresh": 0.1,
+            "initial_learning_rate": 5e-4,
+        },
+        "deepvoice3_vctk": {
+            "n_speakers": 108,
+            "speaker_embed_dim": 16,
+            "downsample_step": 4,
+            "outputs_per_step": 1,
+            "embedding_weight_std": 0.1,
+            "speaker_embedding_weight_std": 0.01,
+            "dropout": 1 - 0.95,
+            "kernel_size": 3,
+            "text_embed_dim": 256,
+            "encoder_channels": 512,
+            "decoder_channels": 256,
+            "converter_channels": 256,
+            "use_guided_attention": False,
+            "guided_attention_sigma": 0.2,
+            "binary_divergence_weight": 0.1,
+            "use_decoder_state_for_postnet_input": True,
+
+            "query_position_rate": 1.0,
+            "key_position_rate": 1.385,
+
+            "clip_thresh": 0.1,
+            "initial_learning_rate": 5e-4,
         },
         "nyanko": {
             "downsample_step": 4,
             "outputs_per_step": 1,
+            "embedding_weight_std": 0.01,
             "dropout": 1 - 0.95,
             "kernel_size": 3,
             "text_embed_dim": 128,
@@ -80,6 +111,8 @@ hparams = tf.contrib.training.HParams(
     # Model:
     downsample_step=4,  # must be 4 when builder="nyanko"
     outputs_per_step=1,  # must be 1 when builder="nyanko"
+    embedding_weight_std=0.1,
+    speaker_embedding_weight_std=0.01,
     padding_idx=0,
     max_positions=512,
     dropout=1 - 0.95,
@@ -93,6 +126,7 @@ hparams = tf.contrib.training.HParams(
     key_position_rate=1.385,  # 2.37 for jsut
     use_memory_mask=True,
     trainable_positional_encodings=False,
+    freeze_embedding=False,
     # If True, use decoder's internal representation for postnet inputs,
     # otherwise use mel-spectrogram.
     use_decoder_state_for_postnet_input=True,
@@ -126,7 +160,9 @@ hparams = tf.contrib.training.HParams(
     clip_thresh=0.1,
 
     # Save
-    checkpoint_interval=5000,
+    checkpoint_interval=10000,
+    eval_interval=10000,
+    save_optimizer_state=True,
 
     # Eval:
     # this can be list for multple layers of attention

@@ -16,9 +16,8 @@ from nose.plugins.attrib import attr
 from deepvoice3_pytorch.builder import deepvoice3
 from deepvoice3_pytorch import MultiSpeakerTTSModel, AttentionSeq2Seq
 
-from fairseq.modules.conv_tbc import ConvTBC
 
-use_cuda = torch.cuda.is_available()
+use_cuda = torch.cuda.is_available() and False
 num_mels = 80
 num_freq = 513
 outputs_per_step = 4
@@ -87,6 +86,7 @@ def _deepvoice3(n_vocab, embed_dim=256, mel_dim=80,
         embed_dim, in_dim=mel_dim, r=r, padding_idx=padding_idx,
         n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
         dropout=dropout,
+        preattention=[(h, 3, 1)],
         convolutions=[(h, 3, dilation), (h, 3, dilation), (h, 3, dilation),
                       (h, 3, dilation), (h, 3, dilation)],
         attention=[True, False, False, False, True],
@@ -96,10 +96,10 @@ def _deepvoice3(n_vocab, embed_dim=256, mel_dim=80,
 
     in_dim = mel_dim
     h = 256
-    converter = Converter(
-        in_dim=in_dim, out_dim=linear_dim, dropout=dropout,
-        convolutions=[(h, 3, dilation), (h, 3, dilation), (h, 3, dilation),
-                      (h, 3, dilation), (h, 3, dilation)])
+    converter = Converter(n_speakers=n_speakers, speaker_embed_dim=speaker_embed_dim,
+                          in_dim=in_dim, out_dim=linear_dim, dropout=dropout,
+                          convolutions=[(h, 3, dilation), (h, 3, dilation), (h, 3, dilation),
+                                        (h, 3, dilation), (h, 3, dilation)])
 
     model = MultiSpeakerTTSModel(
         seq2seq, converter, padding_idx=padding_idx,
@@ -114,34 +114,6 @@ def test_single_speaker_deepvoice3():
 
     for v in [False, True]:
         model = _get_model(use_decoder_state_for_postnet_input=v)
-        mel_outputs, linear_outputs, alignments, done = model(x, y)
-
-
-def test_dilated_convolution_support():
-    x, y = _test_data()
-
-    for dilation in [1, 2]:
-        model = _deepvoice3(n_vocab=n_vocab,
-                            embed_dim=256,
-                            mel_dim=num_mels,
-                            linear_dim=num_freq,
-                            r=outputs_per_step,
-                            padding_idx=padding_idx,
-                            n_speakers=1,
-                            speaker_embed_dim=16,
-                            dilation=dilation,
-                            )
-        if dilation > 1:
-            for conv in [model.seq2seq.encoder.convolutions[0],
-                         model.seq2seq.decoder.convolutions[0],
-                         model.postnet.convolutions[0]]:
-                assert isinstance(conv, nn.Conv1d)
-        else:
-            assert dilation == 1
-            for conv in [model.seq2seq.encoder.convolutions[0],
-                         model.seq2seq.decoder.convolutions[0],
-                         model.postnet.convolutions[0]]:
-                assert isinstance(conv, ConvTBC)
         mel_outputs, linear_outputs, alignments, done = model(x, y)
 
 
@@ -175,8 +147,6 @@ def test_multi_speaker_deepvoice3():
 
 @attr("local_only")
 def test_incremental_correctness():
-    model = _get_model(force_monotonic_attention=False)
-
     texts = ["they discarded this for a more completely Roman and far less beautiful letter."]
     seqs = np.array([text_to_sequence(t) for t in texts])
     text_positions = np.arange(1, len(seqs[0]) + 1).reshape(1, len(seqs[0]))
@@ -197,25 +167,33 @@ def test_incremental_correctness():
     text_positions = Variable(torch.LongTensor(text_positions))
     frame_positions = Variable(torch.LongTensor(frame_positions))
 
-    model.eval()
+    for model, speaker_ids in [
+            (_get_model(force_monotonic_attention=False), None),
+            (_get_model(force_monotonic_attention=False, n_speakers=32, speaker_embed_dim=16), Variable(torch.LongTensor([1])))]:
+        model.eval()
 
-    # Encoder
-    encoder_outs = model.seq2seq.encoder(x)
+        if speaker_ids is not None:
+            speaker_embed = model.embed_speakers(speaker_ids)
+        else:
+            speaker_embed = None
 
-    # Off line decoding
-    mel_outputs_offline, alignments_offline, done, _ = model.seq2seq.decoder(
-        encoder_outs, mel_reshaped,
-        text_positions=text_positions, frame_positions=frame_positions)
+        # Encoder
+        encoder_outs = model.seq2seq.encoder(x, speaker_embed=speaker_embed)
 
-    # Online decoding with test inputs
-    model.seq2seq.decoder.start_fresh_sequence()
-    mel_outputs_online, alignments, dones_online, _ = model.seq2seq.decoder.incremental_forward(
-        encoder_outs, text_positions,
-        test_inputs=mel_reshaped)
+        # Off line decoding
+        mel_outputs_offline, alignments_offline, done, _ = model.seq2seq.decoder(
+            encoder_outs, mel_reshaped, speaker_embed=speaker_embed,
+            text_positions=text_positions, frame_positions=frame_positions)
 
-    # Should get same result
-    assert np.allclose(mel_outputs_offline.cpu().data.numpy(),
-                       mel_outputs_online.cpu().data.numpy())
+        # Online decoding with test inputs
+        model.seq2seq.decoder.start_fresh_sequence()
+        mel_outputs_online, alignments, dones_online, _ = model.seq2seq.decoder.incremental_forward(
+            encoder_outs, text_positions, speaker_embed=speaker_embed,
+            test_inputs=mel_reshaped)
+
+        # Should get same result
+        assert np.allclose(mel_outputs_offline.cpu().data.numpy(),
+                           mel_outputs_online.cpu().data.numpy())
 
 
 @attr("local_only")

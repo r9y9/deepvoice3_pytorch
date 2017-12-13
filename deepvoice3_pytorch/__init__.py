@@ -16,7 +16,9 @@ class MultiSpeakerTTSModel(nn.Module):
                  mel_dim=80, linear_dim=513,
                  n_speakers=1, speaker_embed_dim=16, padding_idx=None,
                  trainable_positional_encodings=False,
-                 use_decoder_state_for_postnet_input=False):
+                 use_decoder_state_for_postnet_input=False,
+                 speaker_embedding_weight_std=0.01,
+                 freeze_embedding=False):
         super(MultiSpeakerTTSModel, self).__init__()
         self.seq2seq = seq2seq
         self.postnet = postnet  # referred as "Converter" in DeepVoice3
@@ -24,11 +26,13 @@ class MultiSpeakerTTSModel(nn.Module):
         self.linear_dim = linear_dim
         self.trainable_positional_encodings = trainable_positional_encodings
         self.use_decoder_state_for_postnet_input = use_decoder_state_for_postnet_input
+        self.freeze_embedding = freeze_embedding
 
         # Speaker embedding
         if n_speakers > 1:
             self.embed_speakers = Embedding(
-                n_speakers, speaker_embed_dim, padding_idx)
+                n_speakers, speaker_embed_dim, padding_idx=None,
+                std=speaker_embedding_weight_std)
         self.n_speakers = n_speakers
         self.speaker_embed_dim = speaker_embed_dim
 
@@ -42,15 +46,20 @@ class MultiSpeakerTTSModel(nn.Module):
         self.apply(remove_weight_norm)
 
     def get_trainable_parameters(self):
-        if self.trainable_positional_encodings:
-            return self.parameters()
+        freezed_param_ids = set()
 
-        decoder = self.seq2seq.decoder
+        encoder, decoder = self.seq2seq.encoder, self.seq2seq.decoder
 
         # Avoid updating the position encoding
-        pe_query_param_ids = set(map(id, decoder.embed_query_positions.parameters()))
-        pe_keys_param_ids = set(map(id, decoder.embed_keys_positions.parameters()))
-        freezed_param_ids = pe_query_param_ids | pe_keys_param_ids
+        if not self.trainable_positional_encodings:
+            pe_query_param_ids = set(map(id, decoder.embed_query_positions.parameters()))
+            pe_keys_param_ids = set(map(id, decoder.embed_keys_positions.parameters()))
+            freezed_param_ids |= (pe_query_param_ids | pe_keys_param_ids)
+        # Avoid updating the text embedding
+        if self.freeze_embedding:
+            embed_param_ids = set(map(id, encoder.embed_tokens.parameters()))
+            freezed_param_ids |= embed_param_ids
+
         return (p for p in self.parameters() if id(p) not in freezed_param_ids)
 
     def forward(self, text_sequences, mel_targets=None, speaker_ids=None,
@@ -58,6 +67,7 @@ class MultiSpeakerTTSModel(nn.Module):
         B = text_sequences.size(0)
 
         if speaker_ids is not None:
+            assert self.n_speakers > 1
             speaker_embed = self.embed_speakers(speaker_ids)
         else:
             speaker_embed = None
@@ -81,7 +91,7 @@ class MultiSpeakerTTSModel(nn.Module):
         # (B, T, linear_dim)
         # Convert coarse mel-spectrogram (or decoder hidden states) to
         # high resolution spectrogram
-        linear_outputs = self.postnet(postnet_inputs)
+        linear_outputs = self.postnet(postnet_inputs, speaker_embed)
         assert linear_outputs.size(-1) == self.linear_dim
 
         return mel_outputs, linear_outputs, alignments, done
