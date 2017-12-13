@@ -22,6 +22,15 @@ Support for multi-speaker models is planned but not completed yet.
 - [DeepVoice3] Samples from the model trained on LJ Speech Dataset: https://www.dropbox.com/sh/uq4tsfptxt0y17l/AADBL4LsPJRP2PjAAJRSH5eta?dl=0
 - [Nyanko] Samples from the model trained on LJ Speech Dataset: https://www.dropbox.com/sh/q9xfgscgh3k5lqa/AACPgWCprBfNgjRravscdDYCa?dl=0
 
+## Pretrained models
+
+ | URL | Model      | Data     | Hyper paramters                                  | Git commit | Steps  |
+ |-----|------------|----------|--------------------------------------------------|----------------------|--------|
+ | [link](https://www.dropbox.com/s/4r207fq6s8gt2sl/20171213_deepvoice3_checkpoint_step00021000.pth?dl=0) | DeepVoice3 | LJSpeech | `--hparams="builder=deepvoice3,use_preset=True"` | [4357976](https://github.com/r9y9/deepvoice3_pytorch/tree/43579764f35de6b8bac2b18b52a06e4e11b705b2)| 210000 |
+ |  [link](https://www.dropbox.com/s/j8ywsvs3kny0s0x/20171129_nyanko_checkpoint_step000585000.pth?dl=0)   | Nyanko     | LJSpeech | `--hparams="builder=nyanko,use_preset=True"`     | [ba59dc7](https://github.com/ar9y9/deepvoice3_pytorch/tree/ba59dc75374ca3189281f6028201c15066830116) | 585000 |
+
+See the `Synthesize from a checkpoint` section in the README for how to generate speech samples. Please make sure that you are on the specific git commit noted above.
+
 ## Notes on hyper parameters
 
 - Default hyper parameters, used during preprocessing/training/synthesis stages, are turned for English TTS using LJSpeech dataset. You will have to change some of parameters if you want to try other datasets. See `hparams.py` for details.
