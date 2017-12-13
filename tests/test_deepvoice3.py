@@ -16,7 +16,6 @@ from nose.plugins.attrib import attr
 from deepvoice3_pytorch.builder import deepvoice3
 from deepvoice3_pytorch import MultiSpeakerTTSModel, AttentionSeq2Seq
 
-from fairseq.modules.conv_tbc import ConvTBC
 
 use_cuda = torch.cuda.is_available() and False
 num_mels = 80

@@ -4,7 +4,6 @@ from __future__ import with_statement, print_function, absolute_import
 import torch
 from torch import nn
 from torch.autograd import Variable
-from fairseq.modules.conv_tbc import ConvTBC
 from torch.nn import functional as F
 from deepvoice3_pytorch.conv import Conv1d
 
