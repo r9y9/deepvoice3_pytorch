@@ -14,7 +14,8 @@ def build_from_path(in_dir, out_dir, num_workers=1, tqdm=lambda x: x):
     executor = ProcessPoolExecutor(max_workers=num_workers)
     futures = []
 
-    speakers = vctk.available_speakers
+    # TODO
+    speakers = vctk.available_speakers[:32]
 
     td = vctk.TranscriptionDataSource(in_dir, speakers=speakers)
     transcriptions = td.collect_files()
@@ -45,6 +46,7 @@ def _process_utterance(out_dir, index, speaker_id, wav_path, text):
         b = int(labels[0][1] * 1e-7 * sr)
         e = int(labels[-1][0] * 1e-7 * sr)
         wav = wav[b:e]
+        wav, _ = librosa.effects.trim(wav, top_db=25)
     else:
         wav, _ = librosa.effects.trim(wav, top_db=15)
 
