@@ -67,7 +67,7 @@ hparams = tf.contrib.training.HParams(
             "encoder_channels": 512,
             "decoder_channels": 256,
             "converter_channels": 256,
-            "use_guided_attention": True,
+            "use_guided_attention": False,
             "guided_attention_sigma": 0.2,
             "binary_divergence_weight": 0.1,
             "use_decoder_state_for_postnet_input": True,
