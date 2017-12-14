@@ -366,10 +366,15 @@ def prepare_spec_image(spectrogram):
 
 
 def eval_model(global_step, writer, model, checkpoint_dir, ismultispeaker):
+    # harded coded
     texts = [
         "Scientists at the CERN laboratory say they have discovered a new particle.",
         "There's a way to measure the acute emotional intelligence that has never gone out of style.",
+        "President Trump met with other leaders at the Group of 20 conference.",
+        "The Senate's bill to repeal and replace the Affordable Care Act is now imperiled.",
         "Generative adversarial network or variational auto-encoder.",
+        "The buses aren't the problem, they actually provide a solution.",
+        "Please call Stella.",
     ]
     import synthesis
     synthesis._frontend = _frontend
@@ -377,34 +382,38 @@ def eval_model(global_step, writer, model, checkpoint_dir, ismultispeaker):
     eval_output_dir = join(checkpoint_dir, "eval")
     os.makedirs(eval_output_dir, exist_ok=True)
 
-    speaker_id = 0 if ismultispeaker else None
-    for idx, text in enumerate(texts):
-        signal, alignment, _, mel = synthesis.tts(
-            model, text, p=0, speaker_id=speaker_id, fast=False)
-        signal /= np.max(np.abs(signal))
+    # hard coded
+    speaker_ids = [0, 1, 10] if ismultispeaker else [None]
+    for speaker_id in speaker_ids:
+        speaker_str = "multispeaker{}".format(speaker_id) if speaker_id is not None else "single"
 
-        # Alignment
-        path = join(eval_output_dir, "step{:09d}_text{}_alignment.png".format(
-            global_step, idx))
-        save_alignment(path, alignment)
-        tag = "eval_averaged_alignment_{}".format(idx)
-        writer.add_image(tag, np.uint8(cm.viridis(np.flip(alignment, 1).T) * 255), global_step)
+        for idx, text in enumerate(texts):
+            signal, alignment, _, mel = synthesis.tts(
+                model, text, p=0, speaker_id=speaker_id, fast=False)
+            signal /= np.max(np.abs(signal))
 
-        # Mel
-        writer.add_image("(Eval) Predicted mel spectrogram text{}".format(idx),
-                         prepare_spec_image(mel), global_step)
+            # Alignment
+            path = join(eval_output_dir, "step{:09d}_text{}_{}_alignment.png".format(
+                global_step, idx, speaker_str))
+            save_alignment(path, alignment)
+            tag = "eval_averaged_alignment_{}_{}".format(idx, speaker_str)
+            writer.add_image(tag, np.uint8(cm.viridis(np.flip(alignment, 1).T) * 255), global_step)
 
-        # Audio
-        path = join(eval_output_dir, "step{:09d}_text{}_predicted.wav".format(
-            global_step, idx))
-        audio.save_wav(signal, path)
+            # Mel
+            writer.add_image("(Eval) Predicted mel spectrogram text{}_{}".format(idx, speaker_str),
+                             prepare_spec_image(mel), global_step)
 
-        try:
-            writer.add_audio("(Eval) Predicted audio signal {}".format(idx),
-                             signal, global_step, sample_rate=fs)
-        except Exception as e:
-            warn(str(e))
-            pass
+            # Audio
+            path = join(eval_output_dir, "step{:09d}_text{}_{}_predicted.wav".format(
+                global_step, idx, speaker_str))
+            audio.save_wav(signal, path)
+
+            try:
+                writer.add_audio("(Eval) Predicted audio signal {}_{}".format(idx, speaker_str),
+                                 signal, global_step, sample_rate=fs)
+            except Exception as e:
+                warn(str(e))
+                pass
 
 
 def save_states(global_step, writer, mel_outputs, linear_outputs, attn, mel, y,
