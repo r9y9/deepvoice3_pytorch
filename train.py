@@ -15,6 +15,7 @@ options:
     --log-event-path=<name>      Log event path.
     --reset-optimizer            Reset optimizer.
     --load-embedding=<path>      Load embedding from checkpoint.
+    --speaker-id=<N>             Use specific speaker of data in case for multi-speaker datasets.
     -h, --help                   Show this help message and exit
 """
 from docopt import docopt
@@ -94,11 +95,12 @@ def plot_alignment(alignment, path, info=None):
 
 
 class TextDataSource(FileDataSource):
-    def __init__(self, data_root):
+    def __init__(self, data_root, speaker_id=None):
         self.data_root = data_root
         self.speaker_ids = None
         self.multi_speaker = False
-        self.n_speakers = 1
+        # If not None, filter by speaker_id
+        self.speaker_id = speaker_id
 
     def collect_files(self):
         meta = join(self.data_root, "train.txt")
@@ -110,7 +112,14 @@ class TextDataSource(FileDataSource):
         texts = list(map(lambda l: l.decode("utf-8").split("|")[3], lines))
         if self.multi_speaker:
             speaker_ids = list(map(lambda l: int(l.decode("utf-8").split("|")[-1]), lines))
-            self.n_speakers = len(np.unique(speaker_ids))
+            # Filter by speaker_id
+            # using multi-speaker dataset as a single speaker dataset
+            if self.speaker_id is not None:
+                indices = np.array(speaker_ids) == self.speaker_id
+                texts = list(np.array(texts)[indices])
+                self.multi_speaker = False
+                return texts
+
             return texts, speaker_ids
         else:
             return texts
@@ -128,19 +137,34 @@ class TextDataSource(FileDataSource):
 
 
 class _NPYDataSource(FileDataSource):
-    def __init__(self, data_root, col):
+    def __init__(self, data_root, col, speaker_id=None):
         self.data_root = data_root
         self.col = col
         self.frame_lengths = []
+        self.speaker_id = speaker_id
 
     def collect_files(self):
         meta = join(self.data_root, "train.txt")
         with open(meta, "rb") as f:
             lines = f.readlines()
+        l = lines[0].decode("utf-8").split("|")
+        assert len(l) == 4 or len(l) == 5
+        multi_speaker = len(l) == 5
         self.frame_lengths = list(
             map(lambda l: int(l.decode("utf-8").split("|")[2]), lines))
-        lines = list(map(lambda l: l.decode("utf-8").split("|")[self.col], lines))
-        paths = list(map(lambda f: join(self.data_root, f), lines))
+
+        paths = list(map(lambda l: l.decode("utf-8").split("|")[self.col], lines))
+        paths = list(map(lambda f: join(self.data_root, f), paths))
+
+        if multi_speaker and self.speaker_id is not None:
+            speaker_ids = list(map(lambda l: int(l.decode("utf-8").split("|")[-1]), lines))
+            # Filter by speaker_id
+            # using multi-speaker dataset as a single speaker dataset
+            indices = np.array(speaker_ids) == self.speaker_id
+            paths = list(np.array(paths)[indices])
+            self.frame_lengths = list(np.array(self.frame_lengths)[indices])
+            # aha, need to cast numpy.int64 to int
+            self.frame_lengths = list(map(int, self.frame_lengths))
 
         return paths
 
@@ -149,13 +173,13 @@ class _NPYDataSource(FileDataSource):
 
 
 class MelSpecDataSource(_NPYDataSource):
-    def __init__(self, data_root):
-        super(MelSpecDataSource, self).__init__(data_root, 1)
+    def __init__(self, data_root, speaker_id=None):
+        super(MelSpecDataSource, self).__init__(data_root, 1, speaker_id)
 
 
 class LinearSpecDataSource(_NPYDataSource):
-    def __init__(self, data_root):
-        super(LinearSpecDataSource, self).__init__(data_root, 0)
+    def __init__(self, data_root, speaker_id=None):
+        super(LinearSpecDataSource, self).__init__(data_root, 0, speaker_id)
 
 
 class PartialyRandomizedSimilarTimeLengthSampler(Sampler):
@@ -171,7 +195,10 @@ class PartialyRandomizedSimilarTimeLengthSampler(Sampler):
         self.lengths, self.sorted_indices = torch.sort(torch.LongTensor(lengths))
         self.batch_size = batch_size
         if batch_group_size is None:
-            batch_group_size = batch_size * 32
+            batch_group_size = min(batch_size * 32, len(self.lengths))
+            if batch_group_size % batch_size != 0:
+                batch_group_size -= batch_group_size % batch_size
+
         self.batch_group_size = batch_group_size
         assert batch_group_size % batch_size == 0
         self.permutate = permutate
@@ -799,6 +826,8 @@ if __name__ == "__main__":
     checkpoint_postnet_path = args["--checkpoint-postnet"]
     load_embedding = args["--load-embedding"]
     checkpoint_restore_parts = args["--restore-parts"]
+    speaker_id = args["--speaker-id"]
+    speaker_id = int(speaker_id) if speaker_id is not None else None
 
     data_root = args["--data-root"]
     if data_root is None:
@@ -839,9 +868,9 @@ if __name__ == "__main__":
     os.makedirs(checkpoint_dir, exist_ok=True)
 
     # Input dataset definitions
-    X = FileSourceDataset(TextDataSource(data_root))
-    Mel = FileSourceDataset(MelSpecDataSource(data_root))
-    Y = FileSourceDataset(LinearSpecDataSource(data_root))
+    X = FileSourceDataset(TextDataSource(data_root, speaker_id))
+    Mel = FileSourceDataset(MelSpecDataSource(data_root, speaker_id))
+    Y = FileSourceDataset(LinearSpecDataSource(data_root, speaker_id))
 
     # Prepare sampler
     frame_lengths = Mel.file_data_source.frame_lengths
