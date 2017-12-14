@@ -28,10 +28,7 @@ def deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=513, r=4,
     """
     from deepvoice3_pytorch.deepvoice3 import Encoder, Decoder, Converter
 
-    if downsample_step == 4 and r == 1:
-        time_upsampling = True
-    else:
-        time_upsampling = False
+    time_upsampling = downsample_step // r
 
     # Seq2seq
     h = encoder_channels  # hidden dim (channels)
@@ -186,10 +183,7 @@ def deepvoice3_vctk(n_vocab, embed_dim=256, mel_dim=80, linear_dim=513, r=4,
     """
     from deepvoice3_pytorch.deepvoice3 import Encoder, Decoder, Converter
 
-    if downsample_step == 4 and r == 1:
-        time_upsampling = True
-    else:
-        time_upsampling = False
+    time_upsampling = downsample_step // r
 
     # Seq2seq
     h = encoder_channels  # hidden dim (channels)

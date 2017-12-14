@@ -489,7 +489,7 @@ class Decoder(nn.Module):
 class Converter(nn.Module):
     def __init__(self, n_speakers, speaker_embed_dim,
                  in_dim, out_dim, convolutions=((256, 5, 1),) * 4,
-                 time_upsampling=False,
+                 time_upsampling=1,
                  dropout=0.1):
         super(Converter, self).__init__()
         self.dropout = dropout
@@ -500,7 +500,7 @@ class Converter(nn.Module):
         # Non causual convolution blocks
         in_channels = convolutions[0][0]
         # Idea from nyanko
-        if time_upsampling:
+        if time_upsampling == 4:
             self.convolutions = nn.ModuleList([
                 Conv1d(in_dim, in_channels, kernel_size=1, padding=0, dilation=1,
                        std_mul=1.0),
@@ -521,7 +521,20 @@ class Converter(nn.Module):
                           in_channels, in_channels, kernel_size=3, causal=False,
                           dilation=3, dropout=dropout, std_mul=4.0, residual=True),
             ])
-        else:
+        elif time_upsampling == 2:
+            self.convolutions = nn.ModuleList([
+                Conv1d(in_dim, in_channels, kernel_size=1, padding=0, dilation=1,
+                       std_mul=1.0),
+                ConvTranspose1d(in_channels, in_channels, kernel_size=2,
+                                padding=0, stride=2, std_mul=1.0),
+                Conv1dGLU(n_speakers, speaker_embed_dim,
+                          in_channels, in_channels, kernel_size=3, causal=False,
+                          dilation=1, dropout=dropout, std_mul=1.0, residual=True),
+                Conv1dGLU(n_speakers, speaker_embed_dim,
+                          in_channels, in_channels, kernel_size=3, causal=False,
+                          dilation=3, dropout=dropout, std_mul=4.0, residual=True),
+            ])
+        elif time_upsampling == 1:
             self.convolutions = nn.ModuleList([
                 # 1x1 convolution first
                 Conv1d(in_dim, in_channels, kernel_size=1, padding=0, dilation=1,
@@ -530,6 +543,8 @@ class Converter(nn.Module):
                           in_channels, in_channels, kernel_size=3, causal=False,
                           dilation=3, dropout=dropout, std_mul=4.0, residual=True),
             ])
+        else:
+            raise ValueError("Not supported")
 
         std_mul = 4.0
         for (out_channels, kernel_size, dilation) in convolutions:
