@@ -30,6 +30,30 @@ def build_from_path(in_dir, out_dir, num_workers=1, tqdm=lambda x: x):
     return [future.result() for future in tqdm(futures)]
 
 
+def start_at(labels):
+    has_silence = labels[0][-1] == "pau"
+    if not has_silence:
+        print(labels)
+        assert False
+        return labels[0][0]
+    for i in range(1, len(labels)):
+        if labels[i][-1] != "pau":
+            return labels[i][0]
+    assert False
+
+
+def end_at(labels):
+    has_silence = labels[-1][-1] == "pau"
+    if not has_silence:
+        print(labels)
+        assert False
+        return labels[-1][1]
+    for i in range(len(labels) - 2, 0, -1):
+        if labels[i][-1] != "pau":
+            return labels[i][1]
+    assert False
+
+
 def _process_utterance(out_dir, index, speaker_id, wav_path, text):
     sr = hparams.sample_rate
 
@@ -41,10 +65,8 @@ def _process_utterance(out_dir, index, speaker_id, wav_path, text):
     # Trim silence from hts labels if available
     if exists(lab_path):
         labels = hts.load(lab_path)
-        assert labels[0][-1] == "silB"
-        assert labels[-1][-1] == "silE"
-        b = int(labels[0][1] * 1e-7 * sr)
-        e = int(labels[-1][0] * 1e-7 * sr)
+        b = int(start_at(labels) * 1e-7 * sr)
+        e = int(end_at(labels) * 1e-7 * sr)
         wav = wav[b:e]
         wav, _ = librosa.effects.trim(wav, top_db=25)
     else:
