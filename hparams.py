@@ -68,12 +68,13 @@ hparams = tf.contrib.training.HParams(
             "decoder_channels": 256,
             "converter_channels": 256,
             "use_guided_attention": True,
-            "guided_attention_sigma": 0.2,
+            "guided_attention_sigma": 0.4,
             "binary_divergence_weight": 0.1,
             "use_decoder_state_for_postnet_input": True,
+            "max_positions": 1024,
 
-            "query_position_rate": 1.0,
-            "key_position_rate": 1.385,
+            "query_position_rate": 2.0,
+            "key_position_rate": 7.6,
 
             "clip_thresh": 0.1,
             "initial_learning_rate": 5e-4,
