@@ -55,8 +55,8 @@ hparams = tf.contrib.training.HParams(
             "initial_learning_rate": 5e-4,
         },
         "deepvoice3_vctk": {
-            "n_speakers": 32,
-            "speaker_embed_dim": 8,
+            "n_speakers": 108,
+            "speaker_embed_dim": 16,
             "downsample_step": 4,
             "outputs_per_step": 1,
             "embedding_weight_std": 0.1,
