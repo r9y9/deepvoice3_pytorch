@@ -13,7 +13,7 @@ def position_encoding_init(n_position, d_pos_vec, position_rate=1.0,
 
     # keep dim 0 for padding token position encoding zero vector
     position_enc = np.array([
-        [position_rate * pos / np.power(10000, 2 * i / d_pos_vec) for i in range(d_pos_vec)]
+        [position_rate * pos / np.power(10000, 2 * (i // 2) / d_pos_vec) for i in range(d_pos_vec)]
         if pos != 0 else np.zeros(d_pos_vec) for pos in range(n_position)])
 
     position_enc = torch.from_numpy(position_enc).float()
