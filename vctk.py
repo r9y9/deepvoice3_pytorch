@@ -32,8 +32,6 @@ def build_from_path(in_dir, out_dir, num_workers=1, tqdm=lambda x: x):
 def start_at(labels):
     has_silence = labels[0][-1] == "pau"
     if not has_silence:
-        print(labels)
-        assert False
         return labels[0][0]
     for i in range(1, len(labels)):
         if labels[i][-1] != "pau":
@@ -44,8 +42,6 @@ def start_at(labels):
 def end_at(labels):
     has_silence = labels[-1][-1] == "pau"
     if not has_silence:
-        print(labels)
-        assert False
         return labels[-1][1]
     for i in range(len(labels) - 2, 0, -1):
         if labels[i][-1] != "pau":
