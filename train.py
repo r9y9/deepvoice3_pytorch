@@ -555,7 +555,7 @@ def train(model, data_loader, optimizer, writer,
 
             # Downsample mel spectrogram
             if downsample_step > 1:
-                mel = mel[:, 0::downsample_step, :]
+                mel = mel[:, 0::downsample_step, :].contiguous()
 
             # Lengths
             input_lengths = input_lengths.long().numpy()
