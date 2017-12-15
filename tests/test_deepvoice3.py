@@ -192,8 +192,11 @@ def test_incremental_correctness():
             test_inputs=mel_reshaped)
 
         # Should get same result
+        c = (mel_outputs_offline - mel_outputs_online).abs()
+        print(c.mean(), c.max())
+
         assert np.allclose(mel_outputs_offline.cpu().data.numpy(),
-                           mel_outputs_online.cpu().data.numpy())
+                           mel_outputs_online.cpu().data.numpy(), atol=1e-5)
 
 
 @attr("local_only")
