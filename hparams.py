@@ -64,8 +64,8 @@ hparams = tf.contrib.training.HParams(
             "dropout": 1 - 0.95,
             "kernel_size": 3,
             "text_embed_dim": 256,
-            "encoder_channels": 512,
-            "decoder_channels": 256,
+            "encoder_channels": 256,
+            "decoder_channels": 512,
             "converter_channels": 256,
             "use_guided_attention": True,
             "guided_attention_sigma": 0.4,
@@ -137,7 +137,7 @@ hparams = tf.contrib.training.HParams(
     num_workers=2,
 
     # Loss
-    masked_loss_weight=0.0,  # (1-w)*loss + w * masked_loss
+    masked_loss_weight=0.5,  # (1-w)*loss + w * masked_loss
     priority_freq=3000,  # heuristic: priotrize [0 ~ priotiry_freq] for linear loss
     priority_freq_weight=0.0,  # (1-w)*linear_loss + w*priority_linear_loss
     # https://arxiv.org/pdf/1710.08969.pdf
