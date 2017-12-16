@@ -750,6 +750,8 @@ def build_model():
         max_positions=hparams.max_positions,
         speaker_embedding_weight_std=hparams.speaker_embedding_weight_std,
         freeze_embedding=hparams.freeze_embedding,
+        window_ahead=hparams.window_ahead,
+        window_backward=hparams.window_backward,
     )
     return model
 

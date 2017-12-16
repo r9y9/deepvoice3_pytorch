@@ -106,7 +106,8 @@ class Encoder(nn.Module):
 
 
 class AttentionLayer(nn.Module):
-    def __init__(self, conv_channels, embed_dim, dropout=0.1):
+    def __init__(self, conv_channels, embed_dim, dropout=0.1,
+                 window_ahead=3, window_backward=1):
         super(AttentionLayer, self).__init__()
         self.query_projection = Linear(conv_channels, embed_dim)
         self.key_projection = Linear(embed_dim, embed_dim)
@@ -118,9 +119,10 @@ class AttentionLayer(nn.Module):
 
         self.out_projection = Linear(embed_dim, conv_channels)
         self.dropout = dropout
+        self.window_ahead = window_ahead
+        self.window_backward = window_backward
 
-    def forward(self, query, encoder_out, mask=None, last_attended=None,
-                window_ahead=3, window_backward=1):
+    def forward(self, query, encoder_out, mask=None, last_attended=None):
         keys, values = encoder_out
         residual = query
         values = self.value_projection(values)
@@ -138,10 +140,10 @@ class AttentionLayer(nn.Module):
             x.data.masked_fill_(mask, mask_value)
 
         if last_attended is not None:
-            backward = last_attended - window_backward
+            backward = last_attended - self.window_backward
             if backward > 0:
                 x[:, :, :backward] = mask_value
-            ahead = last_attended + window_ahead
+            ahead = last_attended + self.window_ahead
             if ahead < x.size(-1):
                 x[:, :, ahead:] = mask_value
 
@@ -176,7 +178,9 @@ class Decoder(nn.Module):
                  use_memory_mask=False,
                  force_monotonic_attention=False,
                  query_position_rate=1.0,
-                 key_position_rate=1.29
+                 key_position_rate=1.29,
+                 window_ahead=3,
+                 window_backward=1
                  ):
         super(Decoder, self).__init__()
         self.dropout = dropout
@@ -234,9 +238,12 @@ class Decoder(nn.Module):
                           in_channels, out_channels, kernel_size, causal=True,
                           dilation=dilation, dropout=dropout, std_mul=std_mul,
                           residual=False))
-            self.attention.append(AttentionLayer(out_channels, embed_dim,
-                                                 dropout=dropout)
-                                  if attention[i] else None)
+            self.attention.append(
+                AttentionLayer(out_channels, embed_dim,
+                               dropout=dropout,
+                               window_ahead=window_ahead,
+                               window_backward=window_backward)
+                if attention[i] else None)
             in_channels = out_channels
             std_mul = 4.0
         # Last 1x1 convolution

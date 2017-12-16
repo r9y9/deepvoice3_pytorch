@@ -81,6 +81,8 @@ class Decoder(nn.Module):
                  force_monotonic_attention=False,
                  query_position_rate=1.0,
                  key_position_rate=1.29,
+                 window_ahead=3,
+                 window_backward=1
                  ):
         super(Decoder, self).__init__()
         self.dropout = dropout
@@ -120,7 +122,9 @@ class Decoder(nn.Module):
                           dilation=3, causal=True, std_mul=1.0, dropout=dropout),
         ])
 
-        self.attention = AttentionLayer(D, D, dropout=dropout)
+        self.attention = AttentionLayer(D, D, dropout=dropout,
+                                        window_ahead=window_ahead,
+                                        window_backward=window_backward)
 
         self.audio_decoder_modules = nn.ModuleList([
             Conv1d(2 * D, D, kernel_size=1, padding=0, dilation=1, std_mul=1.0),

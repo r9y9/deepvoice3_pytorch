@@ -21,6 +21,8 @@ def deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=513, r=4,
                embedding_weight_std=0.1,
                speaker_embedding_weight_std=0.01,
                freeze_embedding=False,
+               window_ahead=3,
+               window_backward=1,
                ):
     """Build deepvoice3
     """
@@ -58,6 +60,8 @@ def deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=513, r=4,
         query_position_rate=query_position_rate,
         key_position_rate=key_position_rate,
         use_memory_mask=use_memory_mask,
+        window_ahead=window_ahead,
+        window_backward=window_backward,
     )
 
     seq2seq = AttentionSeq2Seq(encoder, decoder)
@@ -103,7 +107,10 @@ def nyanko(n_vocab, embed_dim=128, mel_dim=80, linear_dim=513, r=1,
            use_decoder_state_for_postnet_input=False,
            max_positions=512, embedding_weight_std=0.01,
            speaker_embedding_weight_std=0.01,
-           freeze_embedding=False):
+           freeze_embedding=False,
+           window_ahead=3,
+           window_backward=1,
+           ):
     from deepvoice3_pytorch.nyanko import Encoder, Decoder, Converter
     assert encoder_channels == decoder_channels
 
@@ -126,7 +133,10 @@ def nyanko(n_vocab, embed_dim=128, mel_dim=80, linear_dim=513, r=1,
         force_monotonic_attention=force_monotonic_attention,
         query_position_rate=query_position_rate,
         key_position_rate=key_position_rate,
-        use_memory_mask=use_memory_mask)
+        use_memory_mask=use_memory_mask,
+        window_ahead=window_ahead,
+        window_backward=window_backward,
+    )
 
     seq2seq = AttentionSeq2Seq(encoder, decoder)
 
@@ -169,6 +179,8 @@ def deepvoice3_vctk(n_vocab, embed_dim=256, mel_dim=80, linear_dim=513, r=4,
                     embedding_weight_std=0.1,
                     speaker_embedding_weight_std=0.01,
                     freeze_embedding=False,
+                    window_ahead=3,
+                    window_backward=1,
                     ):
     """Build multi-speaker deepvoice3
     """
@@ -209,6 +221,8 @@ def deepvoice3_vctk(n_vocab, embed_dim=256, mel_dim=80, linear_dim=513, r=4,
         query_position_rate=query_position_rate,
         key_position_rate=key_position_rate,
         use_memory_mask=use_memory_mask,
+        window_ahead=window_ahead,
+        window_backward=window_backward,
     )
 
     seq2seq = AttentionSeq2Seq(encoder, decoder)

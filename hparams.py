@@ -168,6 +168,9 @@ hparams = tf.contrib.training.HParams(
     # this can be list for multple layers of attention
     # e.g., [True, False, False, False, True]
     force_monotonic_attention=True,
+    # Attention constraint for incremental decoding
+    window_ahead=3,
+    window_backward=1,
     power=1.4,  # Power to raise magnitudes to prior to phase retrieval
 )
 
