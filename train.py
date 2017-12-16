@@ -371,10 +371,9 @@ def eval_model(global_step, writer, model, checkpoint_dir, ismultispeaker):
         "Scientists at the CERN laboratory say they have discovered a new particle.",
         "There's a way to measure the acute emotional intelligence that has never gone out of style.",
         "President Trump met with other leaders at the Group of 20 conference.",
-        "The Senate's bill to repeal and replace the Affordable Care Act is now imperiled.",
         "Generative adversarial network or variational auto-encoder.",
-        "The buses aren't the problem, they actually provide a solution.",
         "Please call Stella.",
+        "Some have accepted this as a miracle without any physical explanation.",
     ]
     import synthesis
     synthesis._frontend = _frontend
