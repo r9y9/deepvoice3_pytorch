@@ -78,6 +78,7 @@ class Encoder(nn.Module):
         # expand speaker embedding for all time steps
         speaker_embed_btc = expand_speaker_embed(x, speaker_embed)
         if speaker_embed_btc is not None:
+            speaker_embed_btc = F.dropout(speaker_embed_btc, p=self.dropout, training=self.training)
             x = x + F.softsign(self.speaker_fc1(speaker_embed_btc))
 
         input_embedding = x
@@ -288,6 +289,8 @@ class Decoder(nn.Module):
 
         # expand speaker embedding for all time steps
         speaker_embed_btc = expand_speaker_embed(inputs, speaker_embed)
+        if speaker_embed_btc is not None:
+            speaker_embed_btc = F.dropout(speaker_embed_btc, p=self.dropout, training=self.training)
 
         keys, values = encoder_out
 
@@ -572,6 +575,8 @@ class Converter(nn.Module):
 
         # expand speaker embedding for all time steps
         speaker_embed_btc = expand_speaker_embed(x, speaker_embed)
+        if speaker_embed_btc is not None:
+            speaker_embed_btc = F.dropout(speaker_embed_btc, p=self.dropout, training=self.training)
 
         # Generic case: B x T x C -> B x C x T
         x = x.transpose(1, 2)
@@ -580,6 +585,8 @@ class Converter(nn.Module):
             # Case for upsampling
             if speaker_embed_btc is not None and speaker_embed_btc.size(1) != x.size(-1):
                 speaker_embed_btc = expand_speaker_embed(x, speaker_embed, tdim=-1)
+                speaker_embed_btc = F.dropout(
+                    speaker_embed_btc, p=self.dropout, training=self.training)
             x = f(x, speaker_embed_btc) if isinstance(f, Conv1dGLU) else f(x)
 
         # Back to B x T x C
