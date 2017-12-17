@@ -38,8 +38,8 @@ class Encoder(nn.Module):
 
         # Speaker embedding
         if n_speakers > 1:
-            self.speaker_fc1 = Linear(speaker_embed_dim, embed_dim)
-            self.speaker_fc2 = Linear(speaker_embed_dim, embed_dim)
+            self.speaker_fc1 = Linear(speaker_embed_dim, embed_dim, dropout=dropout)
+            self.speaker_fc2 = Linear(speaker_embed_dim, embed_dim, dropout=dropout)
         self.n_speakers = n_speakers
 
         # Non causual convolution blocks
@@ -210,8 +210,8 @@ class Decoder(nn.Module):
             max_positions, embed_dim, padding_idx)
         # Used for compute multiplier for positional encodings
         if n_speakers > 1:
-            self.speaker_proj1 = Linear(speaker_embed_dim, 1)
-            self.speaker_proj2 = Linear(speaker_embed_dim, 1)
+            self.speaker_proj1 = Linear(speaker_embed_dim, 1, dropout=dropout)
+            self.speaker_proj2 = Linear(speaker_embed_dim, 1, dropout=dropout)
         else:
             self.speaker_proj1, self.speaker_proj2 = None, None
 
