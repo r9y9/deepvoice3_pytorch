@@ -902,11 +902,6 @@ if __name__ == "__main__":
         hparams.adam_beta1, hparams.adam_beta2),
         eps=hparams.adam_eps, weight_decay=hparams.weight_decay)
 
-    # Load embedding
-    if load_embedding is not None:
-        print("Loading embedding from {}".format(load_embedding))
-        _load_embedding(load_embedding, model)
-
     if checkpoint_restore_parts is not None:
         restore_parts(checkpoint_restore_parts, model)
 
@@ -919,6 +914,11 @@ if __name__ == "__main__":
 
     if checkpoint_path is not None:
         load_checkpoint(checkpoint_path, model, optimizer, reset_optimizer)
+
+    # Load embedding
+    if load_embedding is not None:
+        print("Loading embedding from {}".format(load_embedding))
+        _load_embedding(load_embedding, model)
 
     # Setup summary writer for tensorboard
     if log_event_path is None:
