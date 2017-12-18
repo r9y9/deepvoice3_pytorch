@@ -467,7 +467,7 @@ class Decoder(nn.Module):
 
             t += 1
             if test_inputs is None:
-                if (done > 0.5).all() and t > self.min_decoder_steps:
+                if (done > 0.9).all() and t > self.min_decoder_steps:
                     break
                 elif t > self.max_decoder_steps:
                     break
