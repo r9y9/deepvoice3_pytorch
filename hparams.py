@@ -20,9 +20,10 @@ hparams = tf.contrib.training.HParams(
     replace_pronunciation_prob=0.5,
 
     # Convenient model builder
-    # [deepvoice3, nyanko, latest]
+    # [deepvoice3, deepvoice3_multispeaker, nyanko, latest]
     # Definitions can be found at deepvoice3_pytorch/builder.py
     # deepvoice3: build DeepVoice3　https://arxiv.org/abs/1710.07654
+    # deepvoice3_multispeaker: Multi-speaker DeepVoice3
     # nyanko: https://arxiv.org/abs/1710.08969
     # latest: Latest model I (@r9y9) have been working on.
     builder="latest",
@@ -32,10 +33,10 @@ hparams = tf.contrib.training.HParams(
     speaker_embed_dim=16,
 
     # Presets known to work good.
-    # NOTE: If True, this will overwride params with presets[builder]
-    use_preset=False,
+    # NOTE: If specified, override hyper parameters with preset
+    preset="",
     presets={
-        "deepvoice3": {
+        "deepvoice3_ljspeech": {
             "n_speakers": 1,
             "downsample_step": 4,
             "outputs_per_step": 1,
@@ -79,7 +80,7 @@ hparams = tf.contrib.training.HParams(
             "clip_thresh": 0.1,
             "initial_learning_rate": 5e-4,
         },
-        "nyanko": {
+        "nyanko_ljspeech": {
             "downsample_step": 4,
             "outputs_per_step": 1,
             "embedding_weight_std": 0.01,
