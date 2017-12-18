@@ -107,15 +107,22 @@ class Encoder(nn.Module):
 
 class AttentionLayer(nn.Module):
     def __init__(self, conv_channels, embed_dim, dropout=0.1,
-                 window_ahead=3, window_backward=1):
+                 window_ahead=3, window_backward=1,
+                 key_projection=True, value_projection=True):
         super(AttentionLayer, self).__init__()
         self.query_projection = Linear(conv_channels, embed_dim)
-        self.key_projection = Linear(embed_dim, embed_dim)
-        # According to the DeepVoice3 paper, intiailize weights to same values
-        # TODO: Does this really work well? not sure..
-        if conv_channels == embed_dim:
-            self.key_projection.weight.data = self.query_projection.weight.data.clone()
-        self.value_projection = Linear(embed_dim, embed_dim)
+        if key_projection:
+            self.key_projection = Linear(embed_dim, embed_dim)
+            # According to the DeepVoice3 paper, intiailize weights to same values
+            # TODO: Does this really work well? not sure..
+            if conv_channels == embed_dim:
+                self.key_projection.weight.data = self.query_projection.weight.data.clone()
+        else:
+            self.key_projection = None
+        if value_projection:
+            self.value_projection = Linear(embed_dim, embed_dim)
+        else:
+            self.value_projection = None
 
         self.out_projection = Linear(embed_dim, conv_channels)
         self.dropout = dropout
@@ -125,7 +132,8 @@ class AttentionLayer(nn.Module):
     def forward(self, query, encoder_out, mask=None, last_attended=None):
         keys, values = encoder_out
         residual = query
-        values = self.value_projection(values)
+        if self.value_projection is not None:
+            values = self.value_projection(values)
         # TODO: yes, this is inefficient
         if self.key_projection is not None:
             keys = self.key_projection(keys.transpose(1, 2)).transpose(1, 2)
@@ -242,7 +250,9 @@ class Decoder(nn.Module):
                 AttentionLayer(out_channels, embed_dim,
                                dropout=dropout,
                                window_ahead=window_ahead,
-                               window_backward=window_backward)
+                               window_backward=window_backward,
+                               key_projection=True,
+                               value_projection=True)
                 if attention[i] else None)
             in_channels = out_channels
             std_mul = 4.0

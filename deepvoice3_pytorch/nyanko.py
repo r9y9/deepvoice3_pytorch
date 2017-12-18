@@ -124,7 +124,9 @@ class Decoder(nn.Module):
 
         self.attention = AttentionLayer(D, D, dropout=dropout,
                                         window_ahead=window_ahead,
-                                        window_backward=window_backward)
+                                        window_backward=window_backward,
+                                        key_projection=False,
+                                        value_projection=False)
 
         self.audio_decoder_modules = nn.ModuleList([
             Conv1d(2 * D, D, kernel_size=1, padding=0, dilation=1, std_mul=1.0),
