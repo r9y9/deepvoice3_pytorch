@@ -522,6 +522,7 @@ def train(model, data_loader, optimizer, writer,
           checkpoint_dir=None, checkpoint_interval=None, nepochs=None,
           clip_thresh=1.0,
           train_seq2seq=True, train_postnet=True):
+    model.train()
     if use_cuda:
         model = model.cuda()
     linear_dim = model.linear_dim
@@ -535,7 +536,6 @@ def train(model, data_loader, optimizer, writer,
 
     global global_step, global_epoch
     while global_epoch < nepochs:
-        model.train()
         running_loss = 0.
         for step, (x, input_lengths, mel, y, positions, done, target_lengths,
                    speaker_ids) \
