@@ -90,7 +90,7 @@ def deepvoice3(n_vocab, embed_dim=256, mel_dim=80, linear_dim=513, r=4,
 
 
 def nyanko(n_vocab, embed_dim=128, mel_dim=80, linear_dim=513, r=1,
-           downsample_step=1,
+           downsample_step=4,
            n_speakers=1, speaker_embed_dim=16, padding_idx=0,
            dropout=(1 - 0.95), kernel_size=3,
            encoder_channels=256,
