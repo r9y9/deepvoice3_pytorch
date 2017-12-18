@@ -161,11 +161,11 @@ class Decoder(nn.Module):
         self.embed_query_positions = Embedding(
             max_positions, D, padding_idx)
         self.embed_query_positions.weight.data = position_encoding_init(
-            max_positions, D, position_rate=query_position_rate)
+            max_positions, D, position_rate=query_position_rate, sinusoidal=True)
         self.embed_keys_positions = Embedding(
             max_positions, D, padding_idx)
         self.embed_keys_positions.weight.data = position_encoding_init(
-            max_positions, D, position_rate=key_position_rate)
+            max_positions, D, position_rate=key_position_rate, sinusoidal=True)
 
         # options
         self.max_decoder_steps = 200
