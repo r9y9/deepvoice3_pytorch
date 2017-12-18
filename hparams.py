@@ -171,6 +171,7 @@ hparams = tf.contrib.training.HParams(
     force_monotonic_attention=True,
     # Attention constraint for incremental decoding
     window_ahead=3,
+    # 0 tends to prevent word repretetion, but sometime causes skip words
     window_backward=1,
     power=1.4,  # Power to raise magnitudes to prior to phase retrieval
 )
