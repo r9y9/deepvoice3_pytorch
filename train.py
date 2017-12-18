@@ -522,7 +522,6 @@ def train(model, data_loader, optimizer, writer,
           checkpoint_dir=None, checkpoint_interval=None, nepochs=None,
           clip_thresh=1.0,
           train_seq2seq=True, train_postnet=True):
-    model.train()
     if use_cuda:
         model = model.cuda()
     linear_dim = model.linear_dim
@@ -540,6 +539,7 @@ def train(model, data_loader, optimizer, writer,
         for step, (x, input_lengths, mel, y, positions, done, target_lengths,
                    speaker_ids) \
                 in tqdm(enumerate(data_loader)):
+            model.train()
             ismultispeaker = speaker_ids is not None
             # Learning rate schedule
             if hparams.lr_schedule is not None:
