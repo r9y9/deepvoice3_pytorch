@@ -51,9 +51,8 @@ hparams = tf.contrib.training.HParams(
             "binary_divergence_weight": 0.1,
             "use_decoder_state_for_postnet_input": True,
 
-            # If both true, that's fine, but seems loss tends to decrease slowly
-            "key_projection": False,
-            "value_projection": False,
+            "key_projection": True,
+            "value_projection": True,
 
             "clip_thresh": 0.1,
             "initial_learning_rate": 5e-4,
@@ -80,7 +79,6 @@ hparams = tf.contrib.training.HParams(
             "query_position_rate": 2.0,
             "key_position_rate": 7.6,
 
-            # seems good effect?
             "key_projection": True,
             "value_projection": True,
 
