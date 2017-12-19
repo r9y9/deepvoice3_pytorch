@@ -787,6 +787,8 @@ def build_model():
         freeze_embedding=hparams.freeze_embedding,
         window_ahead=hparams.window_ahead,
         window_backward=hparams.window_backward,
+        key_projection=hparams.key_projection,
+        value_projection=hparams.value_projection,
     )
     return model
 

@@ -189,7 +189,9 @@ class Decoder(nn.Module):
                  query_position_rate=1.0,
                  key_position_rate=1.29,
                  window_ahead=3,
-                 window_backward=1
+                 window_backward=1,
+                 key_projection=True,
+                 value_projection=True,
                  ):
         super(Decoder, self).__init__()
         self.dropout = dropout
@@ -252,8 +254,8 @@ class Decoder(nn.Module):
                                dropout=dropout,
                                window_ahead=window_ahead,
                                window_backward=window_backward,
-                               key_projection=True,
-                               value_projection=True)
+                               key_projection=key_projection,
+                               value_projection=value_projection)
                 if attention[i] else None)
             in_channels = out_channels
             std_mul = 4.0
