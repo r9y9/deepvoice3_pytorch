@@ -80,6 +80,7 @@ hparams = tf.contrib.training.HParams(
             "initial_learning_rate": 5e-4,
         },
         "nyanko_ljspeech": {
+            "n_speakers": 1,
             "downsample_step": 4,
             "outputs_per_step": 1,
             "embedding_weight_std": 0.01,

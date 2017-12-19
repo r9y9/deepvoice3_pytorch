@@ -111,8 +111,10 @@ def nyanko(n_vocab, embed_dim=128, mel_dim=80, linear_dim=513, r=1,
     from deepvoice3_pytorch.nyanko import Encoder, Decoder, Converter
     assert encoder_channels == decoder_channels
 
+    if n_speakers != 1:
+        raise ValueError("Multi-speaker is not supported")
     if not (downsample_step == 4 and r == 1):
-        raise RuntimeError("Not supported. You need to change hardcoded parameters")
+        raise ValueError("Not supported. You need to change hardcoded parameters")
 
     # Seq2seq
     encoder = Encoder(
