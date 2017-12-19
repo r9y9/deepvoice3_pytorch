@@ -20,13 +20,12 @@ hparams = tf.contrib.training.HParams(
     replace_pronunciation_prob=0.5,
 
     # Convenient model builder
-    # [deepvoice3, deepvoice3_multispeaker, nyanko, latest]
+    # [deepvoice3, deepvoice3_multispeaker, nyanko]
     # Definitions can be found at deepvoice3_pytorch/builder.py
-    # deepvoice3: build DeepVoice3　https://arxiv.org/abs/1710.07654
-    # deepvoice3_multispeaker: Multi-speaker DeepVoice3
+    # deepvoice3: DeepVoice3　https://arxiv.org/abs/1710.07654
+    # deepvoice3_multispeaker: Multi-speaker version of DeepVoice3
     # nyanko: https://arxiv.org/abs/1710.08969
-    # latest: Latest model I (@r9y9) have been working on.
-    builder="latest",
+    builder="deepvoice3",
 
     # Must be configured depends on the dataset and model you use
     n_speakers=1,
@@ -98,7 +97,6 @@ hparams = tf.contrib.training.HParams(
             "clip_thresh": 0.1,
             "initial_learning_rate": 5e-4,
         },
-        "latest": {},
     },
 
     # Audio:

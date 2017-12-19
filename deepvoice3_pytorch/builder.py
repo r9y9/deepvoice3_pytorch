@@ -242,7 +242,3 @@ def deepvoice3_multispeaker(n_vocab, embed_dim=256, mel_dim=80, linear_dim=513, 
         freeze_embedding=freeze_embedding)
 
     return model
-
-
-# TODO:
-latest = nyanko
