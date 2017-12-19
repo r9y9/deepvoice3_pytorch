@@ -12,8 +12,8 @@ Current progress and planned TO-DOs can be found at [#1](https://github.com/r9y9
 ## Highlights
 
 - Convolutional sequence-to-sequence model with attention for text-to-speech synthesis
-- Multi-speaker and single speaker versions of DeepVoice3 are both available
-- Audio samples and pre-trained models are available
+- Multi-speaker and single speaker versions of DeepVoice3
+- Audio samples and pre-trained models
 - Preprocessor for [LJSpeech (en)](https://keithito.com/LJ-Speech-Dataset/), [JSUT (jp)](https://sites.google.com/site/shinnosuketakamichi/publication/jsut) and [VCTK](http://homepages.inf.ed.ac.uk/jyamagis/page3/page58/page58.html) datasets
 - Language-dependent frontend text processor for English and Japanese
 
@@ -180,6 +180,17 @@ python train.py --data-root=./data/vctk --checkpoint-dir=checkpoints_vctk \
    --hparams="preset=deepvoice3_vctk,builder=deepvoice3_multispeaker" \
    --log-event-path=log/deepvoice3_multispeaker_vctk_preset
 ```
+
+If you want to reuse learned embedding from other dataset, then you can do this instead by:
+
+```
+python train.py --data-root=./data/vctk --checkpoint-dir=checkpoints_vctk \
+   --hparams="preset=deepvoice3_vctk,builder=deepvoice3_multispeaker" \
+   --log-event-path=log/deepvoice3_multispeaker_vctk_preset \
+   --load-embedding=20171213_deepvoice3_checkpoint_step000210000.pth
+```
+
+This may improve training speed a bit.
 
 ### Speaker adaptation
 
