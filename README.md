@@ -108,8 +108,6 @@ python preprocess.py ljspeech ~/data/LJSpeech-1.0/ ./data/ljspeech
 
 When this is done, you will see extracted features (mel-spectrograms and linear spectrograms) in `./data/ljspeech`.
 
-**NOTE**: If you want better performance on VCTK, you can trim silences by phoneme alignment (recommended). See  [vctk_preprocess/README.md](vctk_preprocess/README.md) for details.
-
 ### 2. Training
 
 Basic usage of `train.py` is:
