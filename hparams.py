@@ -65,7 +65,7 @@ hparams = tf.contrib.training.HParams(
             "outputs_per_step": 1,
             "embedding_weight_std": 0.1,
             "speaker_embedding_weight_std": 0.05,
-            "dropout": 1 - 0.90,
+            "dropout": 1 - 0.98,
             "kernel_size": 3,
             "text_embed_dim": 256,
             "encoder_channels": 512,
