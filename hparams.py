@@ -50,10 +50,11 @@ hparams = tf.contrib.training.HParams(
             "guided_attention_sigma": 0.2,
             "binary_divergence_weight": 0.1,
             "use_decoder_state_for_postnet_input": True,
-
+            "max_positions": 512,
+            "query_position_rate": 1.0,
+            "key_position_rate": 1.385,
             "key_projection": True,
             "value_projection": True,
-
             "clip_thresh": 0.1,
             "initial_learning_rate": 5e-4,
         },
@@ -75,13 +76,10 @@ hparams = tf.contrib.training.HParams(
             "binary_divergence_weight": 0.1,
             "use_decoder_state_for_postnet_input": True,
             "max_positions": 1024,
-
             "query_position_rate": 2.0,
             "key_position_rate": 7.6,
-
             "key_projection": True,
             "value_projection": True,
-
             "clip_thresh": 0.1,
             "initial_learning_rate": 5e-4,
         },
@@ -100,10 +98,11 @@ hparams = tf.contrib.training.HParams(
             "guided_attention_sigma": 0.2,
             "binary_divergence_weight": 0.1,
             "use_decoder_state_for_postnet_input": True,
-
+            "max_positions": 512,
+            "query_position_rate": 1.0,
+            "key_position_rate": 1.385,
             "key_projection": False,
             "value_projection": False,
-
             "clip_thresh": 0.1,
             "initial_learning_rate": 5e-4,
         },
@@ -124,6 +123,8 @@ hparams = tf.contrib.training.HParams(
     embedding_weight_std=0.1,
     speaker_embedding_weight_std=0.01,
     padding_idx=0,
+    # Maximum number of input text length
+    # try setting larger value if you want to give very long text input
     max_positions=512,
     dropout=1 - 0.95,
     kernel_size=3,
