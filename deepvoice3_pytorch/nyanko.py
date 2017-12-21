@@ -82,7 +82,9 @@ class Decoder(nn.Module):
                  query_position_rate=1.0,
                  key_position_rate=1.29,
                  window_ahead=3,
-                 window_backward=1
+                 window_backward=1,
+                 key_projection=False,
+                 value_projection=False,
                  ):
         super(Decoder, self).__init__()
         self.dropout = dropout
@@ -125,8 +127,8 @@ class Decoder(nn.Module):
         self.attention = AttentionLayer(D, D, dropout=dropout,
                                         window_ahead=window_ahead,
                                         window_backward=window_backward,
-                                        key_projection=False,
-                                        value_projection=False)
+                                        key_projection=key_projection,
+                                        value_projection=value_projection)
 
         self.audio_decoder_modules = nn.ModuleList([
             Conv1d(2 * D, D, kernel_size=1, padding=0, dilation=1, std_mul=1.0),
@@ -161,11 +163,11 @@ class Decoder(nn.Module):
         self.embed_query_positions = Embedding(
             max_positions, D, padding_idx)
         self.embed_query_positions.weight.data = position_encoding_init(
-            max_positions, D, position_rate=query_position_rate)
+            max_positions, D, position_rate=query_position_rate, sinusoidal=True)
         self.embed_keys_positions = Embedding(
             max_positions, D, padding_idx)
         self.embed_keys_positions.weight.data = position_encoding_init(
-            max_positions, D, position_rate=key_position_rate)
+            max_positions, D, position_rate=key_position_rate, sinusoidal=True)
 
         # options
         self.max_decoder_steps = 200

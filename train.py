@@ -15,6 +15,7 @@ options:
     --log-event-path=<name>      Log event path.
     --reset-optimizer            Reset optimizer.
     --load-embedding=<path>      Load embedding from checkpoint.
+    --speaker-id=<N>             Use specific speaker of data in case for multi-speaker datasets.
     -h, --help                   Show this help message and exit
 """
 from docopt import docopt
@@ -94,11 +95,12 @@ def plot_alignment(alignment, path, info=None):
 
 
 class TextDataSource(FileDataSource):
-    def __init__(self, data_root):
+    def __init__(self, data_root, speaker_id=None):
         self.data_root = data_root
         self.speaker_ids = None
         self.multi_speaker = False
-        self.n_speakers = 1
+        # If not None, filter by speaker_id
+        self.speaker_id = speaker_id
 
     def collect_files(self):
         meta = join(self.data_root, "train.txt")
@@ -110,7 +112,14 @@ class TextDataSource(FileDataSource):
         texts = list(map(lambda l: l.decode("utf-8").split("|")[3], lines))
         if self.multi_speaker:
             speaker_ids = list(map(lambda l: int(l.decode("utf-8").split("|")[-1]), lines))
-            self.n_speakers = len(np.unique(speaker_ids))
+            # Filter by speaker_id
+            # using multi-speaker dataset as a single speaker dataset
+            if self.speaker_id is not None:
+                indices = np.array(speaker_ids) == self.speaker_id
+                texts = list(np.array(texts)[indices])
+                self.multi_speaker = False
+                return texts
+
             return texts, speaker_ids
         else:
             return texts
@@ -128,19 +137,34 @@ class TextDataSource(FileDataSource):
 
 
 class _NPYDataSource(FileDataSource):
-    def __init__(self, data_root, col):
+    def __init__(self, data_root, col, speaker_id=None):
         self.data_root = data_root
         self.col = col
         self.frame_lengths = []
+        self.speaker_id = speaker_id
 
     def collect_files(self):
         meta = join(self.data_root, "train.txt")
         with open(meta, "rb") as f:
             lines = f.readlines()
+        l = lines[0].decode("utf-8").split("|")
+        assert len(l) == 4 or len(l) == 5
+        multi_speaker = len(l) == 5
         self.frame_lengths = list(
             map(lambda l: int(l.decode("utf-8").split("|")[2]), lines))
-        lines = list(map(lambda l: l.decode("utf-8").split("|")[self.col], lines))
-        paths = list(map(lambda f: join(self.data_root, f), lines))
+
+        paths = list(map(lambda l: l.decode("utf-8").split("|")[self.col], lines))
+        paths = list(map(lambda f: join(self.data_root, f), paths))
+
+        if multi_speaker and self.speaker_id is not None:
+            speaker_ids = list(map(lambda l: int(l.decode("utf-8").split("|")[-1]), lines))
+            # Filter by speaker_id
+            # using multi-speaker dataset as a single speaker dataset
+            indices = np.array(speaker_ids) == self.speaker_id
+            paths = list(np.array(paths)[indices])
+            self.frame_lengths = list(np.array(self.frame_lengths)[indices])
+            # aha, need to cast numpy.int64 to int
+            self.frame_lengths = list(map(int, self.frame_lengths))
 
         return paths
 
@@ -149,13 +173,13 @@ class _NPYDataSource(FileDataSource):
 
 
 class MelSpecDataSource(_NPYDataSource):
-    def __init__(self, data_root):
-        super(MelSpecDataSource, self).__init__(data_root, 1)
+    def __init__(self, data_root, speaker_id=None):
+        super(MelSpecDataSource, self).__init__(data_root, 1, speaker_id)
 
 
 class LinearSpecDataSource(_NPYDataSource):
-    def __init__(self, data_root):
-        super(LinearSpecDataSource, self).__init__(data_root, 0)
+    def __init__(self, data_root, speaker_id=None):
+        super(LinearSpecDataSource, self).__init__(data_root, 0, speaker_id)
 
 
 class PartialyRandomizedSimilarTimeLengthSampler(Sampler):
@@ -171,7 +195,10 @@ class PartialyRandomizedSimilarTimeLengthSampler(Sampler):
         self.lengths, self.sorted_indices = torch.sort(torch.LongTensor(lengths))
         self.batch_size = batch_size
         if batch_group_size is None:
-            batch_group_size = batch_size * 32
+            batch_group_size = min(batch_size * 32, len(self.lengths))
+            if batch_group_size % batch_size != 0:
+                batch_group_size -= batch_group_size % batch_size
+
         self.batch_group_size = batch_group_size
         assert batch_group_size % batch_size == 0
         self.permutate = permutate
@@ -339,10 +366,14 @@ def prepare_spec_image(spectrogram):
 
 
 def eval_model(global_step, writer, model, checkpoint_dir, ismultispeaker):
+    # harded coded
     texts = [
         "Scientists at the CERN laboratory say they have discovered a new particle.",
         "There's a way to measure the acute emotional intelligence that has never gone out of style.",
+        "President Trump met with other leaders at the Group of 20 conference.",
         "Generative adversarial network or variational auto-encoder.",
+        "Please call Stella.",
+        "Some have accepted this as a miracle without any physical explanation.",
     ]
     import synthesis
     synthesis._frontend = _frontend
@@ -350,34 +381,38 @@ def eval_model(global_step, writer, model, checkpoint_dir, ismultispeaker):
     eval_output_dir = join(checkpoint_dir, "eval")
     os.makedirs(eval_output_dir, exist_ok=True)
 
-    speaker_id = 0 if ismultispeaker else None
-    for idx, text in enumerate(texts):
-        signal, alignment, _, mel = synthesis.tts(
-            model, text, p=0, speaker_id=speaker_id, fast=False)
-        signal /= np.max(np.abs(signal))
+    # hard coded
+    speaker_ids = [0, 1, 10] if ismultispeaker else [None]
+    for speaker_id in speaker_ids:
+        speaker_str = "multispeaker{}".format(speaker_id) if speaker_id is not None else "single"
 
-        # Alignment
-        path = join(eval_output_dir, "step{:09d}_text{}_alignment.png".format(
-            global_step, idx))
-        save_alignment(path, alignment)
-        tag = "eval_averaged_alignment_{}".format(idx)
-        writer.add_image(tag, np.uint8(cm.viridis(np.flip(alignment, 1).T) * 255), global_step)
+        for idx, text in enumerate(texts):
+            signal, alignment, _, mel = synthesis.tts(
+                model, text, p=0, speaker_id=speaker_id, fast=False)
+            signal /= np.max(np.abs(signal))
 
-        # Mel
-        writer.add_image("(Eval) Predicted mel spectrogram text{}".format(idx),
-                         prepare_spec_image(mel), global_step)
+            # Alignment
+            path = join(eval_output_dir, "step{:09d}_text{}_{}_alignment.png".format(
+                global_step, idx, speaker_str))
+            save_alignment(path, alignment)
+            tag = "eval_averaged_alignment_{}_{}".format(idx, speaker_str)
+            writer.add_image(tag, np.uint8(cm.viridis(np.flip(alignment, 1).T) * 255), global_step)
 
-        # Audio
-        path = join(eval_output_dir, "step{:09d}_text{}_predicted.wav".format(
-            global_step, idx))
-        audio.save_wav(signal, path)
+            # Mel
+            writer.add_image("(Eval) Predicted mel spectrogram text{}_{}".format(idx, speaker_str),
+                             prepare_spec_image(mel), global_step)
 
-        try:
-            writer.add_audio("(Eval) Predicted audio signal {}".format(idx),
-                             signal, global_step, sample_rate=fs)
-        except Exception as e:
-            warn(str(e))
-            pass
+            # Audio
+            path = join(eval_output_dir, "step{:09d}_text{}_{}_predicted.wav".format(
+                global_step, idx, speaker_str))
+            audio.save_wav(signal, path)
+
+            try:
+                writer.add_audio("(Eval) Predicted audio signal {}_{}".format(idx, speaker_str),
+                                 signal, global_step, sample_rate=fs)
+            except Exception as e:
+                warn(str(e))
+                pass
 
 
 def save_states(global_step, writer, mel_outputs, linear_outputs, attn, mel, y,
@@ -752,6 +787,8 @@ def build_model():
         freeze_embedding=hparams.freeze_embedding,
         window_ahead=hparams.window_ahead,
         window_backward=hparams.window_backward,
+        key_projection=hparams.key_projection,
+        value_projection=hparams.value_projection,
     )
     return model
 
@@ -799,6 +836,8 @@ if __name__ == "__main__":
     checkpoint_postnet_path = args["--checkpoint-postnet"]
     load_embedding = args["--load-embedding"]
     checkpoint_restore_parts = args["--restore-parts"]
+    speaker_id = args["--speaker-id"]
+    speaker_id = int(speaker_id) if speaker_id is not None else None
 
     data_root = args["--data-root"]
     if data_root is None:
@@ -827,21 +866,21 @@ if __name__ == "__main__":
     assert hparams.name == "deepvoice3"
 
     # Presets
-    if hparams.use_preset:
-        preset = hparams.presets[hparams.builder]
+    if hparams.preset is not None and hparams.preset != "":
+        preset = hparams.presets[hparams.preset]
         import json
         hparams.parse_json(json.dumps(preset))
         print("Override hyper parameters with preset \"{}\": {}".format(
-            hparams.builder, json.dumps(preset, indent=4)))
+            hparams.preset, json.dumps(preset, indent=4)))
 
     _frontend = getattr(frontend, hparams.frontend)
 
     os.makedirs(checkpoint_dir, exist_ok=True)
 
     # Input dataset definitions
-    X = FileSourceDataset(TextDataSource(data_root))
-    Mel = FileSourceDataset(MelSpecDataSource(data_root))
-    Y = FileSourceDataset(LinearSpecDataSource(data_root))
+    X = FileSourceDataset(TextDataSource(data_root, speaker_id))
+    Mel = FileSourceDataset(MelSpecDataSource(data_root, speaker_id))
+    Y = FileSourceDataset(LinearSpecDataSource(data_root, speaker_id))
 
     # Prepare sampler
     frame_lengths = Mel.file_data_source.frame_lengths
@@ -865,11 +904,6 @@ if __name__ == "__main__":
         hparams.adam_beta1, hparams.adam_beta2),
         eps=hparams.adam_eps, weight_decay=hparams.weight_decay)
 
-    # Load embedding
-    if load_embedding is not None:
-        print("Loading embedding from {}".format(load_embedding))
-        _load_embedding(load_embedding, model)
-
     if checkpoint_restore_parts is not None:
         restore_parts(checkpoint_restore_parts, model)
 
@@ -882,6 +916,11 @@ if __name__ == "__main__":
 
     if checkpoint_path is not None:
         load_checkpoint(checkpoint_path, model, optimizer, reset_optimizer)
+
+    # Load embedding
+    if load_embedding is not None:
+        print("Loading embedding from {}".format(load_embedding))
+        _load_embedding(load_embedding, model)
 
     # Setup summary writer for tensorboard
     if log_event_path is None:

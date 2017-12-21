@@ -20,22 +20,22 @@ hparams = tf.contrib.training.HParams(
     replace_pronunciation_prob=0.5,
 
     # Convenient model builder
-    # [deepvoice3, nyanko, latest]
+    # [deepvoice3, deepvoice3_multispeaker, nyanko]
     # Definitions can be found at deepvoice3_pytorch/builder.py
-    # deepvoice3: build DeepVoice3　https://arxiv.org/abs/1710.07654
+    # deepvoice3: DeepVoice3　https://arxiv.org/abs/1710.07654
+    # deepvoice3_multispeaker: Multi-speaker version of DeepVoice3
     # nyanko: https://arxiv.org/abs/1710.08969
-    # latest: Latest model I (@r9y9) have been working on.
-    builder="latest",
+    builder="deepvoice3",
 
     # Must be configured depends on the dataset and model you use
     n_speakers=1,
     speaker_embed_dim=16,
 
     # Presets known to work good.
-    # NOTE: If True, this will overwride params with presets[builder]
-    use_preset=False,
+    # NOTE: If specified, override hyper parameters with preset
+    preset="",
     presets={
-        "deepvoice3": {
+        "deepvoice3_ljspeech": {
             "n_speakers": 1,
             "downsample_step": 4,
             "outputs_per_step": 1,
@@ -50,7 +50,11 @@ hparams = tf.contrib.training.HParams(
             "guided_attention_sigma": 0.2,
             "binary_divergence_weight": 0.1,
             "use_decoder_state_for_postnet_input": True,
-
+            "max_positions": 512,
+            "query_position_rate": 1.0,
+            "key_position_rate": 1.385,
+            "key_projection": True,
+            "value_projection": True,
             "clip_thresh": 0.1,
             "initial_learning_rate": 5e-4,
         },
@@ -60,25 +64,27 @@ hparams = tf.contrib.training.HParams(
             "downsample_step": 4,
             "outputs_per_step": 1,
             "embedding_weight_std": 0.1,
-            "speaker_embedding_weight_std": 0.01,
+            "speaker_embedding_weight_std": 0.05,
             "dropout": 1 - 0.95,
             "kernel_size": 3,
             "text_embed_dim": 256,
             "encoder_channels": 512,
             "decoder_channels": 256,
             "converter_channels": 256,
-            "use_guided_attention": False,
-            "guided_attention_sigma": 0.2,
+            "use_guided_attention": True,
+            "guided_attention_sigma": 0.4,
             "binary_divergence_weight": 0.1,
             "use_decoder_state_for_postnet_input": True,
-
-            "query_position_rate": 1.0,
-            "key_position_rate": 1.385,
-
+            "max_positions": 1024,
+            "query_position_rate": 2.0,
+            "key_position_rate": 7.6,
+            "key_projection": True,
+            "value_projection": True,
             "clip_thresh": 0.1,
             "initial_learning_rate": 5e-4,
         },
-        "nyanko": {
+        "nyanko_ljspeech": {
+            "n_speakers": 1,
             "downsample_step": 4,
             "outputs_per_step": 1,
             "embedding_weight_std": 0.01,
@@ -92,11 +98,14 @@ hparams = tf.contrib.training.HParams(
             "guided_attention_sigma": 0.2,
             "binary_divergence_weight": 0.1,
             "use_decoder_state_for_postnet_input": True,
-
+            "max_positions": 512,
+            "query_position_rate": 1.0,
+            "key_position_rate": 1.385,
+            "key_projection": False,
+            "value_projection": False,
             "clip_thresh": 0.1,
             "initial_learning_rate": 5e-4,
         },
-        "latest": {},
     },
 
     # Audio:
@@ -114,6 +123,8 @@ hparams = tf.contrib.training.HParams(
     embedding_weight_std=0.1,
     speaker_embedding_weight_std=0.01,
     padding_idx=0,
+    # Maximum number of input text length
+    # try setting larger value if you want to give very long text input
     max_positions=512,
     dropout=1 - 0.95,
     kernel_size=3,
@@ -124,6 +135,8 @@ hparams = tf.contrib.training.HParams(
     converter_channels=256,
     query_position_rate=1.0,
     key_position_rate=1.385,  # 2.37 for jsut
+    key_projection=False,
+    value_projection=False,
     use_memory_mask=True,
     trainable_positional_encodings=False,
     freeze_embedding=False,
@@ -136,7 +149,7 @@ hparams = tf.contrib.training.HParams(
     num_workers=2,
 
     # Loss
-    masked_loss_weight=0.0,  # (1-w)*loss + w * masked_loss
+    masked_loss_weight=0.5,  # (1-w)*loss + w * masked_loss
     priority_freq=3000,  # heuristic: priotrize [0 ~ priotiry_freq] for linear loss
     priority_freq_weight=0.0,  # (1-w)*linear_loss + w*priority_linear_loss
     # https://arxiv.org/pdf/1710.08969.pdf
@@ -170,6 +183,7 @@ hparams = tf.contrib.training.HParams(
     force_monotonic_attention=True,
     # Attention constraint for incremental decoding
     window_ahead=3,
+    # 0 tends to prevent word repretetion, but sometime causes skip words
     window_backward=1,
     power=1.4,  # Power to raise magnitudes to prior to phase retrieval
 )
