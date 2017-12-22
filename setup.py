@@ -59,6 +59,7 @@ setup(name='deepvoice3_pytorch',
           "librosa",
           "numba",
           "lws <= 1.0",
+          "nltk",
       ],
       extras_require={
           "train": [
@@ -66,7 +67,6 @@ setup(name='deepvoice3_pytorch',
               "tqdm",
               "tensorboardX",
               "nnmnkwii >= 0.0.11",
-              "nltk",
           ],
           "test": [
               "nose",
