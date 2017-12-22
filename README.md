@@ -7,7 +7,7 @@ PyTorch implementation of convolutional networks-based text-to-speech synthesis 
 1. [arXiv:1710.07654](https://arxiv.org/abs/1710.07654): Deep Voice 3: 2000-Speaker Neural Text-to-Speech.
 2. [arXiv:1710.08969](https://arxiv.org/abs/1710.08969): Efficiently Trainable Text-to-Speech System Based on Deep Convolutional Networks with Guided Attention.
 
-Current progress and planned TO-DOs can be found at [#1](https://github.com/r9y9/deepvoice3_pytorch/issues/1).
+Audio sampels are available at https://r9y9.github.io/deepvoice3_pytorch/.
 
 ## Highlights
 
@@ -17,20 +17,15 @@ Current progress and planned TO-DOs can be found at [#1](https://github.com/r9y9
 - Preprocessor for [LJSpeech (en)](https://keithito.com/LJ-Speech-Dataset/), [JSUT (jp)](https://sites.google.com/site/shinnosuketakamichi/publication/jsut) and [VCTK](http://homepages.inf.ed.ac.uk/jyamagis/page3/page58/page58.html) datasets
 - Language-dependent frontend text processor for English and Japanese
 
-## Audio samples
-
-- [DeepVoice3] Samples from the model trained on LJ Speech Dataset: https://www.dropbox.com/sh/uq4tsfptxt0y17l/AADBL4LsPJRP2PjAAJRSH5eta?dl=0
-- [Nyanko] Samples from the model trained on LJ Speech Dataset: https://www.dropbox.com/sh/q9xfgscgh3k5lqa/AACPgWCprBfNgjRravscdDYCa?dl=0
-
 ## Pretrained models
 
  | URL | Model      | Data     | Hyper paramters                                  | Git commit | Steps  |
  |-----|------------|----------|--------------------------------------------------|----------------------|--------|
- | [link](https://www.dropbox.com/s/4r207fq6s8gt2sl/20171213_deepvoice3_checkpoint_step00021000.pth?dl=0) | DeepVoice3 | LJSpeech | `builder=deepvoice3,preset=deepvoice3_ljspeech` | [4357976](https://github.com/r9y9/deepvoice3_pytorch/tree/43579764f35de6b8bac2b18b52a06e4e11b705b2)| 210000 |
- |  [link](https://www.dropbox.com/s/j8ywsvs3kny0s0x/20171129_nyanko_checkpoint_step000585000.pth?dl=0)   | Nyanko     | LJSpeech | `builder=nyanko,preset=nyanko_ljspeech`     | [ba59dc7](https://github.com/r9y9/deepvoice3_pytorch/tree/ba59dc75374ca3189281f6028201c15066830116) | 585000 |
-  |  [TODO](https://www.dropbox.com/s/j8ywsvs3kny0s0x/20171129_nyanko_checkpoint_step000585000.pth?dl=0)   | Multi-speaker DeepVoice3     | VCTK | `builder=deepvoice3_vctk,preset=deepvoice3_vctk`     | [TODO](https://github.com/r9y9/deepvoice3_pytorch/tree/ba59dc75374ca3189281f6028201c15066830116) | 300000 |
+ | [link](https://www.dropbox.com/s/cs6d070ommy2lmh/20171213_deepvoice3_checkpoint_step000210000.pth?dl=0) | DeepVoice3 | LJSpeech | `builder=deepvoice3,preset=deepvoice3_ljspeech` | [4357976](https://github.com/r9y9/deepvoice3_pytorch/tree/43579764f35de6b8bac2b18b52a06e4e11b705b2)| 21k ~ |
+ |  [link](https://www.dropbox.com/s/1y8bt6bnggbzzlp/20171129_nyanko_checkpoint_step000585000.pth?dl=0)   | Nyanko     | LJSpeech | `builder=nyanko,preset=nyanko_ljspeech`     | [ba59dc7](https://github.com/r9y9/deepvoice3_pytorch/tree/ba59dc75374ca3189281f6028201c15066830116) | 58.5k |
+  |  [link](https://www.dropbox.com/s/uzmtzgcedyu531k/20171222_deepvoice3_vctk108_checkpoint_step000300000.pth?dl=0)   | Multi-speaker DeepVoice3     | VCTK | `builder=deepvoice3_vctk,preset=deepvoice3_vctk`     | [0421749](https://github.com/r9y9/deepvoice3_pytorch/tree/0421749af908905d181f089f06956fddd0982d47) | 30k + 30k |
 
-See the `Synthesize from a checkpoint` section in the README for how to generate speech samples. Please make sure that you are on the specific git commit noted above.
+See "Synthesize from a checkpoint" section in the README for how to generate speech samples. Please make sure that you are on the specific git commit noted above.
 
 ## Notes on hyper parameters
 
@@ -163,7 +158,7 @@ A text-to-speech synthesis system typically consists of multiple stages, such as
 
 ### Multi-speaker model
 
-Currently VCTK is the only supported dataset for building a multi-speaker model. Since some audio samples in VCTK have long silences that affect performance, it's recommended to do phoneme alignment and remove silences according to [vctk_preprocess/README.md](vctk_preprocess/README.md).
+Currently VCTK is the only supported dataset for building a multi-speaker model. Since some audio samples in VCTK have long silences that affect performance, it's recommended to do phoneme alignment and remove silences according to [vctk_preprocess](vctk_preprocess/).
 
 Once you have phoneme alignment for each utterance, you can extract features by:
 
