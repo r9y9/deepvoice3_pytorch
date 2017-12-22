@@ -15,6 +15,7 @@ def test_en():
     assert t == "hello world.~"
 
 
+@attr("local_only")
 def test_ja():
     f = getattr(frontend, "jp")
     seq = f.text_to_sequence("こんにちわ")

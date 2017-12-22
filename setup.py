@@ -59,14 +59,14 @@ setup(name='deepvoice3_pytorch',
           "librosa",
           "numba",
           "lws <= 1.0",
+          "nltk",
       ],
       extras_require={
           "train": [
               "docopt",
               "tqdm",
               "tensorboardX",
-              "nnmnkwii >= 0.0.9",
-              "nltk",
+              "nnmnkwii >= 0.0.11",
           ],
           "test": [
               "nose",
