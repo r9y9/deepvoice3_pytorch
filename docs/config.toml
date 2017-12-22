@@ -1,0 +1,11 @@
+baseURL = "https://r9y9.github.io"
+languageCode = "ja-jp"
+title = "An open source implementation of DeepVoice 3: 2000-Speaker Neural Text-to-Speech"
+author = "Ryuichi YAMAMOTO"
+
+[params]
+  author    = "Ryuichi YAMAMOTO"
+  logo      = "/images/r9y9.jpg"
+  twitter   = "r9y9"
+  github    = "r9y9"
+  analytics = "UA-44433856-1"
