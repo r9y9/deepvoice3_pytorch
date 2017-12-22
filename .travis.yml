@@ -29,4 +29,4 @@ install:
   - pip install -e ".[test]"
 
 script:
-  - nosetests -v -w -a '!local_only' tests/
+  - nosetests -v -w tests/ -a '!local_only'
