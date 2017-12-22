@@ -1,4 +1,4 @@
-baseURL = "https://r9y9.github.io"
+baseURL = "https://r9y9.github.io/deepvoice3_pytorch/"
 languageCode = "ja-jp"
 title = "An open source implementation of DeepVoice 3: 2000-Speaker Neural Text-to-Speech"
 author = "Ryuichi YAMAMOTO"

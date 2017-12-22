@@ -27,11 +27,11 @@ Scientists at the CERN laboratory say they have discovered a new particle.
 (74 chars, 13 words)
 
 <audio controls="controls" >
-<source src="/audio/deepvoice3/3_keithito/0_checkpoint_step000210000.wav" autoplay/>
+<source src="/deepvoice3_pytorch/audio/deepvoice3/3_keithito/0_checkpoint_step000210000.wav" autoplay/>
 Your browser does not support the audio element.
 </audio>
 
-<div align="center"><img src="/audio/deepvoice3/3_keithito/0_checkpoint_step000210000_alignment.png" /></div>
+<div align="center"><img src="/deepvoice3_pytorch/audio/deepvoice3/3_keithito/0_checkpoint_step000210000_alignment.png" /></div>
 
 
 There's a way to measure the acute emotional intelligence that has never gone out of style.
@@ -39,11 +39,11 @@ There's a way to measure the acute emotional intelligence that has never gone ou
 (91 chars, 18 words)
 
 <audio controls="controls" >
-<source src="/audio/deepvoice3/3_keithito/1_checkpoint_step000210000.wav" autoplay/>
+<source src="/deepvoice3_pytorch/audio/deepvoice3/3_keithito/1_checkpoint_step000210000.wav" autoplay/>
 Your browser does not support the audio element.
 </audio>
 
-<div align="center"><img src="/audio/deepvoice3/3_keithito/1_checkpoint_step000210000_alignment.png" /></div>
+<div align="center"><img src="/deepvoice3_pytorch/audio/deepvoice3/3_keithito/1_checkpoint_step000210000_alignment.png" /></div>
 
 
 President Trump met with other leaders at the Group of 20 conference.
@@ -51,11 +51,11 @@ President Trump met with other leaders at the Group of 20 conference.
 (69 chars, 13 words)
 
 <audio controls="controls" >
-<source src="/audio/deepvoice3/3_keithito/2_checkpoint_step000210000.wav" autoplay/>
+<source src="/deepvoice3_pytorch/audio/deepvoice3/3_keithito/2_checkpoint_step000210000.wav" autoplay/>
 Your browser does not support the audio element.
 </audio>
 
-<div align="center"><img src="/audio/deepvoice3/3_keithito/2_checkpoint_step000210000_alignment.png" /></div>
+<div align="center"><img src="/deepvoice3_pytorch/audio/deepvoice3/3_keithito/2_checkpoint_step000210000_alignment.png" /></div>
 
 
 The Senate's bill to repeal and replace the Affordable Care Act is now imperiled.
@@ -63,11 +63,11 @@ The Senate's bill to repeal and replace the Affordable Care Act is now imperiled
 (81 chars, 16 words)
 
 <audio controls="controls" >
-<source src="/audio/deepvoice3/3_keithito/3_checkpoint_step000210000.wav" autoplay/>
+<source src="/deepvoice3_pytorch/audio/deepvoice3/3_keithito/3_checkpoint_step000210000.wav" autoplay/>
 Your browser does not support the audio element.
 </audio>
 
-<div align="center"><img src="/audio/deepvoice3/3_keithito/3_checkpoint_step000210000_alignment.png" /></div>
+<div align="center"><img src="/deepvoice3_pytorch/audio/deepvoice3/3_keithito/3_checkpoint_step000210000_alignment.png" /></div>
 
 
 Generative adversarial network or variational auto-encoder.
@@ -75,11 +75,11 @@ Generative adversarial network or variational auto-encoder.
 (59 chars, 7 words)
 
 <audio controls="controls" >
-<source src="/audio/deepvoice3/3_keithito/4_checkpoint_step000210000.wav" autoplay/>
+<source src="/deepvoice3_pytorch/audio/deepvoice3/3_keithito/4_checkpoint_step000210000.wav" autoplay/>
 Your browser does not support the audio element.
 </audio>
 
-<div align="center"><img src="/audio/deepvoice3/3_keithito/4_checkpoint_step000210000_alignment.png" /></div>
+<div align="center"><img src="/deepvoice3_pytorch/audio/deepvoice3/3_keithito/4_checkpoint_step000210000_alignment.png" /></div>
 
 
 The buses aren't the problem, they actually provide a solution.
@@ -87,11 +87,11 @@ The buses aren't the problem, they actually provide a solution.
 (63 chars, 13 words)
 
 <audio controls="controls" >
-<source src="/audio/deepvoice3/3_keithito/5_checkpoint_step000210000.wav" autoplay/>
+<source src="/deepvoice3_pytorch/audio/deepvoice3/3_keithito/5_checkpoint_step000210000.wav" autoplay/>
 Your browser does not support the audio element.
 </audio>
 
-<div align="center"><img src="/audio/deepvoice3/3_keithito/5_checkpoint_step000210000_alignment.png" /></div>
+<div align="center"><img src="/deepvoice3_pytorch/audio/deepvoice3/3_keithito/5_checkpoint_step000210000_alignment.png" /></div>
 
 ## Multi-speaker
 
@@ -108,70 +108,70 @@ Some have accepted this as a miracle without any physical explanation
 **225, 23,  F,    English,    Southern,  England** (ID, AGE,  GENDER,  ACCENTS,  REGION)
 
 <audio controls="controls" >
-<source src="/audio/deepvoice3_multispeaker/loop/0_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker0.wav" autoplay/>
+<source src="/deepvoice3_pytorch/audio/deepvoice3_multispeaker/loop/0_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker0.wav" autoplay/>
 Your browser does not support the audio element.
 </audio>
 
 **226,  22,  M,    English,    Surrey**
 
 <audio controls="controls" >
-<source src="/audio/deepvoice3_multispeaker/loop/0_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker1.wav" autoplay/>
+<source src="/deepvoice3_pytorch/audio/deepvoice3_multispeaker/loop/0_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker1.wav" autoplay/>
 Your browser does not support the audio element.
 </audio>
 
 **227,  38,  M,    English,    Cumbria**
 
 <audio controls="controls" >
-<source src="/audio/deepvoice3_multispeaker/loop/0_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker2.wav" autoplay/>
+<source src="/deepvoice3_pytorch/audio/deepvoice3_multispeaker/loop/0_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker2.wav" autoplay/>
 Your browser does not support the audio element.
 </audio>
 
 **228,  22,  F,    English,    Southern  England**
 
 <audio controls="controls" >
-<source src="/audio/deepvoice3_multispeaker/loop/0_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker3.wav" autoplay/>
+<source src="/deepvoice3_pytorch/audio/deepvoice3_multispeaker/loop/0_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker3.wav" autoplay/>
 Your browser does not support the audio element.
 </audio>
 
 **229,  23,  F,    English,    Southern  England**
 
 <audio controls="controls" >
-<source src="/audio/deepvoice3_multispeaker/loop/0_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker4.wav" autoplay/>
+<source src="/deepvoice3_pytorch/audio/deepvoice3_multispeaker/loop/0_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker4.wav" autoplay/>
 Your browser does not support the audio element.
 </audio>
 
 **230,  22,  F,    English,    Stockton-on-tees**
 
 <audio controls="controls" >
-<source src="/audio/deepvoice3_multispeaker/loop/0_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker5.wav" autoplay/>
+<source src="/deepvoice3_pytorch/audio/deepvoice3_multispeaker/loop/0_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker5.wav" autoplay/>
 Your browser does not support the audio element.
 </audio>
 
 **231,  23,  F,    English,    Southern  England**
 
 <audio controls="controls" >
-<source src="/audio/deepvoice3_multispeaker/loop/0_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker6.wav" autoplay/>
+<source src="/deepvoice3_pytorch/audio/deepvoice3_multispeaker/loop/0_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker6.wav" autoplay/>
 Your browser does not support the audio element.
 </audio>
 
 **232,  23,  M,    English,    Southern  England**
 
 <audio controls="controls" >
-<source src="/audio/deepvoice3_multispeaker/loop/0_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker7.wav" autoplay/>
+<source src="/deepvoice3_pytorch/audio/deepvoice3_multispeaker/loop/0_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker7.wav" autoplay/>
 Your browser does not support the audio element.
 </audio>
 
 **233,  23,  F,    English,    Staffordshire**
 
 <audio controls="controls" >
-<source src="/audio/deepvoice3_multispeaker/loop/0_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker8.wav" autoplay/>
+<source src="/deepvoice3_pytorch/audio/deepvoice3_multispeaker/loop/0_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker8.wav" autoplay/>
 Your browser does not support the audio element.
 </audio>
 
 **234,  22,  F,    Scottish,  West  Dumfries**
 
 <audio controls="controls" >
-<source src="/audio/deepvoice3_multispeaker/loop/0_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker9.wav" autoplay/>
+<source src="/deepvoice3_pytorch/audio/deepvoice3_multispeaker/loop/0_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker9.wav" autoplay/>
 Your browser does not support the audio element.
 </audio>
 
@@ -180,14 +180,14 @@ Your browser does not support the audio element.
 **236,  23,  F,    English,    Manchester**
 
 <audio controls="controls" >
-<source src="/audio/deepvoice3_multispeaker/loop/0_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker10.wav" autoplay/>
+<source src="/deepvoice3_pytorch/audio/deepvoice3_multispeaker/loop/0_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker10.wav" autoplay/>
 Your browser does not support the audio element.
 </audio>
 
 **237,  22,  M,    Scottish,  Fife**
 
 <audio controls="controls" >
-<source src="/audio/deepvoice3_multispeaker/loop/0_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker11.wav" autoplay/>
+<source src="/deepvoice3_pytorch/audio/deepvoice3_multispeaker/loop/0_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker11.wav" autoplay/>
 Your browser does not support the audio element.
 </audio>
 
@@ -201,19 +201,19 @@ Scientists at the CERN laboratory say they have discovered a new particle.
 (74 chars, 13 words)
 
 <audio controls="controls" >
-<source src="/audio/deepvoice3_multispeaker/3_keithito/0_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker62.wav" autoplay/>
+<source src="/deepvoice3_pytorch/audio/deepvoice3_multispeaker/3_keithito/0_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker62.wav" autoplay/>
 Your browser does not support the audio element.
 </audio>
 
-<div align="center"><img src="/audio/deepvoice3_multispeaker/3_keithito/0_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker62_alignment.png" /></div>
+<div align="center"><img src="/deepvoice3_pytorch/audio/deepvoice3_multispeaker/3_keithito/0_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker62_alignment.png" /></div>
 
 
 <audio controls="controls" >
-<source src="/audio/deepvoice3_multispeaker/3_keithito/0_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker61.wav" autoplay/>
+<source src="/deepvoice3_pytorch/audio/deepvoice3_multispeaker/3_keithito/0_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker61.wav" autoplay/>
 Your browser does not support the audio element.
 </audio>
 
-<div align="center"><img src="/audio/deepvoice3_multispeaker/3_keithito/0_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker61_alignment.png" /></div>
+<div align="center"><img src="/deepvoice3_pytorch/audio/deepvoice3_multispeaker/3_keithito/0_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker61_alignment.png" /></div>
 
 
 There's a way to measure the acute emotional intelligence that has never gone out of style.
@@ -221,18 +221,18 @@ There's a way to measure the acute emotional intelligence that has never gone ou
 (91 chars, 18 words)
 
 <audio controls="controls" >
-<source src="/audio/deepvoice3_multispeaker/3_keithito/1_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker62.wav" autoplay/>
+<source src="/deepvoice3_pytorch/audio/deepvoice3_multispeaker/3_keithito/1_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker62.wav" autoplay/>
 Your browser does not support the audio element.
 </audio>
 
-<div align="center"><img src="/audio/deepvoice3_multispeaker/3_keithito/1_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker62_alignment.png" /></div>
+<div align="center"><img src="/deepvoice3_pytorch/audio/deepvoice3_multispeaker/3_keithito/1_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker62_alignment.png" /></div>
 
 <audio controls="controls" >
-<source src="/audio/deepvoice3_multispeaker/3_keithito/1_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker61.wav" autoplay/>
+<source src="/deepvoice3_pytorch/audio/deepvoice3_multispeaker/3_keithito/1_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker61.wav" autoplay/>
 Your browser does not support the audio element.
 </audio>
 
-<div align="center"><img src="/audio/deepvoice3_multispeaker/3_keithito/1_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker61_alignment.png" /></div>
+<div align="center"><img src="/deepvoice3_pytorch/audio/deepvoice3_multispeaker/3_keithito/1_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker61_alignment.png" /></div>
 
 
 President Trump met with other leaders at the Group of 20 conference.
@@ -240,18 +240,18 @@ President Trump met with other leaders at the Group of 20 conference.
 (69 chars, 13 words)
 
 <audio controls="controls" >
-<source src="/audio/deepvoice3_multispeaker/3_keithito/2_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker62.wav" autoplay/>
+<source src="/deepvoice3_pytorch/audio/deepvoice3_multispeaker/3_keithito/2_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker62.wav" autoplay/>
 Your browser does not support the audio element.
 </audio>
 
-<div align="center"><img src="/audio/deepvoice3_multispeaker/3_keithito/2_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker62_alignment.png" /></div>
+<div align="center"><img src="/deepvoice3_pytorch/audio/deepvoice3_multispeaker/3_keithito/2_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker62_alignment.png" /></div>
 
 <audio controls="controls" >
-<source src="/audio/deepvoice3_multispeaker/3_keithito/2_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker61.wav" autoplay/>
+<source src="/deepvoice3_pytorch/audio/deepvoice3_multispeaker/3_keithito/2_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker61.wav" autoplay/>
 Your browser does not support the audio element.
 </audio>
 
-<div align="center"><img src="/audio/deepvoice3_multispeaker/3_keithito/2_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker61_alignment.png" /></div>
+<div align="center"><img src="/deepvoice3_pytorch/audio/deepvoice3_multispeaker/3_keithito/2_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker61_alignment.png" /></div>
 
 
 The Senate's bill to repeal and replace the Affordable Care Act is now imperiled.
@@ -259,18 +259,18 @@ The Senate's bill to repeal and replace the Affordable Care Act is now imperiled
 (81 chars, 16 words)
 
 <audio controls="controls" >
-<source src="/audio/deepvoice3_multispeaker/3_keithito/3_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker62.wav" autoplay/>
+<source src="/deepvoice3_pytorch/audio/deepvoice3_multispeaker/3_keithito/3_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker62.wav" autoplay/>
 Your browser does not support the audio element.
 </audio>
 
-<div align="center"><img src="/audio/deepvoice3_multispeaker/3_keithito/3_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker62_alignment.png" /></div>
+<div align="center"><img src="/deepvoice3_pytorch/audio/deepvoice3_multispeaker/3_keithito/3_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker62_alignment.png" /></div>
 
 <audio controls="controls" >
-<source src="/audio/deepvoice3_multispeaker/3_keithito/3_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker61.wav" autoplay/>
+<source src="/deepvoice3_pytorch/audio/deepvoice3_multispeaker/3_keithito/3_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker61.wav" autoplay/>
 Your browser does not support the audio element.
 </audio>
 
-<div align="center"><img src="/audio/deepvoice3_multispeaker/3_keithito/3_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker61_alignment.png" /></div>
+<div align="center"><img src="/deepvoice3_pytorch/audio/deepvoice3_multispeaker/3_keithito/3_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker61_alignment.png" /></div>
 
 
 Generative adversarial network or variational auto-encoder.
@@ -278,18 +278,18 @@ Generative adversarial network or variational auto-encoder.
 (59 chars, 7 words)
 
 <audio controls="controls" >
-<source src="/audio/deepvoice3_multispeaker/3_keithito/4_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker62.wav" autoplay/>
+<source src="/deepvoice3_pytorch/audio/deepvoice3_multispeaker/3_keithito/4_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker62.wav" autoplay/>
 Your browser does not support the audio element.
 </audio>
 
-<div align="center"><img src="/audio/deepvoice3_multispeaker/3_keithito/4_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker62_alignment.png" /></div>
+<div align="center"><img src="/deepvoice3_pytorch/audio/deepvoice3_multispeaker/3_keithito/4_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker62_alignment.png" /></div>
 
 <audio controls="controls" >
-<source src="/audio/deepvoice3_multispeaker/3_keithito/4_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker61.wav" autoplay/>
+<source src="/deepvoice3_pytorch/audio/deepvoice3_multispeaker/3_keithito/4_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker61.wav" autoplay/>
 Your browser does not support the audio element.
 </audio>
 
-<div align="center"><img src="/audio/deepvoice3_multispeaker/3_keithito/4_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker61_alignment.png" /></div>
+<div align="center"><img src="/deepvoice3_pytorch/audio/deepvoice3_multispeaker/3_keithito/4_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker61_alignment.png" /></div>
 
 
 The buses aren't the problem, they actually provide a solution.
@@ -297,18 +297,18 @@ The buses aren't the problem, they actually provide a solution.
 (63 chars, 13 words)
 
 <audio controls="controls" >
-<source src="/audio/deepvoice3_multispeaker/3_keithito/5_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker62.wav" autoplay/>
+<source src="/deepvoice3_pytorch/audio/deepvoice3_multispeaker/3_keithito/5_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker62.wav" autoplay/>
 Your browser does not support the audio element.
 </audio>
 
-<div align="center"><img src="/audio/deepvoice3_multispeaker/3_keithito/5_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker62_alignment.png" /></div>
+<div align="center"><img src="/deepvoice3_pytorch/audio/deepvoice3_multispeaker/3_keithito/5_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker62_alignment.png" /></div>
 
 <audio controls="controls" >
-<source src="/audio/deepvoice3_multispeaker/3_keithito/5_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker61.wav" autoplay/>
+<source src="/deepvoice3_pytorch/audio/deepvoice3_multispeaker/3_keithito/5_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker61.wav" autoplay/>
 Your browser does not support the audio element.
 </audio>
 
-<div align="center"><img src="/audio/deepvoice3_multispeaker/3_keithito/5_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker61_alignment.png" /></div>
+<div align="center"><img src="/deepvoice3_pytorch/audio/deepvoice3_multispeaker/3_keithito/5_20171222_deepvoice3_vctk108_checkpoint_step000300000_speaker61_alignment.png" /></div>
 
 ## Single speaker ([arXiv:1710.08969 [cs.SD]](https://arxiv.org/abs/1710.08969))
 
@@ -324,11 +324,11 @@ Scientists at the CERN laboratory say they have discovered a new particle.
 (74 chars, 13 words)
 
 <audio controls="controls" >
-<source src="/audio/nyanko/3_keithito/0_20171129_nyanko_checkpoint_step000585000.wav" autoplay/>
+<source src="/deepvoice3_pytorch/audio/nyanko/3_keithito/0_20171129_nyanko_checkpoint_step000585000.wav" autoplay/>
 Your browser does not support the audio element.
 </audio>
 
-<div align="center"><img src="/audio/nyanko/3_keithito/0_20171129_nyanko_checkpoint_step000585000_alignment.png" /></div>
+<div align="center"><img src="/deepvoice3_pytorch/audio/nyanko/3_keithito/0_20171129_nyanko_checkpoint_step000585000_alignment.png" /></div>
 
 
 There's a way to measure the acute emotional intelligence that has never gone out of style.
@@ -336,11 +336,11 @@ There's a way to measure the acute emotional intelligence that has never gone ou
 (91 chars, 18 words)
 
 <audio controls="controls" >
-<source src="/audio/nyanko/3_keithito/1_20171129_nyanko_checkpoint_step000585000.wav" autoplay/>
+<source src="/deepvoice3_pytorch/audio/nyanko/3_keithito/1_20171129_nyanko_checkpoint_step000585000.wav" autoplay/>
 Your browser does not support the audio element.
 </audio>
 
-<div align="center"><img src="/audio/nyanko/3_keithito/1_20171129_nyanko_checkpoint_step000585000_alignment.png" /></div>
+<div align="center"><img src="/deepvoice3_pytorch/audio/nyanko/3_keithito/1_20171129_nyanko_checkpoint_step000585000_alignment.png" /></div>
 
 
 President Trump met with other leaders at the Group of 20 conference.
@@ -348,11 +348,11 @@ President Trump met with other leaders at the Group of 20 conference.
 (69 chars, 13 words)
 
 <audio controls="controls" >
-<source src="/audio/nyanko/3_keithito/2_20171129_nyanko_checkpoint_step000585000.wav" autoplay/>
+<source src="/deepvoice3_pytorch/audio/nyanko/3_keithito/2_20171129_nyanko_checkpoint_step000585000.wav" autoplay/>
 Your browser does not support the audio element.
 </audio>
 
-<div align="center"><img src="/audio/nyanko/3_keithito/2_20171129_nyanko_checkpoint_step000585000_alignment.png" /></div>
+<div align="center"><img src="/deepvoice3_pytorch/audio/nyanko/3_keithito/2_20171129_nyanko_checkpoint_step000585000_alignment.png" /></div>
 
 
 The Senate's bill to repeal and replace the Affordable Care Act is now imperiled.
@@ -360,11 +360,11 @@ The Senate's bill to repeal and replace the Affordable Care Act is now imperiled
 (81 chars, 16 words)
 
 <audio controls="controls" >
-<source src="/audio/nyanko/3_keithito/3_20171129_nyanko_checkpoint_step000585000.wav" autoplay/>
+<source src="/deepvoice3_pytorch/audio/nyanko/3_keithito/3_20171129_nyanko_checkpoint_step000585000.wav" autoplay/>
 Your browser does not support the audio element.
 </audio>
 
-<div align="center"><img src="/audio/nyanko/3_keithito/3_20171129_nyanko_checkpoint_step000585000_alignment.png" /></div>
+<div align="center"><img src="/deepvoice3_pytorch/audio/nyanko/3_keithito/3_20171129_nyanko_checkpoint_step000585000_alignment.png" /></div>
 
 
 Generative adversarial network or variational auto-encoder.
@@ -372,11 +372,11 @@ Generative adversarial network or variational auto-encoder.
 (59 chars, 7 words)
 
 <audio controls="controls" >
-<source src="/audio/nyanko/3_keithito/4_20171129_nyanko_checkpoint_step000585000.wav" autoplay/>
+<source src="/deepvoice3_pytorch/audio/nyanko/3_keithito/4_20171129_nyanko_checkpoint_step000585000.wav" autoplay/>
 Your browser does not support the audio element.
 </audio>
 
-<div align="center"><img src="/audio/nyanko/3_keithito/4_20171129_nyanko_checkpoint_step000585000_alignment.png" /></div>
+<div align="center"><img src="/deepvoice3_pytorch/audio/nyanko/3_keithito/4_20171129_nyanko_checkpoint_step000585000_alignment.png" /></div>
 
 
 The buses aren't the problem, they actually provide a solution.
@@ -384,11 +384,11 @@ The buses aren't the problem, they actually provide a solution.
 (63 chars, 13 words)
 
 <audio controls="controls" >
-<source src="/audio/nyanko/3_keithito/5_20171129_nyanko_checkpoint_step000585000.wav" autoplay/>
+<source src="/deepvoice3_pytorch/audio/nyanko/3_keithito/5_20171129_nyanko_checkpoint_step000585000.wav" autoplay/>
 Your browser does not support the audio element.
 </audio>
 
-<div align="center"><img src="/audio/nyanko/3_keithito/5_20171129_nyanko_checkpoint_step000585000_alignment.png" /></div>
+<div align="center"><img src="/deepvoice3_pytorch/audio/nyanko/3_keithito/5_20171129_nyanko_checkpoint_step000585000_alignment.png" /></div>
 
 ## References
 
