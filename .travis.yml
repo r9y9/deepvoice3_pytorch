@@ -27,6 +27,7 @@ before_install:
 
 install:
   - pip install -e ".[test]"
+  - python -c "import nltk; nltk.download('cmudict')"
 
 script:
   - nosetests -v -w tests/ -a '!local_only'
