@@ -40,7 +40,7 @@ if __name__ == "__main__":
     in_dir = args["<in_dir>"]
     out_dir = args["<out_dir>"]
     num_workers = args["--num_workers"]
-    num_workers = cpu_count() if num_workers is None else num_workers
+    num_workers = cpu_count() if num_workers is None else int(num_workers)
 
     assert name in ["jsut", "ljspeech", "vctk"]
     mod = importlib.import_module(name)
