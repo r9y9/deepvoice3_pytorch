@@ -10,8 +10,8 @@ version = '0.0.1'
 
 # Adapted from https://github.com/pytorch/pytorch
 cwd = os.path.dirname(os.path.abspath(__file__))
-if os.getenv('TACOTRON_BUILD_VERSION'):
-    version = os.getenv('TACOTRON_BUILD_VERSION')
+if os.getenv('DEEPVOICE3_PYTORCH_BUILD_VERSION'):
+    version = os.getenv('DEEPVOICE3_PYTORCH_BUILD_VERSION')
 else:
     try:
         sha = subprocess.check_output(
