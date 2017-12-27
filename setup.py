@@ -5,8 +5,9 @@ import setuptools.command.develop
 import setuptools.command.build_py
 import os
 import subprocess
+from os.path import exists
 
-version = '0.0.1'
+version = '0.0.2'
 
 # Adapted from https://github.com/pytorch/pytorch
 cwd = os.path.dirname(os.path.abspath(__file__))
@@ -43,9 +44,31 @@ class develop(setuptools.command.develop.develop):
         setuptools.command.develop.develop.run(self)
 
 
+def create_readme_rst():
+    global cwd
+    try:
+        subprocess.check_call(
+            ["pandoc", "--from=markdown", "--to=rst", "--output=README.rst",
+             "README.md"], cwd=cwd)
+        print("Generated README.rst from README.md using pandoc.")
+    except subprocess.CalledProcessError:
+        pass
+    except OSError:
+        pass
+
+
+if not exists('README.rst'):
+    create_readme_rst()
+
+if exists('README.rst'):
+    README = open('README.rst', 'rb').read().decode("utf-8")
+else:
+    README = ''
+
 setup(name='deepvoice3_pytorch',
       version=version,
-      description='PyTorch implementation of Tacotron speech synthesis model.',
+      description='PyTorch implementation of convolutional networks-based text-to-speech synthesis models.',
+      long_description=README,
       packages=find_packages(),
       cmdclass={
           'build_py': build_py,
