@@ -156,6 +156,12 @@ Once upon a time there was a dear little girl who was loved by every one who loo
 A text-to-speech synthesis system typically consists of multiple stages, such as a text analysis frontend, an acoustic model and an audio synthesis module.
 ```
 
+Note that you have to use the same hyper parameters used for training. For example, if you are using hyper parameters `preset=deepvoice3_ljspeech,builder=deepvoice3"` for training, then synthesis command should be:
+
+```
+python synthesis.py --hparams="builder=deepvoice3,preset=deepvoice3_ljspeech"　${checkpoint_path} ${text_list.txt} ${output_dir}
+```
+
 ## Advanced usage
 
 ### Multi-speaker model
