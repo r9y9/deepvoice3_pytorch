@@ -53,6 +53,7 @@ python train.py --data-root=./data/ljspeech --checkpoint-dir=checkpoints_nyanko 
 ## Requirements
 
 - Python 3
+- CUDA >= 8.0
 - PyTorch >= v0.3
 - TensorFlow >= v1.3
 - [tensorboard-pytorch](https://github.com/lanpa/tensorboard-pytorch) (master)
