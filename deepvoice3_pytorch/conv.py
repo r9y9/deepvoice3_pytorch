@@ -7,8 +7,6 @@ from torch.nn import functional as F
 
 class Conv1d(nn.Conv1d):
     """Extended nn.Conv1d for incremental dilated convolutions
-
-    currently limited for odd number kernel sizes
     """
 
     def __init__(self, *args, **kwargs):
@@ -33,7 +31,6 @@ class Conv1d(nn.Conv1d):
 
         bsz = input.size(0)  # input: bsz x len x dim
         if kw > 1:
-            assert kw % 2 == 1
             input = input.data
             if self.input_buffer is None:
                 self.input_buffer = input.new(bsz, kw + (kw - 1) * (dilation - 1), input.size(2))
