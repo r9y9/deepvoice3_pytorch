@@ -53,6 +53,7 @@ python train.py --data-root=./data/ljspeech --checkpoint-dir=checkpoints_nyanko 
 ## Requirements
 
 - Python 3
+- CUDA >= 8.0
 - PyTorch >= v0.3
 - TensorFlow >= v1.3
 - [tensorboard-pytorch](https://github.com/lanpa/tensorboard-pytorch) (master)
@@ -153,6 +154,12 @@ Example test_list.txt:
 Generative adversarial network or variational auto-encoder.
 Once upon a time there was a dear little girl who was loved by every one who looked at her, but most of all by her grandmother, and there was nothing that she would not have given to the child.
 A text-to-speech synthesis system typically consists of multiple stages, such as a text analysis frontend, an acoustic model and an audio synthesis module.
+```
+
+Note that you have to use the same hyper parameters used for training. For example, if you are using hyper parameters `preset=deepvoice3_ljspeech,builder=deepvoice3"` for training, then synthesis command should be:
+
+```
+python synthesis.py --hparams="builder=deepvoice3,preset=deepvoice3_ljspeech"　${checkpoint_path} ${text_list.txt} ${output_dir}
 ```
 
 ## Advanced usage
