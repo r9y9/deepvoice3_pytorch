@@ -18,7 +18,7 @@
       
       <guid>https://r9y9.github.io/deepvoice3_pytorch/index/</guid>
       <description>Github: https://github.com/r9y9/deepvoice3_pytorch  This page provides audio samples for the open source implementation of DeepVoice3. Samples from single speaker and multi-speaker models follow.
-Single speaker  Samples from a model trained for 21k steps (~12 hours)1 on the LJSpeech dataset. Pretrained model: link Git commit: 4357976  Scientists at the CERN laboratory say they have discovered a new particle.
+Single speaker  Samples from a model trained for 210k steps (~12 hours)1 on the LJSpeech dataset. Pretrained model: link Git commit: 4357976  Scientists at the CERN laboratory say they have discovered a new particle.
 (74 chars, 13 words)
 Your browser does not support the audio element.</description>
     </item>
