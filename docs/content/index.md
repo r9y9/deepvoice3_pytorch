@@ -16,7 +16,7 @@ This page provides audio samples for the open source implementation of DeepVoice
 
 ## Single speaker
 
-- Samples from a model trained for 21k steps (~12 hours)[^1] on the [LJSpeech dataset](https://keithito.com/LJ-Speech-Dataset/).
+- Samples from a model trained for 210k steps (~12 hours)[^1] on the [LJSpeech dataset](https://keithito.com/LJ-Speech-Dataset/).
 - Pretrained model: [link](https://www.dropbox.com/s/cs6d070ommy2lmh/20171213_deepvoice3_checkpoint_step000210000.pth?dl=0)
 - Git commit: [4357976](https://github.com/r9y9/deepvoice3_pytorch/tree/43579764f35de6b8bac2b18b52a06e4e11b705b2)
 
@@ -95,7 +95,7 @@ Your browser does not support the audio element.
 
 ## Multi-speaker
 
-- Samples from a model trained for 60k steps (~22 hours) on the [VCTK dataset](http://homepages.inf.ed.ac.uk/jyamagis/page3/page58/page58.html) (108 speakers)
+- Samples from a model trained for 600k steps (~22 hours) on the [VCTK dataset](http://homepages.inf.ed.ac.uk/jyamagis/page3/page58/page58.html) (108 speakers)
 - Pretrained model: [link](https://www.dropbox.com/s/uzmtzgcedyu531k/20171222_deepvoice3_vctk108_checkpoint_step000300000.pth?dl=0)
 - Git commit: [0421749](https://github.com/r9y9/deepvoice3_pytorch/tree/0421749af908905d181f089f06956fddd0982d47)
 
@@ -314,7 +314,7 @@ Your browser does not support the audio element.
 
 This is not the result of DeepVoice3, but there's a very similar approach I also implemented.
 
-- Samples from a model trained for 58.5k steps on the [LJSpeech dataset](https://keithito.com/LJ-Speech-Dataset/).
+- Samples from a model trained for 585k steps on the [LJSpeech dataset](https://keithito.com/LJ-Speech-Dataset/).
 - Pretrained model: [link](https://www.dropbox.com/s/1y8bt6bnggbzzlp/20171129_nyanko_checkpoint_step000585000.pth?dl=0)
 - Git commit: [ba59dc7](https://github.com/r9y9/deepvoice3_pytorch/tree/ba59dc75374ca3189281f6028201c15066830116)
 
