@@ -37,7 +37,7 @@ def preprocess(model, in_dir, out_dir, text, audio_filename, mel_filename,
     """Generate ground truth-aligned prediction
 
     The output of the network and corresponding audio are saved after time
-    resolution adjastment if overwrite flag is specified.
+    resolution adjustment.
     """
     r = hparams.outputs_per_step
     downsample_step = hparams.downsample_step
@@ -79,7 +79,7 @@ def preprocess(model, in_dir, out_dir, text, audio_filename, mel_filename,
 
     mel_output = mel_outputs[0].data.cpu().numpy()
 
-    # **Time resolution adjastment**
+    # **Time resolution adjustment**
     # remove begenning audio used for first mel prediction
     wav = np.load(join(in_dir, audio_filename))[hparams.hop_size * downsample_step:]
     assert len(wav) % hparams.hop_size == 0
