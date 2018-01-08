@@ -3,6 +3,9 @@ notebooks
 foobar*
 run.sh
 README.rst
+legacy
+notebooks
+run.sh
 pretrained_models
 deepvoice3_pytorch/version.py
 checkpoints*
