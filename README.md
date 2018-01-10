@@ -66,6 +66,7 @@ Please install packages listed above first, and then
 
 ```
 git clone https://github.com/r9y9/deepvoice3_pytorch
+cd deepvoice3_pytorch
 pip install -e ".[train]"
 ```
 
@@ -132,7 +133,7 @@ python train.py --data-root=./data/jsut --hparams="frontend=jp" --hparams="build
 Note that there are many hyper parameters and design choices. Some are configurable by `hparams.py` and some are hardcoded in the source (e.g., dilation factor for each convolution layer). If you find better hyper parameters, please let me know!
 
 
-### 4. Moniter with Tensorboard
+### 4. Monitor with Tensorboard
 
 Logs are dumped in `./log` directory by default. You can monitor logs by tensorboard:
 
