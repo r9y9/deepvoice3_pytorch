@@ -197,7 +197,7 @@ python preprocess.py nikl_s ${your_nikl_root_path} data/nikl_s --preset=presets/
 python train.py --data-root=./data/nikl_s --checkpoint-dir checkpoint_nikl_s --preset=presets/deepvoice3_nikls.json
 ```
 
-### 4. Monitor with Tensorboard
+### 3. Monitor with Tensorboard
 
 Logs are dumped in `./log` directory by default. You can monitor logs by tensorboard:
 
@@ -205,7 +205,7 @@ Logs are dumped in `./log` directory by default. You can monitor logs by tensorb
 tensorboard --logdir=log
 ```
 
-### 5. Synthesize from a checkpoint
+### 4. Synthesize from a checkpoint
 
 Given a list of text, `synthesis.py` synthesize audio signals from trained model. Usage is:
 
