@@ -116,6 +116,10 @@ hparams = tf.contrib.training.HParams(
     preemphasis=0.97,
     min_level_db=-100,
     ref_level_db=20,
+    # mel-spectrogram is normalized to [0, 1] for each utterance and clipping may
+    # happen depends on min_level_db and ref_level_db, causing clipping noise.
+    # If False, assertion is added to ensure no clipping happens.
+    allow_clipping_in_normalization=False,
 
     # Model:
     downsample_step=4,  # must be 4 when builder="nyanko"

@@ -45,7 +45,9 @@ def inv_spectrogram(spectrogram):
 
 def melspectrogram(y):
     D = _lws_processor().stft(preemphasis(y)).T
-    S = _amp_to_db(_linear_to_mel(np.abs(D)))
+    S = _amp_to_db(_linear_to_mel(np.abs(D))) - hparams.ref_level_db
+    if not hparams.allow_clipping_in_normalization:
+        assert S.max() <= 0 and S.min() - hparams.min_level_db >= 0
     return _normalize(S)
 
 
