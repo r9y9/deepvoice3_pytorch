@@ -1,3 +1,7 @@
+legacy
+notebooks
+foobar*
+run.sh
 README.rst
 pretrained_models
 deepvoice3_pytorch/version.py
