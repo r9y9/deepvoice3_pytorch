@@ -596,6 +596,14 @@ def train(model, data_loader, optimizer, writer,
             input_lengths = input_lengths.long().numpy()
             decoder_lengths = target_lengths.long().numpy() // r // downsample_step
 
+            max_seq_len = max(input_lengths.max(), decoder_lengths.max())
+            if max_seq_len >= hparams.max_positions:
+                raise RuntimeError(
+                    """max_seq_len ({}) >= max_posision ({})
+Input text or decoder targget length exceeded the maximum length.
+Please set a larger value for ``max_position`` in hyper parameters.""".format(
+                        max_seq_len, hparams.max_positions))
+
             # Feed data
             x, mel, y = Variable(x), Variable(mel), Variable(y)
             text_positions = Variable(text_positions)
