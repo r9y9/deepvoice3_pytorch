@@ -110,6 +110,8 @@ hparams = tf.contrib.training.HParams(
 
     # Audio:
     num_mels=80,
+    fmin=125,
+    fmax=7600,
     fft_size=1024,
     hop_size=256,
     sample_rate=22050,
