@@ -8,7 +8,7 @@ PyTorch implementation of convolutional networks-based text-to-speech synthesis 
 1. [arXiv:1710.07654](https://arxiv.org/abs/1710.07654): Deep Voice 3: 2000-Speaker Neural Text-to-Speech.
 2. [arXiv:1710.08969](https://arxiv.org/abs/1710.08969): Efficiently Trainable Text-to-Speech System Based on Deep Convolutional Networks with Guided Attention.
 
-Audio sampels are available at https://r9y9.github.io/deepvoice3_pytorch/.
+Audio samples are available at https://r9y9.github.io/deepvoice3_pytorch/.
 
 ## Highlights
 
@@ -24,7 +24,7 @@ Audio sampels are available at https://r9y9.github.io/deepvoice3_pytorch/.
  |-----|------------|----------|--------------------------------------------------|----------------------|--------|
  | [link](https://www.dropbox.com/s/cs6d070ommy2lmh/20171213_deepvoice3_checkpoint_step000210000.pth?dl=0) | DeepVoice3 | LJSpeech | `builder=deepvoice3,preset=deepvoice3_ljspeech` | [4357976](https://github.com/r9y9/deepvoice3_pytorch/tree/43579764f35de6b8bac2b18b52a06e4e11b705b2)| 210k ~ |
  |  [link](https://www.dropbox.com/s/1y8bt6bnggbzzlp/20171129_nyanko_checkpoint_step000585000.pth?dl=0)   | Nyanko     | LJSpeech | `builder=nyanko,preset=nyanko_ljspeech`     | [ba59dc7](https://github.com/r9y9/deepvoice3_pytorch/tree/ba59dc75374ca3189281f6028201c15066830116) | 585k |
-  |  [link](https://www.dropbox.com/s/uzmtzgcedyu531k/20171222_deepvoice3_vctk108_checkpoint_step000300000.pth?dl=0)   | Multi-speaker DeepVoice3     | VCTK | `builder=deepvoice3_vctk,preset=deepvoice3_vctk`     | [0421749](https://github.com/r9y9/deepvoice3_pytorch/tree/0421749af908905d181f089f06956fddd0982d47) | 300k + 300k |
+  |  [link](https://www.dropbox.com/s/uzmtzgcedyu531k/20171222_deepvoice3_vctk108_checkpoint_step000300000.pth?dl=0)   | Multi-speaker DeepVoice3     | VCTK | `builder=deepvoice3_multispeaker,preset=deepvoice3_vctk`     | [0421749](https://github.com/r9y9/deepvoice3_pytorch/tree/0421749af908905d181f089f06956fddd0982d47) | 300k + 300k |
 
 See "Synthesize from a checkpoint" section in the README for how to generate speech samples. Please make sure that you are on the specific git commit noted above.
 
