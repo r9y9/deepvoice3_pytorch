@@ -16,7 +16,7 @@ from nose.plugins.attrib import attr
 from deepvoice3_pytorch.builder import nyanko
 from deepvoice3_pytorch import MultiSpeakerTTSModel, AttentionSeq2Seq
 
-use_cuda = torch.cuda.is_available()
+use_cuda = torch.cuda.is_available() and False
 num_mels = 80
 num_freq = 513
 outputs_per_step = 4
@@ -95,7 +95,7 @@ def test_incremental_correctness():
     text_positions = np.arange(1, len(seqs[0]) + 1).reshape(1, len(seqs[0]))
 
     mel_path = join(dirname(__file__), "data", "ljspeech-mel-00001.npy")
-    mel = np.load(mel_path)
+    mel = np.load(mel_path)[::4]
     max_target_len = mel.shape[0]
     r = 1
     mel_dim = 80
