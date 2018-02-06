@@ -487,8 +487,17 @@ class Decoder(nn.Module):
         return outputs, alignments, dones, decoder_states
 
     def start_fresh_sequence(self):
-        for conv in self.convolutions:
-            conv.clear_buffer()
+        _clear_modules(self.preattention)
+        _clear_modules(self.convolutions)
+        self.last_conv.clear_buffer()
+
+
+def _clear_modules(modules):
+    for m in modules:
+        try:
+            m.clear_buffer()
+        except AttributeError as e:
+            pass
 
 
 class Converter(nn.Module):
