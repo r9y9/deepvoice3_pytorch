@@ -57,13 +57,45 @@ def test_nyanko_basics():
         mel_outputs, linear_outputs, alignments, done = model(x, y)
 
 
-@attr("local_only")
+@attr("issue38")
+def test_incremental_path_multiple_times():
+    texts = ["they discarded this for a more completely Roman and far less beautiful letter."]
+    seqs = np.array([text_to_sequence(t) for t in texts])
+    text_positions = np.arange(1, len(seqs[0]) + 1).reshape(1, len(seqs[0]))
+
+    r = 1
+    mel_dim = 80
+
+    sequence = Variable(torch.LongTensor(seqs))
+    text_positions = Variable(torch.LongTensor(text_positions))
+
+    model = nyanko(n_vocab, mel_dim=mel_dim, linear_dim=513, downsample_step=4,
+                   r=r, force_monotonic_attention=False)
+    model.eval()
+
+    # first call
+    mel_outputs, linear_outputs, alignments, done = model(
+        sequence, text_positions=text_positions, speaker_ids=None)
+
+    # second call
+    mel_outputs2, linear_outputs2, alignments2, done2 = model(
+        sequence, text_positions=text_positions, speaker_ids=None)
+
+    # Should get same result
+    c = (mel_outputs - mel_outputs2).abs()
+    print(c.mean(), c.max())
+
+    assert np.allclose(mel_outputs.cpu().data.numpy(),
+                       mel_outputs2.cpu().data.numpy(), atol=1e-5)
+
+
 def test_incremental_correctness():
     texts = ["they discarded this for a more completely Roman and far less beautiful letter."]
     seqs = np.array([text_to_sequence(t) for t in texts])
     text_positions = np.arange(1, len(seqs[0]) + 1).reshape(1, len(seqs[0]))
 
-    mel = np.load("/home/ryuichi/Dropbox/sp/deepvoice3_pytorch/data/ljspeech/ljspeech-mel-00035.npy")
+    mel_path = join(dirname(__file__), "data", "ljspeech-mel-00001.npy")
+    mel = np.load(mel_path)
     max_target_len = mel.shape[0]
     r = 1
     mel_dim = 80
