@@ -223,7 +223,6 @@ Now that you have data prepared, then you can train a multi-speaker version of D
 ```
 python train.py --data-root=./data/nikl_m  --checkpoint-dir checkpoint_nikl_m \
    --hparams="frontend=ko,builder=deepvoice3,preset=deepvoice3_niklm,builder=deepvoice3_multispeaker"
-
 ```
 
 ### Speaker adaptation
