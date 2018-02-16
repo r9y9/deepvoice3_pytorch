@@ -15,3 +15,5 @@ python prepare_metadata.py --corpus <corpus location> --trans_file <corpus locat
 cd nikl_preprocess
 python prepare_metadata.py --corpus <corpus location> --trans_file <corpus location>/trans.txt --spk_id <corpus location>/speaker.sid
 ```
+
+Default is fv01. You can edit it by speaker id in [here](https://github.com/homink/speech.ko).
