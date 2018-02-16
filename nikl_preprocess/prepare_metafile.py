@@ -45,12 +45,8 @@ if __name__ == "__main__":
                       required=False)
   args = parser.parse_args()
 
-  if args.spk_id:
-    print("Prepare metadata file for single speaker %s" % (args.spk_id))
-    pe("find %s -name %s > %s/wav.lst" % (args.corpus_dir,args.spk_id+"*.wav",args.corpus_dir),shell=True)
-  else:
-    print("Prepare metadata file for all speakers")
-    pe("find %s -name %s > %s/wav.lst" % (args.corpus_dir,"*.wav",args.corpus_dir),shell=True)
+  print("Prepare metadata file for all speakers")
+  pe("find %s -name %s | grep -v 'Bad\|Non\|Invalid' > %s/wav.lst" % (args.corpus_dir,"*.wav",args.corpus_dir),shell=True)
 
   trans={}
   with open(args.trans_file,"r") as f:
@@ -71,5 +67,5 @@ if __name__ == "__main__":
       pe('echo %s"|"%s >> %s/metadata.txt' % (w,trans.get(tid_found),args.corpus_dir),shell=True)
 
   print("Metadata files is created in %s/metadata.txt" % (args.corpus_dir))
-  pe("ls -d -- %s/*/ | rev | cut -d'/' -f2 | rev > %s/speaker.mid" % (args.corpus_dir,args.corpus_dir),shell=True)
-  ps("head -n 1 %s/speaker.mid > %s/speaker.sid" % (args.corpus_dir,args.corpus_dir,shell=True)
+  pe("ls -d -- %s/*/ | grep -v 'Bad\|Non\|Invalid' | rev | cut -d'/' -f2 | rev > %s/speaker.mid" % (args.corpus_dir,args.corpus_dir),shell=True)
+  pe("head -n 1 %s/speaker.mid > %s/speaker.sid" % (args.corpus_dir,args.corpus_dir),shell=True)
