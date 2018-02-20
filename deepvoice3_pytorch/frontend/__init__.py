@@ -19,3 +19,9 @@ try:
     from deepvoice3_pytorch.frontend import jp
 except ImportError:
     jp = None
+
+try:
+    from deepvoice3_pytorch.frontend import ko
+except ImportError:
+    ko = None
+

@@ -18,6 +18,15 @@ Audio samples are available at https://r9y9.github.io/deepvoice3_pytorch/.
 - Preprocessor for [LJSpeech (en)](https://keithito.com/LJ-Speech-Dataset/), [JSUT (jp)](https://sites.google.com/site/shinnosuketakamichi/publication/jsut) and [VCTK](http://homepages.inf.ed.ac.uk/jyamagis/page3/page58/page58.html) datasets
 - Language-dependent frontend text processor for English and Japanese
 
+### Samples
+
+- [Ja Step000380000 Predicted](https://soundcloud.com/user-623907374/ja-step000380000-predicted)
+- [Ja Step000370000 Predicted](https://soundcloud.com/user-623907374/ja-step000370000-predicted)
+- [Ko_single Step000410000 Predicted](https://soundcloud.com/user-623907374/ko-step000410000-predicted)
+- [Ko_single Step000400000 Predicted](https://soundcloud.com/user-623907374/ko-step000400000-predicted)
+- [Ko_multi Step001680000 Predicted](https://soundcloud.com/user-623907374/step001680000-predicted)
+- [Ko_multi Step001700000 Predicted](https://soundcloud.com/user-623907374/step001700000-predicted)
+
 ## Pretrained models
 
  | URL | Model      | Data     | Hyper paramters                                  | Git commit | Steps  |
@@ -83,6 +92,7 @@ pip install -e ".[jp]"
 - LJSpeech (en): https://keithito.com/LJ-Speech-Dataset/
 - VCTK (en): http://homepages.inf.ed.ac.uk/jyamagis/page3/page58/page58.html
 - JSUT (jp): https://sites.google.com/site/shinnosuketakamichi/publication/jsut
+- NIKL (ko): http://www.korean.go.kr/front/board/boardStandardView.do?board_id=4&mn_id=17&b_seq=464
 
 ### 1. Preprocessing
 
@@ -97,6 +107,8 @@ Supported `${dataset_name}`s for now are
 - `ljspeech` (en, single speaker)
 - `vctk` (en, multi-speaker)
 - `jsut` (jp, single speaker)
+- `nikl_m` (ko, multi-speaker)
+- `nikl_s` (ko, single speaker)
 
 Suppose you will want to preprocess LJSpeech dataset and have it in `~/data/LJSpeech-1.0`, then you can preprocess data by:
 
@@ -132,6 +144,15 @@ python train.py --data-root=./data/jsut --hparams="frontend=jp" --hparams="build
 
 Note that there are many hyper parameters and design choices. Some are configurable by `hparams.py` and some are hardcoded in the source (e.g., dilation factor for each convolution layer). If you find better hyper parameters, please let me know!
 
+#### NIKL
+Pleae check [this](https://github.com/homink/deepvoice3_pytorch/blob/master/nikl_preprocess/README.md) in advance and follow the commands below.
+
+```
+python preprocess.py nikl_s ${your_nikl_root_path} data/nikl_s
+
+python train.py --data-root=./data/nikl_s --checkpoint-dir checkpoint_nikl_s \
+  --hparams="frontend=ko,builder=deepvoice3,preset=deepvoice3_nikls"
+```
 
 ### 4. Monitor with Tensorboard
 
@@ -167,7 +188,10 @@ python synthesis.py --hparams="builder=deepvoice3,preset=deepvoice3_ljspeech"　
 
 ### Multi-speaker model
 
-Currently VCTK is the only supported dataset for building a multi-speaker model. Since some audio samples in VCTK have long silences that affect performance, it's recommended to do phoneme alignment and remove silences according to [vctk_preprocess](vctk_preprocess/).
+VCTK and NIKL are supported dataset for building a multi-speaker model. 
+
+#### VCTK
+Since some audio samples in VCTK have long silences that affect performance, it's recommended to do phoneme alignment and remove silences according to [vctk_preprocess](vctk_preprocess/).
 
 Once you have phoneme alignment for each utterance, you can extract features by:
 
@@ -193,6 +217,23 @@ python train.py --data-root=./data/vctk --checkpoint-dir=checkpoints_vctk \
 ```
 
 This may improve training speed a bit.
+
+#### NIKL
+You will be able to obtain cleaned-up audio samples in ../nikl_preprocoess. Details are found in [here](https://github.com/homink/speech.ko).
+
+
+Once NIKL corpus is ready to use from the preprocessing, you can extract features by:
+
+```
+python preprocess.py nikl_m ${your_nikl_root_path} data/nikl_m
+```
+
+Now that you have data prepared, then you can train a multi-speaker version of DeepVoice3 by:
+
+```
+python train.py --data-root=./data/nikl_m  --checkpoint-dir checkpoint_nikl_m \
+   --hparams="frontend=ko,builder=deepvoice3,preset=deepvoice3_niklm,builder=deepvoice3_multispeaker"
+```
 
 ### Speaker adaptation
 
