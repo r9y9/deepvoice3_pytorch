@@ -77,11 +77,12 @@ def _build_mel_basis():
 
 
 def _amp_to_db(x):
-    return 20 * np.log10(x + 0.01)
+    min_level = np.exp(hparams.min_level_db / 20 * np.log(10))
+    return 20 * np.log10(np.maximum(min_level, x))
 
 
 def _db_to_amp(x):
-    return np.maximum(np.power(10.0, x * 0.05) - 0.01, 0.0)
+    return np.power(10.0, x * 0.05)
 
 
 def _normalize(S):
