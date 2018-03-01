@@ -39,7 +39,7 @@ def build_from_path(in_dir, out_dir, num_workers=1, tqdm=lambda x: x):
                 wav_path = parts[0]
                 text = parts[1]
                 futures.append(executor.submit(
-                    partial(_process_utterance, out_dir, index+1, wav_path, text)))
+                    partial(_process_utterance, out_dir, index + 1, wav_path, text)))
             index += 1
     return [future.result() for future in tqdm(futures)]
 
@@ -62,6 +62,9 @@ def _process_utterance(out_dir, index, wav_path, text):
 
     # Load the audio to a numpy array:
     wav = audio.load_wav(wav_path)
+
+    if hparams.rescaling:
+        wav = wav / np.abs(wav).max() * hparams.rescaling_max
 
     # Compute the linear-scale spectrogram from the wav:
     spectrogram = audio.spectrogram(wav).astype(np.float32)
