@@ -6,6 +6,7 @@ usage: generate_aligned_predictions.py [options] <checkpoint> <in_dir> <out_dir>
 
 options:
     --hparams=<parmas>       Hyper parameters [default: ].
+    --preset=<json>          Path of preset parameters (json).
     --overwrite              Overwrite audio and mel outputs.
     -h, --help               Show help message.
 """
@@ -131,18 +132,15 @@ if __name__ == "__main__":
     checkpoint_path = args["<checkpoint>"]
     in_dir = args["<in_dir>"]
     out_dir = args["<out_dir>"]
+    preset = args["--preset"]
 
+    # Load preset if specified
+    if preset is not None:
+        with open(preset) as f:
+            hparams.parse_json(f.read())
     # Override hyper parameters
     hparams.parse(args["--hparams"])
     assert hparams.name == "deepvoice3"
-
-    # Presets
-    if hparams.preset is not None and hparams.preset != "":
-        preset = hparams.presets[hparams.preset]
-        import json
-        hparams.parse_json(json.dumps(preset))
-        print("Override hyper parameters with preset \"{}\": {}".format(
-            hparams.preset, json.dumps(preset, indent=4)))
 
     _frontend = getattr(frontend, hparams.frontend)
     import train
