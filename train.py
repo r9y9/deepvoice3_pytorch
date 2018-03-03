@@ -6,6 +6,7 @@ options:
     --data-root=<dir>            Directory contains preprocessed features.
     --checkpoint-dir=<dir>       Directory where to save model checkpoints [default: checkpoints].
     --hparams=<parmas>           Hyper parameters [default: ].
+    --preset=<json>              Path of preset parameters (json).
     --checkpoint=<path>          Restore model from checkpoint path if given.
     --checkpoint-seq2seq=<path>  Restore seq2seq model from checkpoint path.
     --checkpoint-postnet=<path>  Restore postnet model from checkpoint path.
@@ -846,6 +847,7 @@ if __name__ == "__main__":
     checkpoint_restore_parts = args["--restore-parts"]
     speaker_id = args["--speaker-id"]
     speaker_id = int(speaker_id) if speaker_id is not None else None
+    preset = args["--preset"]
 
     data_root = args["--data-root"]
     if data_root is None:
@@ -868,18 +870,14 @@ if __name__ == "__main__":
     else:
         assert False, "must be specified wrong args"
 
+    # Load preset if specified
+    if preset is not None:
+        with open(preset) as f:
+            hparams.parse_json(f.read())
     # Override hyper parameters
     hparams.parse(args["--hparams"])
-    print(hparams_debug_string())
     assert hparams.name == "deepvoice3"
-
-    # Presets
-    if hparams.preset is not None and hparams.preset != "":
-        preset = hparams.presets[hparams.preset]
-        import json
-        hparams.parse_json(json.dumps(preset))
-        print("Override hyper parameters with preset \"{}\": {}".format(
-            hparams.preset, json.dumps(preset, indent=4)))
+    print(hparams_debug_string())
 
     _frontend = getattr(frontend, hparams.frontend)
 

@@ -4,6 +4,7 @@ usage: compute_timestamp_ratio.py [options] <data_root>
 
 options:
     --hparams=<parmas>        Hyper parameters [default: ].
+    --preset=<json>           Path of preset parameters (json).
     -h, --help                Show this help message and exit
 """
 from docopt import docopt
@@ -19,7 +20,12 @@ from deepvoice3_pytorch import frontend
 if __name__ == "__main__":
     args = docopt(__doc__)
     data_root = args["<data_root>"]
+    preset = args["--preset"]
 
+    # Load preset if specified
+    if preset is not None:
+        with open(preset) as f:
+            hparams.parse_json(f.read())
     # Override hyper parameters
     hparams.parse(args["--hparams"])
     assert hparams.name == "deepvoice3"
