@@ -6,6 +6,7 @@ usage: synthesis.py [options] <checkpoint> <text_list_file> <dst_dir>
 
 options:
     --hparams=<parmas>                Hyper parameters [default: ].
+    --preset=<json>                   Path of preset parameters (json).
     --checkpoint-seq2seq=<path>       Load seq2seq model from checkpoint path.
     --checkpoint-postnet=<path>       Load postnet model from checkpoint path.
     --file-name-suffix=<s>            File name suffix [default: ].
@@ -30,7 +31,7 @@ import nltk
 
 # The deepvoice3 model
 from deepvoice3_pytorch import frontend
-from hparams import hparams
+from hparams import hparams, hparams_debug_string
 
 from tqdm import tqdm
 
@@ -92,18 +93,15 @@ if __name__ == "__main__":
     speaker_id = args["--speaker_id"]
     if speaker_id is not None:
         speaker_id = int(speaker_id)
+    preset = args["--preset"]
 
+    # Load preset if specified
+    if preset is not None:
+        with open(preset) as f:
+            hparams.parse_json(f.read())
     # Override hyper parameters
     hparams.parse(args["--hparams"])
     assert hparams.name == "deepvoice3"
-
-    # Presets
-    if hparams.preset is not None and hparams.preset != "":
-        preset = hparams.presets[hparams.preset]
-        import json
-        hparams.parse_json(json.dumps(preset))
-        print("Override hyper parameters with preset \"{}\": {}".format(
-            hparams.preset, json.dumps(preset, indent=4)))
 
     _frontend = getattr(frontend, hparams.frontend)
     import train
