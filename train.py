@@ -20,7 +20,7 @@ options:
 """
 from docopt import docopt
 
-import sys
+import sys, gc
 from os.path import dirname, join
 from tqdm import tqdm, trange
 from datetime import datetime
@@ -133,6 +133,12 @@ class TextDataSource(FileDataSource):
         if _frontend == None:
             _frontend = getattr(frontend, hparams.frontend)
         seq = _frontend.text_to_sequence(text, p=hparams.replace_pronunciation_prob)
+        _frontend = None # memory leaking prevention
+        if hparams.gc_probability is not None:
+            if np.random.rand() < hparams.gc_probability:
+                gc.collect()
+                print("GC done")
+		
         if self.multi_speaker:
             return np.asarray(seq, dtype=np.int32), int(speaker_id)
         else:
@@ -713,6 +719,7 @@ Please set a larger value for ``max_position`` in hyper parameters.""".format(
 
             if global_step > 0 and global_step % hparams.eval_interval == 0:
                 eval_model(global_step, writer, model, checkpoint_dir, ismultispeaker)
+
 
             # Update
             loss.backward()
