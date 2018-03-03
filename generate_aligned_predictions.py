@@ -49,7 +49,13 @@ def preprocess(model, in_dir, out_dir, text, audio_filename, mel_filename,
         model.make_generation_fast_()
 
     mel_org = np.load(join(in_dir, mel_filename))
-    mel = Variable(torch.from_numpy(mel_org)).unsqueeze(0).contiguous()
+    # zero padd
+    b_pad = r  # imitates initial state
+    e_pad = r - len(mel_org) % r if len(mel_org) % r > 0 else 0
+    mel = np.pad(mel_org, [(b_pad, e_pad), (0, 0)],
+                 mode="constant", constant_values=0)
+
+    mel = Variable(torch.from_numpy(mel)).unsqueeze(0).contiguous()
 
     # Downsample mel spectrogram
     if downsample_step > 1:
@@ -78,10 +84,10 @@ def preprocess(model, in_dir, out_dir, text, audio_filename, mel_filename,
         frame_positions=frame_positions, speaker_ids=speaker_ids)
 
     mel_output = mel_outputs[0].data.cpu().numpy()
-
     # **Time resolution adjustment**
-    # remove begenning audio used for first mel prediction
-    wav = np.load(join(in_dir, audio_filename))[hparams.hop_size * downsample_step:]
+    mel_output = mel_output[:-(b_pad + e_pad)]
+
+    wav = np.load(join(in_dir, audio_filename))
     assert len(wav) % hparams.hop_size == 0
 
     # Coarse upsample just for convenience
@@ -92,18 +98,13 @@ def preprocess(model, in_dir, out_dir, text, audio_filename, mel_filename,
     # the original mel length
     assert mel_output.shape[0] >= mel_org.shape[0]
 
-    # Trim mel output
-    expected_frames = len(wav) // hparams.hop_size
-    mel_output = mel_output[:expected_frames]
-
     # Make sure we have correct lengths
     assert mel_output.shape[0] * hparams.hop_size == len(wav)
 
     timesteps = len(wav)
 
     # save
-    np.save(join(out_dir, audio_filename), wav.astype(np.int16),
-            allow_pickle=False)
+    np.save(join(out_dir, audio_filename), wav, allow_pickle=False)
     np.save(join(out_dir, mel_filename), mel_output.astype(np.float32),
             allow_pickle=False)
 
