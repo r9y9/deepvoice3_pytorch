@@ -129,6 +129,9 @@ class TextDataSource(FileDataSource):
             text, speaker_id = args
         else:
             text = args[0]
+        global _frontend # _frontend None bug fix
+        if _frontend == None:
+            _frontend = getattr(frontend, hparams.frontend)
         seq = _frontend.text_to_sequence(text, p=hparams.replace_pronunciation_prob)
         if self.multi_speaker:
             return np.asarray(seq, dtype=np.int32), int(speaker_id)
