@@ -211,7 +211,7 @@ hparams = tf.contrib.training.HParams(
 
     # Data loader
     pin_memory=True,
-    num_workers=2,
+    num_workers=1,
 
     # Loss
     masked_loss_weight=0.5,  # (1-w)*loss + w * masked_loss
@@ -238,8 +238,8 @@ hparams = tf.contrib.training.HParams(
     clip_thresh=0.1,
 
     # Save
-    checkpoint_interval=5000,
-    eval_interval=2500,
+    checkpoint_interval=10000,
+    eval_interval=10000,
     save_optimizer_state=True,
 
     # Eval:
@@ -253,7 +253,8 @@ hparams = tf.contrib.training.HParams(
     power=1.4,  # Power to raise magnitudes to prior to phase retrieval
     
     # GC:
-    # Forced garbage collection probability
+    # Forced garbage collection probability 
+    # Use only when MemoryError occurs
     gc_probability=0.0002,
 )
 
