@@ -28,7 +28,7 @@ hparams = tf.contrib.training.HParams(
     builder="deepvoice3",
 
     # Must be configured depends on the dataset and model you use
-    n_speakers=1,
+    n_speakers=2, # Set it to 1 when THAllocator.c 0x05 error occurs (in Windows)	
     speaker_embed_dim=16,
 
     # Presets known to work good.
@@ -262,4 +262,4 @@ hparams = tf.contrib.training.HParams(
 def hparams_debug_string():
     values = hparams.values()
     hp = ['  %s: %s' % (name, values[name]) for name in sorted(values)]
-    return 'Hyperparameters:\n' + '\n'.join(hp)
+    return 'Hyperparameters:\n' + '\n'.join(hp)"
