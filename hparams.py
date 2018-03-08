@@ -28,7 +28,7 @@ hparams = tf.contrib.training.HParams(
     builder="deepvoice3",
 
     # Must be configured depends on the dataset and model you use
-    n_speakers=2, # Set it to 1 when THAllocator.c 0x05 error occurs (in Windows)	
+    n_speakers=1,	
     speaker_embed_dim=16,
 
     # Presets known to work good.
@@ -211,7 +211,7 @@ hparams = tf.contrib.training.HParams(
 
     # Data loader
     pin_memory=True,
-    num_workers=1,
+    num_workers=2, # Set it to 1 when THAllocator.c 0x05 error occurs (in Windows)
 
     # Loss
     masked_loss_weight=0.5,  # (1-w)*loss + w * masked_loss
