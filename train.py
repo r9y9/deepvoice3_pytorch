@@ -954,7 +954,10 @@ if __name__ == "__main__":
 
     # Setup summary writer for tensorboard
     if log_event_path is None:
-        log_event_path = "log/run-test" + str(datetime.now()).replace(" ", "_")
+        if platform.system() == "Windows":
+            log_event_path = "log/run-test" + str(datetime.now()).replace(" ", "_").replace(":","_")
+        else:
+            log_event_path = "log/run-test" + str(datetime.now()).replace(" ", "_")
     print("Los event path: {}".format(log_event_path))
     writer = SummaryWriter(log_dir=log_event_path)
 
