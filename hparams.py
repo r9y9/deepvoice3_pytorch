@@ -1,5 +1,4 @@
 import tensorflow as tf
-import platform
 # NOTE: If you want full control for model architecture. please take a look
 # at the code and change whatever you want. Some hyper parameters are hardcoded.
 
@@ -258,11 +257,7 @@ hparams = tf.contrib.training.HParams(
     #gc_probability = 0.001,
 )
 
-# Preventing Windows specific error such as MemoryError 
-# Also reduces the occurrence of THAllocator.c 0x05 error in Widows build of PyTorch
-if platform.system() == "Windows":
-    print("Windows Detected - num_workers set to 1")
-    hparams.set_hparam('num_workers',1)
+
 
 
 def hparams_debug_string():

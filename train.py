@@ -882,6 +882,14 @@ if __name__ == "__main__":
 
     # Override hyper parameters
     hparams.parse(args["--hparams"])
+    
+    # Preventing Windows specific error such as MemoryError 
+    # Also reduces the occurrence of THAllocator.c 0x05 error in Widows build of PyTorch
+    if platform.system() == "Windows":
+        print("Windows Detected - num_workers set to 1")
+        hparams.set_hparam('num_workers',1)
+
+    # Now, print the finalized hparams.
     print(hparams_debug_string())
     assert hparams.name == "deepvoice3"
 
