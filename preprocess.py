@@ -15,7 +15,7 @@ import os
 from multiprocessing import cpu_count
 from tqdm import tqdm
 import importlib
-from hparams import hparams
+from hparams import hparams, hparams_debug_string
 
 
 def preprocess(mod, in_dir, out_root, num_workers):
