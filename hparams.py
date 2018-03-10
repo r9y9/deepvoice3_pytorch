@@ -27,7 +27,7 @@ hparams = tf.contrib.training.HParams(
     builder="deepvoice3",
 
     # Must be configured depends on the dataset and model you use
-    n_speakers=1,	
+    n_speakers=1,
     speaker_embed_dim=16,
 
     # Audio:
@@ -126,8 +126,6 @@ hparams = tf.contrib.training.HParams(
     # Use only when MemoryError continues in Windows (Disabled by default)
     #gc_probability = 0.001,
 )
-
-
 
 
 def hparams_debug_string():

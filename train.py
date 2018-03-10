@@ -21,7 +21,6 @@ options:
 """
 from docopt import docopt
 
-
 import sys
 import gc
 import platform
@@ -137,7 +136,6 @@ class TextDataSource(FileDataSource):
         if _frontend is None:
             _frontend = getattr(frontend, hparams.frontend)
         seq = _frontend.text_to_sequence(text, p=hparams.replace_pronunciation_prob)
-
 
         if platform.system() == "Windows":
             if hasattr(hparams, 'gc_probability'):
@@ -727,7 +725,6 @@ Please set a larger value for ``max_position`` in hyper parameters.""".format(
             if global_step > 0 and global_step % hparams.eval_interval == 0:
                 eval_model(global_step, writer, model, checkpoint_dir, ismultispeaker)
 
-
             # Update
             loss.backward()
             if clip_thresh > 0:
@@ -892,7 +889,6 @@ if __name__ == "__main__":
             hparams.parse_json(f.read())
     # Override hyper parameters
     hparams.parse(args["--hparams"])
-
 
     # Preventing Windows specific error such as MemoryError
     # Also reduces the occurrence of THAllocator.c 0x05 error in Widows build of PyTorch
