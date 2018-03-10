@@ -50,6 +50,7 @@ import librosa.display
 from matplotlib import pyplot as plt
 import sys
 import os
+import platform
 from tensorboardX import SummaryWriter
 from matplotlib import cm
 from warnings import warn
@@ -96,8 +97,9 @@ def plot_alignment(alignment, path, info=None):
 
 
 class TextDataSource(FileDataSource):
-    def __init__(self, data_root, speaker_id=None):
+    def __init__(self, data_root, frontend_name, speaker_id=None):
         self.data_root = data_root
+        self.frontend_name = frontend_name
         self.speaker_ids = None
         self.multi_speaker = False
         # If not None, filter by speaker_id
@@ -130,6 +132,11 @@ class TextDataSource(FileDataSource):
             text, speaker_id = args
         else:
             text = args[0]
+            
+        # Fix for issues #37 and #53 
+        if platform.system() == "Windows":
+            _frontend = getattr(frontend, self.frontend_name)
+            
         seq = _frontend.text_to_sequence(text, p=hparams.replace_pronunciation_prob)
         if self.multi_speaker:
             return np.asarray(seq, dtype=np.int32), int(speaker_id)
@@ -884,7 +891,7 @@ if __name__ == "__main__":
     os.makedirs(checkpoint_dir, exist_ok=True)
 
     # Input dataset definitions
-    X = FileSourceDataset(TextDataSource(data_root, speaker_id))
+    X = FileSourceDataset(TextDataSource(data_root, hparams.frontend, speaker_id))
     Mel = FileSourceDataset(MelSpecDataSource(data_root, speaker_id))
     Y = FileSourceDataset(LinearSpecDataSource(data_root, speaker_id))
 
