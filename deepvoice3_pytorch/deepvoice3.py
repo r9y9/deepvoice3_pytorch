@@ -72,7 +72,7 @@ class Encoder(nn.Module):
         assert self.n_speakers == 1 or speaker_embed is not None
 
         # embed text_sequences
-        x = self.embed_tokens(text_sequences)
+        x = self.embed_tokens(text_sequences.long())
         x = F.dropout(x, p=self.dropout, training=self.training)
 
         # expand speaker embedding for all time steps

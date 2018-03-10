@@ -1,5 +1,4 @@
 import tensorflow as tf
-
 # NOTE: If you want full control for model architecture. please take a look
 # at the code and change whatever you want. Some hyper parameters are hardcoded.
 
@@ -28,7 +27,7 @@ hparams = tf.contrib.training.HParams(
     builder="deepvoice3",
 
     # Must be configured depends on the dataset and model you use
-    n_speakers=1,
+    n_speakers=1,	
     speaker_embed_dim=16,
 
     # Audio:
@@ -81,7 +80,7 @@ hparams = tf.contrib.training.HParams(
 
     # Data loader
     pin_memory=True,
-    num_workers=2,
+    num_workers=2, # Set it to 1 when in Windows (MemoryError, THAllocator.c 0x5)
 
     # Loss
     masked_loss_weight=0.5,  # (1-w)*loss + w * masked_loss
@@ -121,7 +120,14 @@ hparams = tf.contrib.training.HParams(
     # 0 tends to prevent word repretetion, but sometime causes skip words
     window_backward=1,
     power=1.4,  # Power to raise magnitudes to prior to phase retrieval
+    
+    # GC:
+    # Forced garbage collection probability 
+    # Use only when MemoryError continues in Windows (Disabled by default)
+    #gc_probability = 0.001,
 )
+
+
 
 
 def hparams_debug_string():
