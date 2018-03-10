@@ -80,7 +80,7 @@ hparams = tf.contrib.training.HParams(
 
     # Data loader
     pin_memory=True,
-    num_workers=2, # Set it to 1 when in Windows (MemoryError, THAllocator.c 0x5)
+    num_workers=2,  # Set it to 1 when in Windows (MemoryError, THAllocator.c 0x5)
 
     # Loss
     masked_loss_weight=0.5,  # (1-w)*loss + w * masked_loss
@@ -120,9 +120,15 @@ hparams = tf.contrib.training.HParams(
     # 0 tends to prevent word repretetion, but sometime causes skip words
     window_backward=1,
     power=1.4,  # Power to raise magnitudes to prior to phase retrieval
+<<<<<<< HEAD
     
     # GC:
     # Forced garbage collection probability 
+=======
+
+    # GC:
+    # Forced garbage collection probability
+>>>>>>> upstream/master
     # Use only when MemoryError continues in Windows (Disabled by default)
     #gc_probability = 0.001,
 )

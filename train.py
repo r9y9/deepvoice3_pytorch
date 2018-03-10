@@ -21,7 +21,10 @@ options:
 """
 from docopt import docopt
 
-import sys, gc, platform
+
+import sys
+import gc
+import platform
 from os.path import dirname, join
 from tqdm import tqdm, trange
 from datetime import datetime
@@ -134,14 +137,15 @@ class TextDataSource(FileDataSource):
         if _frontend is None:
             _frontend = getattr(frontend, hparams.frontend)
         seq = _frontend.text_to_sequence(text, p=hparams.replace_pronunciation_prob)
-        
+
+
         if platform.system() == "Windows":
             if hasattr(hparams, 'gc_probability'):
-                _frontend = None # memory leaking prevention in Windows
+                _frontend = None  # memory leaking prevention in Windows
                 if np.random.rand() < hparams.gc_probability:
-                    gc.collect() # garbage collection enforced
+                    gc.collect()  # garbage collection enforced
                     print("GC done")
-        
+
         if self.multi_speaker:
             return np.asarray(seq, dtype=np.int32), int(speaker_id)
         else:
@@ -888,15 +892,13 @@ if __name__ == "__main__":
             hparams.parse_json(f.read())
     # Override hyper parameters
     hparams.parse(args["--hparams"])
-    
-    # Preventing Windows specific error such as MemoryError 
+
+
+    # Preventing Windows specific error such as MemoryError
     # Also reduces the occurrence of THAllocator.c 0x05 error in Widows build of PyTorch
     if platform.system() == "Windows":
         print("Windows Detected - num_workers set to 1")
-        hparams.set_hparam('num_workers',1)
-
-    # Now, print the finalized hparams.
-    print(hparams_debug_string())
+        hparams.set_hparam('num_workers', 1)
 
     assert hparams.name == "deepvoice3"
     print(hparams_debug_string())
