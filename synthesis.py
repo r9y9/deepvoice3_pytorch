@@ -53,7 +53,7 @@ def tts(model, text, p=0, speaker_id=None, fast=False):
         model.make_generation_fast_()
 
     sequence = np.array(_frontend.text_to_sequence(text, p=p))
-    sequence = Variable(torch.from_numpy(sequence)).unsqueeze(0)
+    sequence = Variable(torch.from_numpy(sequence)).unsqueeze(0).long()
     text_positions = torch.arange(1, sequence.size(-1) + 1).unsqueeze(0).long()
     text_positions = Variable(text_positions)
     speaker_ids = None if speaker_id is None else Variable(torch.LongTensor([speaker_id]))
