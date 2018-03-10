@@ -1,5 +1,5 @@
 import tensorflow as tf
-
+import platform
 # NOTE: If you want full control for model architecture. please take a look
 # at the code and change whatever you want. Some hyper parameters are hardcoded.
 
@@ -211,7 +211,7 @@ hparams = tf.contrib.training.HParams(
 
     # Data loader
     pin_memory=True,
-    num_workers=2, # Set it to 1 when THAllocator.c 0x05 error occurs (in Windows)
+    num_workers=2, # Set it to 1 when in Windows (MemoryError, THAllocator.c 0x5)
 
     # Loss
     masked_loss_weight=0.5,  # (1-w)*loss + w * masked_loss
@@ -254,12 +254,18 @@ hparams = tf.contrib.training.HParams(
     
     # GC:
     # Forced garbage collection probability 
-    # Use only when MemoryError occurs
-    gc_probability=0.0002,
+    # Use only when MemoryError continues in Windows (Disabled by default)
+    #gc_probability = 0.001,
 )
+
+# Preventing Windows specific error such as MemoryError 
+# Also reduces the occurrence of THAllocator.c 0x05 error in Widows build of PyTorch
+if platform.system() == "Windows":
+    print("Windows Detected - num_workers set to 1")
+    hparams.set_hparam('num_workers',1)
 
 
 def hparams_debug_string():
     values = hparams.values()
     hp = ['  %s: %s' % (name, values[name]) for name in sorted(values)]
-    return 'Hyperparameters:\n' + '\n'.join(hp)"
+    return 'Hyperparameters:\n' + '\n'.join(hp)
