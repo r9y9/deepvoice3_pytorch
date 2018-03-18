@@ -54,6 +54,6 @@ if __name__ == "__main__":
     assert hparams.name == "deepvoice3"
     print(hparams_debug_string())
 
-    assert name in ["jsut", "ljspeech", "vctk", "nikl_m", "nikl_s"]
+    assert name in ["jsut", "ljspeech", "vctk", "nikl_m", "nikl_s", "json_meta"]
     mod = importlib.import_module(name)
     preprocess(mod, in_dir, out_dir, num_workers)

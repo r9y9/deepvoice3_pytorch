@@ -125,6 +125,13 @@ hparams = tf.contrib.training.HParams(
     # Forced garbage collection probability
     # Use only when MemoryError continues in Windows (Disabled by default)
     #gc_probability = 0.001,
+	
+	# json_meta mode only
+	# 0: "use all",
+    # 1: "ignore only unmatched_alignment",
+    # 2: "fully ignore recognition",
+	ignore_recognition_level = 1,
+	min_text=40,
 )
 
 
