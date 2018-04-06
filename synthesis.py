@@ -78,6 +78,15 @@ def tts(model, text, p=0, speaker_id=None, fast=False):
     return waveform, alignment, spectrogram, mel
 
 
+def _load(checkpoint_path):
+    if use_cuda:
+        checkpoint = torch.load(checkpoint_path)
+    else:
+        checkpoint = torch.load(checkpoint_path,
+                                map_location=lambda storage, loc: storage)
+    return checkpoint
+
+
 if __name__ == "__main__":
     args = docopt(__doc__)
     print("Command line args:\n", args)
@@ -113,13 +122,13 @@ if __name__ == "__main__":
 
     # Load checkpoints separately
     if checkpoint_postnet_path is not None and checkpoint_seq2seq_path is not None:
-        checkpoint = torch.load(checkpoint_seq2seq_path)
+        checkpoint = _load(checkpoint_seq2seq_path)
         model.seq2seq.load_state_dict(checkpoint["state_dict"])
-        checkpoint = torch.load(checkpoint_postnet_path)
+        checkpoint = _load(checkpoint_postnet_path)
         model.postnet.load_state_dict(checkpoint["state_dict"])
         checkpoint_name = splitext(basename(checkpoint_seq2seq_path))[0]
     else:
-        checkpoint = torch.load(checkpoint_path)
+        checkpoint = _load(checkpoint_path)
         model.load_state_dict(checkpoint["state_dict"])
         checkpoint_name = splitext(basename(checkpoint_path))[0]
 
