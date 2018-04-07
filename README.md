@@ -53,9 +53,7 @@ See "Synthesize from a checkpoint" section in the README for how to generate spe
 
 - Python 3
 - CUDA >= 8.0
-- PyTorch >= v0.3
 - TensorFlow >= v1.3
-- [tensorboard-pytorch](https://github.com/lanpa/tensorboard-pytorch) (master)
 - [nnmnkwii](https://github.com/r9y9/nnmnkwii) >= v0.0.11
 - [MeCab](http://taku910.github.io/mecab/) (Japanese only)
 

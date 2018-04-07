@@ -79,6 +79,7 @@ setup(name='deepvoice3_pytorch',
       install_requires=[
           "numpy",
           "scipy",
+          "torch >= 0.3.0",
           "unidecode",
           "inflect",
           "librosa",
