@@ -815,12 +815,21 @@ def build_model():
     return model
 
 
+def _load(checkpoint_path):
+    if use_cuda:
+        checkpoint = torch.load(checkpoint_path)
+    else:
+        checkpoint = torch.load(checkpoint_path,
+                                map_location=lambda storage, loc: storage)
+    return checkpoint
+
+
 def load_checkpoint(path, model, optimizer, reset_optimizer):
     global global_step
     global global_epoch
 
     print("Load checkpoint from: {}".format(path))
-    checkpoint = torch.load(path)
+    checkpoint = _load(path)
     model.load_state_dict(checkpoint["state_dict"])
     if not reset_optimizer:
         optimizer_state = checkpoint["optimizer"]
@@ -834,7 +843,7 @@ def load_checkpoint(path, model, optimizer, reset_optimizer):
 
 
 def _load_embedding(path, model):
-    state = torch.load(path)["state_dict"]
+    state = _load(path)["state_dict"]
     key = "seq2seq.encoder.embed_tokens.weight"
     model.seq2seq.encoder.embed_tokens.weight.data = state[key]
 
@@ -842,7 +851,7 @@ def _load_embedding(path, model):
 # https://discuss.pytorch.org/t/how-to-load-part-of-pre-trained-model/1113/3
 def restore_parts(path, model):
     print("Restore part of the model from: {}".format(path))
-    state = torch.load(path)["state_dict"]
+    state = _load(path)["state_dict"]
     model_dict = model.state_dict()
     valid_state_dict = {k: v for k, v in state.items() if k in model_dict}
     model_dict.update(valid_state_dict)
@@ -951,7 +960,8 @@ if __name__ == "__main__":
     # Setup summary writer for tensorboard
     if log_event_path is None:
         if platform.system() == "Windows":
-            log_event_path = "log/run-test" + str(datetime.now()).replace(" ", "_").replace(":","_")
+            log_event_path = "log/run-test" + \
+                str(datetime.now()).replace(" ", "_").replace(":", "_")
         else:
             log_event_path = "log/run-test" + str(datetime.now()).replace(" ", "_")
     print("Los event path: {}".format(log_event_path))
