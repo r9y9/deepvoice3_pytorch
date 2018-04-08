@@ -847,15 +847,29 @@ def _load_embedding(path, model):
     key = "seq2seq.encoder.embed_tokens.weight"
     model.seq2seq.encoder.embed_tokens.weight.data = state[key]
 
-
 # https://discuss.pytorch.org/t/how-to-load-part-of-pre-trained-model/1113/3
+
+
 def restore_parts(path, model):
     print("Restore part of the model from: {}".format(path))
     state = _load(path)["state_dict"]
     model_dict = model.state_dict()
     valid_state_dict = {k: v for k, v in state.items() if k in model_dict}
-    model_dict.update(valid_state_dict)
-    model.load_state_dict(model_dict)
+
+    try:
+        model_dict.update(valid_state_dict)
+        model.load_state_dict(model_dict)
+    except RuntimeError as e:
+        # there should be invalid size of weight(s), so load them per parameter
+        print(str(e))
+        model_dict = model.state_dict()
+        for k, v in valid_state_dict.items():
+            model_dict[k] = v
+            try:
+                model.load_state_dict(model_dict)
+            except RuntimeError as e:
+                print(str(e))
+                warn("{}: may contain invalid size of weight. skipping...".format(k))
 
 
 if __name__ == "__main__":
