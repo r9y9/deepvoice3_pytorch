@@ -2,7 +2,7 @@
   "name": "deepvoice3",
   "frontend": "en",
   "replace_pronunciation_prob": 0.5,
-  "builder": "deepvoice3",
+  "builder": "deepvoice3_multispeaker",
   "n_speakers": 108,
   "speaker_embed_dim": 16,
   "num_mels": 80,
