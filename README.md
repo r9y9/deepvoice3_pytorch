@@ -10,6 +10,12 @@ PyTorch implementation of convolutional networks-based text-to-speech synthesis 
 
 Audio samples are available at https://r9y9.github.io/deepvoice3_pytorch/.
 
+## Online TTS demo
+
+A notebook supposed to be executed on https://colab.research.google.com is available:
+
+- [DeepVoice3: Multi-speaker text-to-speech demo](https://colab.research.google.com/github/r9y9/Colaboratory/blob/master/DeepVoice3_multi_speaker_TTS_en_demo.ipynb)
+
 ## Highlights
 
 - Convolutional sequence-to-sequence model with attention for text-to-speech synthesis
@@ -53,9 +59,7 @@ See "Synthesize from a checkpoint" section in the README for how to generate spe
 
 - Python 3
 - CUDA >= 8.0
-- PyTorch >= v0.3
 - TensorFlow >= v1.3
-- [tensorboard-pytorch](https://github.com/lanpa/tensorboard-pytorch) (master)
 - [nnmnkwii](https://github.com/r9y9/nnmnkwii) >= v0.0.11
 - [MeCab](http://taku910.github.io/mecab/) (Japanese only)
 
