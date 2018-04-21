@@ -1,28 +1,33 @@
 '''
-This makes r9y9/deepvoice3_pytorch compatible with json format of carpedm20/multi-speaker-tacotron-tensorflow and keithito/tacotron.
-
-The json file is given per speaker, generated in the format of 
-(if completely aligned)
-(path-to-the-audio):aligned text
-
-(if partially aligned)
-(path-to-the-audio):[candidate sentence - not aligned,recognized words]
-
-(if non-aligned)
-(path-to-the-audio):[recognized words]
-is given per speaker.
-
-usage: python preprocess.py [option] <json_paths> <output_data_path>
-(e.g. python preprocess.py json_meta "./datasets/LJSpeech_1_0/alignment.json,./datasets/GoTBookRev/alignment.json" "./datasets/LJ+GoTBookRev" --preset=./presets/deepvoice3_vctk.json )
-
-options:
-    --preset     Path of preset parameters (json).
-
 Started in 1945h, Mar 10, 2018
 First done in 2103h, Mar 11, 2018
 Test done in 2324h, Mar 11, 2018
-
+Modified for HTK labeling in 1426h, Apr 21, 2018
 by engiecat(github)
+
+This makes r9y9/deepvoice3_pytorch compatible with json format of carpedm20/multi-speaker-tacotron-tensorflow and keithito/tacotron.
+The json file is given per speaker, generated in the format of 
+	(if completely aligned)
+		(path-to-the-audio):aligned text
+
+	(if partially aligned)
+		(path-to-the-audio):[candidate sentence - not aligned,recognized words]
+
+	(if non-aligned)
+		(path-to-the-audio):[recognized words]
+is given per speaker.
+
+(e.g. python preprocess.py json_meta "./datasets/LJSpeech_1_0/alignment.json,./datasets/GoTBookRev/alignment.json" "./datasets/LJ+GoTBookRev" --preset=./presets/deepvoice3_vctk.json )
+
+usage: 
+    python preprocess.py [option] <json_paths> <output_data_path>
+
+
+options:
+    --preset     Path of preset parameters (json).
+    -h --help    show this help message and exit
+
+
 '''
 
 from concurrent.futures import ProcessPoolExecutor
@@ -92,6 +97,11 @@ def build_from_path(in_dir, out_dir, num_workers=1, tqdm=lambda x: x):
         # Reserve for future processing
         queue_count = 0
         for audio_path, text in info.items():
+            if type(text)==list:
+                if hparams.ignore_recognition_level == 0:
+                    text = text[-1]
+                else:
+                    text = text[0]
             if hparams.ignore_recognition_level > 0 and not is_aligned[audio_path]:
                 continue
             if hparams.min_text > len(text):
@@ -161,6 +171,8 @@ def _process_utterance(out_dir, text, wav_path, speaker_id=None):
     wav = audio.load_wav(wav_path)
 
     lab_path = wav_path.replace("wav48/", "lab/").replace(".wav", ".lab")
+    if not exists(lab_path):
+        lab_path = os.path.splitext(wav_path)[0]+'.lab'
 
     # Trim silence from hts labels if available
     if exists(lab_path):
@@ -187,8 +199,10 @@ def _process_utterance(out_dir, text, wav_path, speaker_id=None):
     wav_name = os.path.basename(wav_path)
     wav_name = os.path.splitext(wav_name)[0]
     
-    spectrogram_filename = 'spec-{}.npy'.format(wav_name)
-    mel_filename = 'mel-{}.npy'.format(wav_name)
+    # case if wave files across different speakers have the same naming format.
+    # e.g. Recording0.wav
+    spectrogram_filename = 'spec-{}-{}.npy'.format(speaker_id, wav_name)
+    mel_filename = 'mel-{}-{}.npy'.format(speaker_id, wav_name)
     np.save(os.path.join(out_dir, spectrogram_filename), spectrogram.T, allow_pickle=False)
     np.save(os.path.join(out_dir, mel_filename), mel_spectrogram.T, allow_pickle=False)
     # Return a tuple describing this training example:
@@ -199,7 +213,23 @@ def _process_utterance_single(out_dir, text, wav_path):
 
     # Load the audio to a numpy array:
     wav = audio.load_wav(wav_path)
+    
+    # Added from the multispeaker version
+    lab_path = wav_path.replace("wav48/", "lab/").replace(".wav", ".lab")
+    if not exists(lab_path):
+        lab_path = os.path.splitext(wav_path)[0]+'.lab'
 
+    # Trim silence from hts labels if available
+    if exists(lab_path):
+        labels = hts.load(lab_path)
+        b = int(start_at(labels) * 1e-7 * sr)
+        e = int(end_at(labels) * 1e-7 * sr)
+        wav = wav[b:e]
+        wav, _ = librosa.effects.trim(wav, top_db=25)
+    else:
+        wav, _ = librosa.effects.trim(wav, top_db=15)
+    # End added from the multispeaker version
+    
     if hparams.rescaling:
         wav = wav / np.abs(wav).max() * hparams.rescaling_max
 

@@ -130,8 +130,8 @@ hparams = tf.contrib.training.HParams(
 	# 0: "use all",
     # 1: "ignore only unmatched_alignment",
     # 2: "fully ignore recognition",
-	ignore_recognition_level = 1,
-	min_text=40,
+	ignore_recognition_level = 2,
+	min_text=20,
 )
 
 

@@ -81,10 +81,11 @@ setup(name='deepvoice3_pytorch',
           "scipy",
           "unidecode",
           "inflect",
-          "librosa",
+          "librosa == 0.5.1",
           "numba",
           "lws <= 1.0",
           "nltk",
+		  "requests",
       ],
       extras_require={
           "train": [
