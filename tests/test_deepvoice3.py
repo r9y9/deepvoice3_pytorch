@@ -255,7 +255,7 @@ def test_incremental_forward():
         max_input_len = np.max(input_lengths) + 10  # manuall padding
         seqs = np.array([_pad(x, max_input_len) for x in seqs], dtype=np.int)
         input_lengths = torch.LongTensor(input_lengths)
-        input_lengths = input_lengths.cuda() if use_cuda else input_lenghts
+        input_lengths = input_lengths.cuda() if use_cuda else input_lengths
     else:
         input_lengths = None
 
