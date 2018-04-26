@@ -5,7 +5,7 @@ import os
 import audio
 import re
 
-from . import hparams
+from .hparams import hparams
 
 
 def build_from_path(in_dir, out_dir, num_workers=1, tqdm=lambda x: x):
