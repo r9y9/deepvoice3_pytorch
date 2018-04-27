@@ -21,7 +21,7 @@ hparams = tf.contrib.training.HParams(
     # Convenient model builder
     # [deepvoice3, deepvoice3_multispeaker, nyanko]
     # Definitions can be found at deepvoice3_pytorch/builder.py
-    # deepvoice3: DeepVoice3　https://arxiv.org/abs/1710.07654
+    # deepvoice3: DeepVoice3 https://arxiv.org/abs/1710.07654
     # deepvoice3_multispeaker: Multi-speaker version of DeepVoice3
     # nyanko: https://arxiv.org/abs/1710.08969
     builder="deepvoice3",

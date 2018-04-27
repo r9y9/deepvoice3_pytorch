@@ -6,6 +6,8 @@ import audio
 import re
 from hparams import hparams
 
+from hparams import hparams
+
 
 def build_from_path(in_dir, out_dir, num_workers=1, tqdm=lambda x: x):
     '''Preprocesses the LJ Speech dataset from a given input path into a given output directory.

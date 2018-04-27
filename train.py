@@ -728,30 +728,30 @@ Please set a larger value for ``max_position`` in hyper parameters.""".format(
             # Update
             loss.backward()
             if clip_thresh > 0:
-                grad_norm = torch.nn.utils.clip_grad_norm(
+                grad_norm = torch.nn.utils.clip_grad_norm_(
                     model.get_trainable_parameters(), clip_thresh)
             optimizer.step()
 
             # Logs
-            writer.add_scalar("loss", float(loss.data[0]), global_step)
+            writer.add_scalar("loss", float(loss.item()), global_step)
             if train_seq2seq:
-                writer.add_scalar("done_loss", float(done_loss.data[0]), global_step)
-                writer.add_scalar("mel loss", float(mel_loss.data[0]), global_step)
-                writer.add_scalar("mel_l1_loss", float(mel_l1_loss.data[0]), global_step)
-                writer.add_scalar("mel_binary_div_loss", float(mel_binary_div.data[0]), global_step)
+                writer.add_scalar("done_loss", float(done_loss.item()), global_step)
+                writer.add_scalar("mel loss", float(mel_loss.item()), global_step)
+                writer.add_scalar("mel_l1_loss", float(mel_l1_loss.item()), global_step)
+                writer.add_scalar("mel_binary_div_loss", float(mel_binary_div.item()), global_step)
             if train_postnet:
-                writer.add_scalar("linear_loss", float(linear_loss.data[0]), global_step)
-                writer.add_scalar("linear_l1_loss", float(linear_l1_loss.data[0]), global_step)
+                writer.add_scalar("linear_loss", float(linear_loss.item()), global_step)
+                writer.add_scalar("linear_l1_loss", float(linear_l1_loss.item()), global_step)
                 writer.add_scalar("linear_binary_div_loss", float(
-                    linear_binary_div.data[0]), global_step)
+                    linear_binary_div.item()), global_step)
             if train_seq2seq and hparams.use_guided_attention:
-                writer.add_scalar("attn_loss", float(attn_loss.data[0]), global_step)
+                writer.add_scalar("attn_loss", float(attn_loss.item()), global_step)
             if clip_thresh > 0:
                 writer.add_scalar("gradient norm", grad_norm, global_step)
             writer.add_scalar("learning rate", current_lr, global_step)
 
             global_step += 1
-            running_loss += loss.data[0]
+            running_loss += loss.item()
 
         averaged_loss = running_loss / (len(data_loader))
         writer.add_scalar("loss (per epoch)", averaged_loss, global_epoch)
@@ -815,12 +815,21 @@ def build_model():
     return model
 
 
+def _load(checkpoint_path):
+    if use_cuda:
+        checkpoint = torch.load(checkpoint_path)
+    else:
+        checkpoint = torch.load(checkpoint_path,
+                                map_location=lambda storage, loc: storage)
+    return checkpoint
+
+
 def load_checkpoint(path, model, optimizer, reset_optimizer):
     global global_step
     global global_epoch
 
     print("Load checkpoint from: {}".format(path))
-    checkpoint = torch.load(path)
+    checkpoint = _load(path)
     model.load_state_dict(checkpoint["state_dict"])
     if not reset_optimizer:
         optimizer_state = checkpoint["optimizer"]
@@ -834,19 +843,33 @@ def load_checkpoint(path, model, optimizer, reset_optimizer):
 
 
 def _load_embedding(path, model):
-    state = torch.load(path)["state_dict"]
+    state = _load(path)["state_dict"]
     key = "seq2seq.encoder.embed_tokens.weight"
     model.seq2seq.encoder.embed_tokens.weight.data = state[key]
 
-
 # https://discuss.pytorch.org/t/how-to-load-part-of-pre-trained-model/1113/3
+
+
 def restore_parts(path, model):
     print("Restore part of the model from: {}".format(path))
-    state = torch.load(path)["state_dict"]
+    state = _load(path)["state_dict"]
     model_dict = model.state_dict()
     valid_state_dict = {k: v for k, v in state.items() if k in model_dict}
-    model_dict.update(valid_state_dict)
-    model.load_state_dict(model_dict)
+
+    try:
+        model_dict.update(valid_state_dict)
+        model.load_state_dict(model_dict)
+    except RuntimeError as e:
+        # there should be invalid size of weight(s), so load them per parameter
+        print(str(e))
+        model_dict = model.state_dict()
+        for k, v in valid_state_dict.items():
+            model_dict[k] = v
+            try:
+                model.load_state_dict(model_dict)
+            except RuntimeError as e:
+                print(str(e))
+                warn("{}: may contain invalid size of weight. skipping...".format(k))
 
 
 if __name__ == "__main__":
@@ -951,7 +974,8 @@ if __name__ == "__main__":
     # Setup summary writer for tensorboard
     if log_event_path is None:
         if platform.system() == "Windows":
-            log_event_path = "log/run-test" + str(datetime.now()).replace(" ", "_").replace(":","_")
+            log_event_path = "log/run-test" + \
+                str(datetime.now()).replace(" ", "_").replace(":", "_")
         else:
             log_event_path = "log/run-test" + str(datetime.now()).replace(" ", "_")
     print("Los event path: {}".format(log_event_path))

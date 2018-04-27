@@ -21,7 +21,7 @@ before_install:
   # Useful for debugging any issues with conda
   - conda config --add channels pypi
   - conda info -a
-  - deps='pip numpy scipy cython nose pytorch'
+  - deps='pip numpy scipy cython nose pytorch flake8'
   - conda create -q -n test-environment "python=$TRAVIS_PYTHON_VERSION" $deps -c pytorch
   - source activate test-environment
 
@@ -29,5 +29,12 @@ install:
   - pip install -e ".[test]"
   - python -c "import nltk; nltk.download('cmudict')"
 
+before_script:
+  # stop the build if there are Python syntax errors or undefined names
+  - flake8 . --count --select=E901,E999,F821,F822,F823 --show-source --statistics
+  # exit-zero treats all errors as warnings.  The GitHub editor is 127 chars wide
+  - flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
 script:
   - nosetests -v -w tests/ -a '!local_only'
+ 
