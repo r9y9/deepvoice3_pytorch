@@ -18,8 +18,9 @@ options:
     -t <txt_pattern> --txt_pattern=<txt_pattern> Pattern of txt transcript files to be aligned (same name required)
     --nested-directories=<main_directory>        Process every wav/txt file in the subfolders of the given folder
     --server_addr=<server_addr>                  Server address that serves gentle. [default: localhost]
-    --port=<port>                                Server port that serves gentle. [default: 32768]
+    --port=<port>                                Server port that serves gentle. [default: 8567]
     --max_unalign=<max_unalign>                  Maximum threshold for unalignment occurence (0.0 ~ 1.0) [default: 0.3] 
+    --skip-already-done                          Skips if there are preexisting .lab file
     -h --help                                    show this help message and exit
 """
 
@@ -126,17 +127,27 @@ if __name__ == '__main__':
         
     t = tqdm(range(len(wav_paths)))
     for idx in t:
-        t.set_description("Align via Gentle")
-        wav_path = wav_paths[idx]
-        txt_path = txt_paths[idx]
-        lab_path = os.path.splitext(wav_path)[0]+'.lab'
-        res=gentle_request(wav_path,txt_path, server_addr, port)
-        unalign_ratio, lab = json2hts(res.json())
-        print('[*] Unaligned Ratio - {}'.format(unalign_ratio))
-        if unalign_ratio > max_unalign:
-            print('[!] skipping this due to bad alignment')
-            continue
-        write_hts_label(lab, lab_path)
-    
+        try:
+            t.set_description("Align via Gentle")
+            wav_path = wav_paths[idx]
+            txt_path = txt_paths[idx]
+            lab_path = os.path.splitext(wav_path)[0]+'.lab'
+            if os.path.exists(lab_path) and arguments['--skip-already-done']:
+                print('[!] skipping because of pre-existing .lab file - {}'.format(lab_path))
+                continue
+            res=gentle_request(wav_path,txt_path, server_addr, port)
+            unalign_ratio, lab = json2hts(res.json())
+            print('[*] Unaligned Ratio - {}'.format(unalign_ratio))
+            if unalign_ratio > max_unalign:
+                print('[!] skipping this due to bad alignment')
+                continue
+            write_hts_label(lab, lab_path)
+        except:
+            # if sth happens, skip it
+            import traceback
+            tb = traceback.format_exc()
+            print('[!] ERROR while processing {}'.format(wav_paths[idx]))
+            print('[!] StackTrace - ')
+            print(tb)
 
     

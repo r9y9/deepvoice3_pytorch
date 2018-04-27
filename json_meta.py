@@ -136,7 +136,10 @@ def build_from_path(in_dir, out_dir, num_workers=1, tqdm=lambda x: x):
         print(" [!] Multi-speaker({}) mode activated!".format(num_speakers))
     
     # Now, Do the job!
-    return [future.result() for future in tqdm(futures)]
+    results = [future.result() for future in tqdm(futures)]
+    # Remove entries with None (That has been filtered due to bad htk alginment (if process_only_htk_aligned is enabled in hparams)
+    results = [result for result in results if result != None]
+    return results
     
 
 def start_at(labels):
@@ -182,6 +185,8 @@ def _process_utterance(out_dir, text, wav_path, speaker_id=None):
         wav = wav[b:e]
         wav, _ = librosa.effects.trim(wav, top_db=25)
     else:
+        if hparams.process_only_htk_aligned:
+            return None
         wav, _ = librosa.effects.trim(wav, top_db=15)
 
     if hparams.rescaling:
@@ -227,6 +232,8 @@ def _process_utterance_single(out_dir, text, wav_path):
         wav = wav[b:e]
         wav, _ = librosa.effects.trim(wav, top_db=25)
     else:
+        if hparams.process_only_htk_aligned:
+            return None
         wav, _ = librosa.effects.trim(wav, top_db=15)
     # End added from the multispeaker version
     
