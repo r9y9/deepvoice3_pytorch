@@ -392,5 +392,5 @@ Your browser does not support the audio element.
 
 ## References
 
-- [Wei Ping, Kainan Peng, Andrew Gibiansky, et al, "Deep Voice 3: 2000-Speaker Neural Text-to-Speech", arXiv:1710.07654, Oct. 2017.](https://arxiv.org/abs/1710.07654)
+- [Wei Ping, Kainan Peng, Andrew Gibiansky, et al, "Deep Voice 3: Scaling Text-to-Speech with Convolutional Sequence Learning", arXiv:1710.07654, Oct. 2017.](https://arxiv.org/abs/1710.07654)
 - [Hideyuki Tachibana, Katsuya Uenoyama, Shunsuke Aihara, "Efficiently Trainable Text-to-Speech System Based on Deep Convolutional Networks with Guided Attention". arXiv:1710.08969, Oct 2017.](https://arxiv.org/abs/1710.08969)

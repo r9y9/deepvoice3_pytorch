@@ -5,7 +5,7 @@
 
 PyTorch implementation of convolutional networks-based text-to-speech synthesis models:
 
-1. [arXiv:1710.07654](https://arxiv.org/abs/1710.07654): Deep Voice 3: 2000-Speaker Neural Text-to-Speech.
+1. [arXiv:1710.07654](https://arxiv.org/abs/1710.07654): Deep Voice 3: Scaling Text-to-Speech with Convolutional Sequence Learning.
 2. [arXiv:1710.08969](https://arxiv.org/abs/1710.08969): Efficiently Trainable Text-to-Speech System Based on Deep Convolutional Networks with Guided Attention.
 
 Audio samples are available at https://r9y9.github.io/deepvoice3_pytorch/.
