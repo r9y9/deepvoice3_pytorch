@@ -728,30 +728,30 @@ Please set a larger value for ``max_position`` in hyper parameters.""".format(
             # Update
             loss.backward()
             if clip_thresh > 0:
-                grad_norm = torch.nn.utils.clip_grad_norm(
+                grad_norm = torch.nn.utils.clip_grad_norm_(
                     model.get_trainable_parameters(), clip_thresh)
             optimizer.step()
 
             # Logs
-            writer.add_scalar("loss", float(loss.data[0]), global_step)
+            writer.add_scalar("loss", float(loss.item()), global_step)
             if train_seq2seq:
-                writer.add_scalar("done_loss", float(done_loss.data[0]), global_step)
-                writer.add_scalar("mel loss", float(mel_loss.data[0]), global_step)
-                writer.add_scalar("mel_l1_loss", float(mel_l1_loss.data[0]), global_step)
-                writer.add_scalar("mel_binary_div_loss", float(mel_binary_div.data[0]), global_step)
+                writer.add_scalar("done_loss", float(done_loss.item()), global_step)
+                writer.add_scalar("mel loss", float(mel_loss.item()), global_step)
+                writer.add_scalar("mel_l1_loss", float(mel_l1_loss.item()), global_step)
+                writer.add_scalar("mel_binary_div_loss", float(mel_binary_div.item()), global_step)
             if train_postnet:
-                writer.add_scalar("linear_loss", float(linear_loss.data[0]), global_step)
-                writer.add_scalar("linear_l1_loss", float(linear_l1_loss.data[0]), global_step)
+                writer.add_scalar("linear_loss", float(linear_loss.item()), global_step)
+                writer.add_scalar("linear_l1_loss", float(linear_l1_loss.item()), global_step)
                 writer.add_scalar("linear_binary_div_loss", float(
-                    linear_binary_div.data[0]), global_step)
+                    linear_binary_div.item()), global_step)
             if train_seq2seq and hparams.use_guided_attention:
-                writer.add_scalar("attn_loss", float(attn_loss.data[0]), global_step)
+                writer.add_scalar("attn_loss", float(attn_loss.item()), global_step)
             if clip_thresh > 0:
                 writer.add_scalar("gradient norm", grad_norm, global_step)
             writer.add_scalar("learning rate", current_lr, global_step)
 
             global_step += 1
-            running_loss += loss.data[0]
+            running_loss += loss.item()
 
         averaged_loss = running_loss / (len(data_loader))
         writer.add_scalar("loss (per epoch)", averaged_loss, global_epoch)
