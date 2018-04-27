@@ -37,3 +37,4 @@ before_script:
 
 script:
   - nosetests -v -w tests/ -a '!local_only'
+ 
