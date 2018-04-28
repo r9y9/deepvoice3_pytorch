@@ -35,7 +35,6 @@ from functools import partial
 import numpy as np
 import os
 import audio
-from nnmnkwii.datasets import vctk
 from nnmnkwii.io import hts
 from hparams import hparams
 from os.path import exists
@@ -65,7 +64,7 @@ def build_from_path(in_dir, out_dir, num_workers=1, tqdm=lambda x: x):
                     path, text = line.strip().split('|')
                     info[path] = text
         else:
-            raise Exception(" [!] Unknown metadata format: {}".format(config.metadata_path))
+            raise Exception(" [!] Unknown metadata format: {}".format(json_path))
 
         print(" [*] Loaded - {}".format(json_path))
         # check audio file existence
@@ -218,7 +217,7 @@ def _process_utterance_single(out_dir, text, wav_path):
 
     # Load the audio to a numpy array:
     wav = audio.load_wav(wav_path)
-    
+    sr = hparams.sample_rate
     # Added from the multispeaker version
     lab_path = wav_path.replace("wav48/", "lab/").replace(".wav", ".lab")
     if not exists(lab_path):
