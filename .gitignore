@@ -200,3 +200,9 @@ Temporary Items
 
 # Linux trash folder which might appear on any partition or disk
 .Trash-*
+vctk_preprocess/WorkingHowToUseThis.txt
+GoTBook1.01.txt
+presets/deepvoice3_got.json
+presets/deepvoice3_gotOnly.json
+presets/deepvoice3_stest.json
+presets/deepvoice3_test.json
