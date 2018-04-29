@@ -1,4 +1,4 @@
-![alt text](assets/ banner.jpg)
+![alt text](assets/banner.jpg)
 
 # Deepvoice3_pytorch
 
@@ -257,3 +257,5 @@ Part of code was adapted from the following projects:
 
 - https://github.com/keithito/tacotron
 - https://github.com/facebookresearch/fairseq-py
+
+Banner and logo created by [@jraulhernandezi](https://github.com/jraulhernandezi) ([#76](https://github.com/r9y9/deepvoice3_pytorch/issues/76))
