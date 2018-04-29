@@ -12,7 +12,7 @@ type = "index"
 
 - Github: https://github.com/r9y9/deepvoice3_pytorch
 
-This page provides audio samples for the open source implementation of DeepVoice3. Samples from single speaker and multi-speaker models follow.
+This page provides audio samples for the open source implementation of [Deep Voice 3](https://arxiv.org/abs/1710.07654). Samples from single speaker and multi-speaker models follow.
 
 ## Single speaker
 

@@ -1,11 +1,12 @@
 baseURL = "https://r9y9.github.io/deepvoice3_pytorch/"
 languageCode = "ja-jp"
-title = "An open source implementation of DeepVoice 3: 2000-Speaker Neural Text-to-Speech"
+title = "An open source implementation of Deep Voice 3: Scaling Text-to-Speech with Convolutional Sequence Learning"
 author = "Ryuichi YAMAMOTO"
 
 [params]
   author    = "Ryuichi YAMAMOTO"
-  logo      = "/images/r9y9.jpg"
+  project   = "deepvoice3_pytorch"
+  logo      = "/images/512logotipo.png"
   twitter   = "r9y9"
   github    = "r9y9"
   analytics = "UA-44433856-1"

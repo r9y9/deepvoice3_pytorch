@@ -1,4 +1,4 @@
-![alt text](https://raw.githubusercontent.com/jraulhernandezi/deepvoice3_pytorch/master/banner.jpg)
+![alt text](assets/ banner.jpg)
 
 # Deepvoice3_pytorch
 
