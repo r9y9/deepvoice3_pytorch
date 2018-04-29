@@ -62,15 +62,6 @@ main {
   max-width: 700px;
 }
 
-.header-logo img {
-  border-radius: 50%;
-  border: 2px solid #E1E1E1;
-}
-
-.header-logo img:hover {
-  border-color: #F1F1F1;
-}
-
 .site-title {
   margin-top: 2rem;
 }

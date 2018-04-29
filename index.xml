@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>An open source implementation of DeepVoice 3: 2000-Speaker Neural Text-to-Speech</title>
+    <title>An open source implementation of Deep Voice 3: Scaling Text-to-Speech with Convolutional Sequence Learning</title>
     <link>https://r9y9.github.io/deepvoice3_pytorch/</link>
-    <description>Recent content on An open source implementation of DeepVoice 3: 2000-Speaker Neural Text-to-Speech</description>
+    <description>Recent content on An open source implementation of Deep Voice 3: Scaling Text-to-Speech with Convolutional Sequence Learning</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>ja-jp</language>
     <lastBuildDate>Thu, 21 Dec 2017 19:42:01 +0900</lastBuildDate>
