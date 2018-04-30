@@ -4,7 +4,6 @@ import numpy as np
 import os
 import audio
 import re
-from hparams import hparams
 
 from hparams import hparams
 
@@ -73,11 +72,7 @@ def _process_utterance(out_dir, index, speaker_id, wav_path, text):
         wav = wav / np.abs(wav).max() * hparams.rescaling_max
 
     # Compute the linear-scale spectrogram from the wav:
-    try:
-        spectrogram = audio.spectrogram(wav).astype(np.float32)
-    except:
-        print(wav_path)
-        print(wav)
+    spectrogram = audio.spectrogram(wav).astype(np.float32)
     n_frames = spectrogram.shape[1]
 
     # Compute a mel-scale spectrogram from the wav:

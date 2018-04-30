@@ -86,7 +86,7 @@ def build_from_path(in_dir, out_dir, num_workers=1, tqdm=lambda x: x):
         # ignore_recognition_level check
         for path in info.keys():
             is_aligned[path] = True
-            if type(info[path]) == list:
+            if isinstance(info[path], list):
                 if hparams.ignore_recognition_level == 1 and len(info[path]) == 1 or \
                         hparams.ignore_recognition_level == 2:
                     # flag the path to be 'non-aligned' text
@@ -96,7 +96,7 @@ def build_from_path(in_dir, out_dir, num_workers=1, tqdm=lambda x: x):
         # Reserve for future processing
         queue_count = 0
         for audio_path, text in info.items():
-            if type(text)==list:
+            if isinstance(text, list):
                 if hparams.ignore_recognition_level == 0:
                     text = text[-1]
                 else:

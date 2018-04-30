@@ -3,7 +3,7 @@
 Created on Sat Apr 21 09:06:37 2018
 Phoneme alignment and conversion in HTK-style label file using Web-served Gentle
 This works on any type of english dataset.
-This allows its usage on Windows (Via Docker) and external server.
+Unlike prepare_htk_alignments_vctk.py, this is Python3 and Windows(with Docker) compatible.
 Preliminary results show that gentle has better performance with noisy dataset
 (e.g. movie extracted audioclips)
 *This work was derived from vctk_preprocess/prepare_htk_alignments_vctk.py
@@ -109,7 +109,7 @@ if __name__ == '__main__':
     server_addr = arguments['--server_addr']
     port = int(arguments['--port'])
     max_unalign  = float(arguments['--max_unalign'])
-    if arguments['--nested-directories'] == None:
+    if arguments['--nested-directories'] is None:
         wav_paths = sorted(glob(arguments['--wav_pattern']))
         txt_paths = sorted(glob(arguments['--txt_pattern']))    
     else:

@@ -125,14 +125,14 @@ hparams = tf.contrib.training.HParams(
     # Forced garbage collection probability
     # Use only when MemoryError continues in Windows (Disabled by default)
     #gc_probability = 0.001,
-	
-	# json_meta mode only
-	# 0: "use all",
+    
+    # json_meta mode only
+    # 0: "use all",
     # 1: "ignore only unmatched_alignment",
     # 2: "fully ignore recognition",
     ignore_recognition_level = 2,
-    min_text=20,
-    process_only_htk_aligned = False,
+    min_text=20, # when dealing with non-dedicated speech dataset(e.g. movie excerpts), setting min_text above 15 is desirable. Can be adjusted by dataset.
+    process_only_htk_aligned = False, # if true, data without phoneme alignment file(.lab) will be ignored
 )
 
 
