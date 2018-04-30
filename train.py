@@ -59,6 +59,9 @@ from hparams import hparams, hparams_debug_string
 
 fs = hparams.sample_rate
 
+# Prevent Issue #5
+plt.switch_backend('Qt5Agg')
+
 global_step = 0
 global_epoch = 0
 use_cuda = torch.cuda.is_available()
@@ -916,8 +919,7 @@ if __name__ == "__main__":
     # Preventing Windows specific error such as MemoryError
     # Also reduces the occurrence of THAllocator.c 0x05 error in Widows build of PyTorch
     if platform.system() == "Windows":
-        print("Windows Detected - num_workers set to 1")
-        hparams.set_hparam('num_workers', 1)
+        print(" [!] Windows Detected - IF THAllocator.c 0x05 error occurs SET num_workers to 1")
 
     assert hparams.name == "deepvoice3"
     print(hparams_debug_string())
