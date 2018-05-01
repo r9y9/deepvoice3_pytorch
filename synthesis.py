@@ -9,6 +9,7 @@ options:
     --preset=<json>                   Path of preset parameters (json).
     --checkpoint-seq2seq=<path>       Load seq2seq model from checkpoint path.
     --checkpoint-postnet=<path>       Load postnet model from checkpoint path.
+    --checkpoint-wavenet=<path>       Load WaveNet vocoder.
     --file-name-suffix=<s>            File name suffix [default: ].
     --max-decoder-steps=<N>           Max decoder steps [default: 500].
     --replace_pronunciation_prob=<N>  Prob [default: 0.0].
@@ -39,7 +40,7 @@ use_cuda = torch.cuda.is_available()
 _frontend = None  # to be set later
 
 
-def tts(model, text, p=0, speaker_id=None, fast=False):
+def tts(model, text, p=0, speaker_id=None, fast=False, wavenet=None):
     """Convert text to speech waveform given a deepvoice3 model.
 
     Args:
@@ -73,7 +74,30 @@ def tts(model, text, p=0, speaker_id=None, fast=False):
     mel = audio._denormalize(mel)
 
     # Predicted audio signal
-    waveform = audio.inv_spectrogram(linear_output.T)
+    if wavenet is not None:
+        if use_cuda:
+            wavenet = wavenet.cuda()
+        wavenet.eval()
+        if fast:
+            wavenet.make_generation_fast_()
+
+        # TODO: assuming scalar input
+        initial_value = 0.0
+        initial_input = Variable(torch.zeros(1, 1, 1)).fill_(initial_value)
+        # (B, T, C) -> (B, C, T)
+        c = mel_outputs.transpose(1, 2).contiguous()
+        g = None
+        Tc = c.size(-1)
+        length = Tc * 256
+        if use_cuda:
+            initial_input = initial_input.cuda()
+            c = c.cuda()
+        waveform = wavenet.incremental_forward(
+            initial_input, c=c, g=g, T=length, tqdm=tqdm, softmax=True, quantize=True,
+            log_scale_min=float(np.log(1e-14)))
+        waveform = waveform.view(-1).cpu().data.numpy()
+    else:
+        waveform = audio.inv_spectrogram(linear_output.T)
 
     return waveform, alignment, spectrogram, mel
 
@@ -95,6 +119,7 @@ if __name__ == "__main__":
     dst_dir = args["<dst_dir>"]
     checkpoint_seq2seq_path = args["--checkpoint-seq2seq"]
     checkpoint_postnet_path = args["--checkpoint-postnet"]
+    checkpoint_wavenet_path = args["--checkpoint-wavenet"]
     max_decoder_steps = int(args["--max-decoder-steps"])
     file_name_suffix = args["--file-name-suffix"]
     replace_pronunciation_prob = float(args["--replace_pronunciation_prob"])
@@ -132,6 +157,19 @@ if __name__ == "__main__":
         model.load_state_dict(checkpoint["state_dict"])
         checkpoint_name = splitext(basename(checkpoint_path))[0]
 
+    # Load WaveNet vocoder
+    if checkpoint_wavenet_path is not None:
+        from wavenet_vocoder import builder
+        wavenet = builder.wavenet(out_channels=3 * 10, layers=24, stacks=4, residual_channels=512,
+                                  gate_channels=512, skip_out_channels=256, dropout=1 - 0.95,
+                                  kernel_size=3, weight_normalization=True, cin_channels=80,
+                                  upsample_conditional_features=True, upsample_scales=[4, 4, 4, 4],
+                                  freq_axis_kernel_size=3, gin_channels=-1, scalar_input=True)
+        checkpoint = torch.load(checkpoint_wavenet_path)
+        wavenet.load_state_dict(checkpoint["state_dict"])
+    else:
+        wavenet = None
+
     model.seq2seq.decoder.max_decoder_steps = max_decoder_steps
 
     os.makedirs(dst_dir, exist_ok=True)
@@ -141,7 +179,8 @@ if __name__ == "__main__":
             text = line.decode("utf-8")[:-1]
             words = nltk.word_tokenize(text)
             waveform, alignment, _, _ = tts(
-                model, text, p=replace_pronunciation_prob, speaker_id=speaker_id, fast=True)
+                model, text, p=replace_pronunciation_prob, speaker_id=speaker_id, fast=True,
+                wavenet=wavenet)
             dst_wav_path = join(dst_dir, "{}_{}{}.wav".format(
                 idx, checkpoint_name, file_name_suffix))
             dst_alignment_path = join(
