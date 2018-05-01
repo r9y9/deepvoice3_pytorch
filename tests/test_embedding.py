@@ -11,14 +11,13 @@ import numpy as np
 def test_sinusoidal():
     num_embedding = 512
     embedding_dim = 128
-    padding_idx = 0
 
     for w in [1.0, 0.5, 2.0, 10.0, 20.0]:
-        a = nn.Embedding(num_embedding, embedding_dim, padding_idx=padding_idx)
+        a = nn.Embedding(num_embedding, embedding_dim, padding_idx=0)
         a.weight.data = position_encoding_init(
             num_embedding, embedding_dim, position_rate=w)
 
-        b = SinusoidalEncoding(num_embedding, embedding_dim, padding_idx=padding_idx)
+        b = SinusoidalEncoding(num_embedding, embedding_dim)
 
         x = Variable(torch.arange(0, 128).long())
         ax = a(x).data.numpy()

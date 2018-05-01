@@ -207,9 +207,9 @@ class Decoder(nn.Module):
 
         # Position encodings for query (decoder states) and keys (encoder states)
         self.embed_query_positions = SinusoidalEncoding(
-            max_positions, convolutions[0][0], padding_idx)
+            max_positions, convolutions[0][0])
         self.embed_keys_positions = SinusoidalEncoding(
-            max_positions, embed_dim, padding_idx)
+            max_positions, embed_dim)
         # Used for compute multiplier for positional encodings
         if n_speakers > 1:
             self.speaker_proj1 = Linear(speaker_embed_dim, 1, dropout=dropout)
