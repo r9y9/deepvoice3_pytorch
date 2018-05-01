@@ -993,6 +993,9 @@ if __name__ == "__main__":
               clip_thresh=hparams.clip_thresh,
               train_seq2seq=train_seq2seq, train_postnet=train_postnet)
     except KeyboardInterrupt:
+        print("Interrupted!")
+        pass
+    finally:
         save_checkpoint(
             model, optimizer, global_step, checkpoint_dir, global_epoch,
             train_seq2seq, train_postnet)

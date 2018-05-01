@@ -43,7 +43,7 @@ hparams = tf.contrib.training.HParams(
     # whether to rescale waveform or not.
     # Let x is an input waveform, rescaled waveform y is given by:
     # y = x / np.abs(x).max() * rescaling_max
-    rescaling=False,
+    rescaling=True,
     rescaling_max=0.999,
     # mel-spectrogram is normalized to [0, 1] for each utterance and clipping may
     # happen depends on min_level_db and ref_level_db, causing clipping noise.
@@ -51,25 +51,25 @@ hparams = tf.contrib.training.HParams(
     allow_clipping_in_normalization=True,
 
     # Model:
-    downsample_step=4,  # must be 4 when builder="nyanko"
-    outputs_per_step=1,  # must be 1 when builder="nyanko"
+    downsample_step=1,  # must be 4 when builder="nyanko"
+    outputs_per_step=4,  # must be 1 when builder="nyanko"
     embedding_weight_std=0.1,
     speaker_embedding_weight_std=0.01,
     padding_idx=0,
     # Maximum number of input text length
     # try setting larger value if you want to give very long text input
-    max_positions=512,
-    dropout=1 - 0.95,
-    kernel_size=3,
-    text_embed_dim=128,
-    encoder_channels=256,
-    decoder_channels=256,
+    max_positions=2048,
+    dropout=1 - 0.90,
+    kernel_size=5,
+    text_embed_dim=256,
+    encoder_channels=512,
+    decoder_channels=512,
     # Note: large converter channels requires significant computational cost
     converter_channels=256,
     query_position_rate=1.0,
     # can be computed by `compute_timestamp_ratio.py`.
     key_position_rate=1.385,  # 2.37 for jsut
-    key_projection=False,
+    key_projection=True,
     value_projection=False,
     use_memory_mask=True,
     trainable_positional_encodings=False,
@@ -99,7 +99,7 @@ hparams = tf.contrib.training.HParams(
     adam_beta1=0.5,
     adam_beta2=0.9,
     adam_eps=1e-6,
-    initial_learning_rate=5e-4,  # 0.001,
+    initial_learning_rate=1e-3,  # 0.001,
     lr_schedule="noam_learning_rate_decay",
     lr_schedule_kwargs={},
     nepochs=2000,

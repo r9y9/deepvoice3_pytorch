@@ -12,13 +12,9 @@ from docopt import docopt
 import sys
 import os
 from os.path import dirname, join, basename, splitext
-
-import audio
-
-# The deepvoice3 model
-from deepvoice3_pytorch import frontend
-from hparams import hparams
 import json
+
+from hparams import hparams
 
 if __name__ == "__main__":
     args = docopt(__doc__)
