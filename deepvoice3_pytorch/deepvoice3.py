@@ -3,7 +3,6 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
-from torch.autograd import Variable
 import math
 import numpy as np
 
@@ -393,12 +392,11 @@ class Decoder(nn.Module):
         num_attention_layers = sum([layer is not None for layer in self.attention])
         t = 0
         if initial_input is None:
-            initial_input = Variable(
-                keys.data.new(B, 1, self.in_dim * self.r).zero_())
+            initial_input = keys.data.new(B, 1, self.in_dim * self.r).zero_()
         current_input = initial_input
         while True:
             # frame pos start with 1.
-            frame_pos = Variable(keys.data.new(B, 1).fill_(t + 1)).long()
+            frame_pos = keys.data.new(B, 1).fill_(t + 1).long()
             w = self.query_position_rate
             if self.speaker_proj2 is not None:
                 w = w * F.sigmoid(self.speaker_proj2(speaker_embed)).view(-1)

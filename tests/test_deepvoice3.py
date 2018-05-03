@@ -7,7 +7,6 @@ from os.path import dirname, join, exists
 from deepvoice3_pytorch.frontend.en import text_to_sequence, n_vocab
 
 import torch
-from torch.autograd import Variable
 from torch import nn
 import numpy as np
 
@@ -60,8 +59,8 @@ def _test_data():
     seqs = np.array([_pad(s, max_len) for s in seqs])
 
     # Test encoder
-    x = Variable(torch.LongTensor(seqs))
-    y = Variable(torch.rand(x.size(0), 12, 80))
+    x = torch.LongTensor(seqs)
+    y = torch.rand(x.size(0), 12, 80)
 
     return x, y
 
@@ -132,10 +131,10 @@ def test_multi_speaker_deepvoice3():
     seqs = np.array([_pad(s, max_len) for s in seqs])
 
     # Test encoder
-    x = Variable(torch.LongTensor(seqs))
-    y = Variable(torch.rand(x.size(0), 4 * 33, 80))
+    x = torch.LongTensor(seqs)
+    y = torch.rand(x.size(0), 4 * 33, 80)
     model = _get_model(n_speakers=32, speaker_embed_dim=16)
-    speaker_ids = Variable(torch.LongTensor([1, 2, 3]))
+    speaker_ids = torch.LongTensor([1, 2, 3])
 
     mel_outputs, linear_outputs, alignments, done = model(x, y, speaker_ids=speaker_ids)
     print("Input text:", x.size())
@@ -154,12 +153,12 @@ def test_incremental_path_multiple_times():
 
     r = 4
     mel_dim = 80
-    sequence = Variable(torch.LongTensor(seqs))
-    text_positions = Variable(torch.LongTensor(text_positions))
+    sequence = torch.LongTensor(seqs)
+    text_positions = torch.LongTensor(text_positions)
 
     for model, speaker_ids in [
             (_get_model(force_monotonic_attention=False), None),
-            (_get_model(force_monotonic_attention=False, n_speakers=32, speaker_embed_dim=16), Variable(torch.LongTensor([1])))]:
+            (_get_model(force_monotonic_attention=False, n_speakers=32, speaker_embed_dim=16), torch.LongTensor([1]))]:
         model.eval()
 
         # first call
@@ -192,17 +191,17 @@ def test_incremental_correctness():
         max_target_len += r - max_target_len % r
         assert max_target_len % r == 0
     mel = _pad_2d(mel, max_target_len)
-    mel = Variable(torch.from_numpy(mel))
+    mel = torch.from_numpy(mel)
     mel_reshaped = mel.view(1, -1, mel_dim * r)
     frame_positions = np.arange(1, mel_reshaped.size(1) + 1).reshape(1, mel_reshaped.size(1))
 
-    x = Variable(torch.LongTensor(seqs))
-    text_positions = Variable(torch.LongTensor(text_positions))
-    frame_positions = Variable(torch.LongTensor(frame_positions))
+    x = torch.LongTensor(seqs)
+    text_positions = torch.LongTensor(text_positions)
+    frame_positions = torch.LongTensor(frame_positions)
 
     for model, speaker_ids in [
             (_get_model(force_monotonic_attention=False), None),
-            (_get_model(force_monotonic_attention=False, n_speakers=32, speaker_embed_dim=16), Variable(torch.LongTensor([1])))]:
+            (_get_model(force_monotonic_attention=False, n_speakers=32, speaker_embed_dim=16), torch.LongTensor([1]))]:
         model.eval()
 
         if speaker_ids is not None:
@@ -269,14 +268,14 @@ def test_incremental_forward():
         max_target_len += r - max_target_len % r
         assert max_target_len % r == 0
     mel = _pad_2d(mel, max_target_len)
-    mel = Variable(torch.from_numpy(mel))
+    mel = torch.from_numpy(mel)
     mel_reshaped = mel.view(1, -1, mel_dim * r)
 
     frame_positions = np.arange(1, mel_reshaped.size(1) + 1).reshape(1, mel_reshaped.size(1))
 
-    x = Variable(torch.LongTensor(seqs))
-    text_positions = Variable(torch.LongTensor(text_positions))
-    frame_positions = Variable(torch.LongTensor(frame_positions))
+    x = torch.LongTensor(seqs)
+    text_positions = torch.LongTensor(text_positions)
+    frame_positions = torch.LongTensor(frame_positions)
 
     if use_cuda:
         x = x.cuda()
@@ -290,7 +289,8 @@ def test_incremental_forward():
         from matplotlib import pylab as plt
         plt.figure(figsize=(16, 10))
         plt.subplot(3, 1, 1)
-        plt.imshow(mel.data.cpu().numpy().T, origin="lower bottom", aspect="auto", cmap="magma")
+        plt.imshow(mel.data.cpu().numpy().T, origin="lower bottom",
+                   aspect="auto", cmap="magma")
         plt.colorbar()
 
         plt.subplot(3, 1, 2)

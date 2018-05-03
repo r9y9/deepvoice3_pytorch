@@ -3,7 +3,6 @@ from __future__ import with_statement, print_function, absolute_import
 
 import torch
 from torch import nn
-from torch.autograd import Variable
 from deepvoice3_pytorch.modules import SinusoidalEncoding, position_encoding_init
 import numpy as np
 
@@ -19,7 +18,7 @@ def test_sinusoidal():
 
         b = SinusoidalEncoding(num_embedding, embedding_dim)
 
-        x = Variable(torch.arange(0, 128).long())
+        x = torch.arange(0, 128).long()
         ax = a(x).data.numpy()
         bx = b(x, w).data.numpy()
 

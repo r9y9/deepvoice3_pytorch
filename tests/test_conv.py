@@ -3,7 +3,6 @@ from __future__ import with_statement, print_function, absolute_import
 
 import torch
 from torch import nn
-from torch.autograd import Variable
 from torch.nn import functional as F
 from deepvoice3_pytorch.conv import Conv1d
 
@@ -36,7 +35,7 @@ def test_conv1d_incremental():
         conv_online.bias.data.zero_()
 
         # (B, C, T)
-        bct = Variable(torch.zeros(B, C, T) + torch.arange(0, T))
+        bct = torch.zeros(B, C, T) + torch.arange(0, T).float()
         output_conv = conv(bct)
 
         # Remove future time stamps
