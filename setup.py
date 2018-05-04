@@ -86,15 +86,15 @@ setup(name='deepvoice3_pytorch',
           "numba",
           "lws <= 1.0",
           "nltk",
-          "requests",
-          "PyQt5",
       ],
       extras_require={
-          "train": [
+          "bin": [
               "docopt",
               "tqdm",
               "tensorboardX",
               "nnmnkwii >= 0.0.11",
+              "requests",
+              "PyQt5",
           ],
           "test": [
               "nose",

@@ -72,7 +72,7 @@ Please install packages listed above first, and then
 
 ```
 git clone https://github.com/r9y9/deepvoice3_pytorch && cd deepvoice3_pytorch
-pip install -e ".[train]"
+pip install -e ".[bin]"
 ```
 
 ## Getting started
