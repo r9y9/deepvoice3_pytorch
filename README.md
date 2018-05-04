@@ -24,7 +24,7 @@ A notebook supposed to be executed on https://colab.research.google.com is avail
 - Multi-speaker and single speaker versions of DeepVoice3
 - Audio samples and pre-trained models
 - Preprocessor for [LJSpeech (en)](https://keithito.com/LJ-Speech-Dataset/), [JSUT (jp)](https://sites.google.com/site/shinnosuketakamichi/publication/jsut) and [VCTK](http://homepages.inf.ed.ac.uk/jyamagis/page3/page58/page58.html) datasets, as well as [carpedm20/multi-speaker-tacotron-tensorflow](https://github.com/carpedm20/multi-Speaker-tacotron-tensorflow) compatible custom dataset (in JSON format)
-- Language-dependent frontend text processor for English and Japanese 
+- Language-dependent frontend text processor for English and Japanese
 
 ### Samples
 
@@ -61,6 +61,7 @@ See "Synthesize from a checkpoint" section in the README for how to generate spe
 
 - Python 3
 - CUDA >= 8.0
+- PyTorch >= v0.4.0
 - TensorFlow >= v1.3
 - [nnmnkwii](https://github.com/r9y9/nnmnkwii) >= v0.0.11
 - [MeCab](http://taku910.github.io/mecab/) (Japanese only)
@@ -104,7 +105,7 @@ python train.py --preset=presets/deepvoice3_ljspeech.json --data-root=./data/ljs
 - LJSpeech (en): https://keithito.com/LJ-Speech-Dataset/
 - VCTK (en): http://homepages.inf.ed.ac.uk/jyamagis/page3/page58/page58.html
 - JSUT (jp): https://sites.google.com/site/shinnosuketakamichi/publication/jsut
-- NIKL (ko) (**Need korean cellphone number to access it**): http://www.korean.go.kr/front/board/boardStandardView.do?board_id=4&mn_id=17&b_seq=464 
+- NIKL (ko) (**Need korean cellphone number to access it**): http://www.korean.go.kr/front/board/boardStandardView.do?board_id=4&mn_id=17&b_seq=464
 
 ### 1. Preprocessing
 
@@ -147,14 +148,14 @@ python preprocess.py json_meta "./datasets/datasetA/alignment.json,./datasets/da
 
 #### 1-2. Preprocessing custom english datasets with long silence. (Based on [vctk_preprocess](vctk_preprocess/))
 
-Some dataset, especially automatically generated dataset may include long silence and undesirable leading/trailing noises, undermining the char-level seq2seq model. 
+Some dataset, especially automatically generated dataset may include long silence and undesirable leading/trailing noises, undermining the char-level seq2seq model.
 (e.g. VCTK, although this is covered in vctk_preprocess)
 
 To deal with the problem, `gentle_web_align.py` will
-- **Prepare phoneme alignments for all utterances** 
-- Cut silences during preprocessing 
+- **Prepare phoneme alignments for all utterances**
+- Cut silences during preprocessing
 
-`gentle_web_align.py` uses [Gentle](https://github.com/lowerquality/gentle), a kaldi based speech-text alignment tool. This accesses web-served Gentle application, aligns given sound segments with transcripts and converts the result to HTK-style label files, to be processed in `preprocess.py`. Gentle can be run in Linux/Mac/Windows(via Docker). 
+`gentle_web_align.py` uses [Gentle](https://github.com/lowerquality/gentle), a kaldi based speech-text alignment tool. This accesses web-served Gentle application, aligns given sound segments with transcripts and converts the result to HTK-style label files, to be processed in `preprocess.py`. Gentle can be run in Linux/Mac/Windows(via Docker).
 
 Preliminary results show that while HTK/festival/merlin-based method in `vctk_preprocess/prepare_vctk_labels.py` works better on VCTK, Gentle is more stable with audio clips with ambient noise. (e.g. movie excerpts)
 
@@ -182,7 +183,7 @@ python train.py --data-root=${data-root} --preset=<json> --hparams="parameters y
 Suppose you build a DeepVoice3-style model using LJSpeech dataset, then you can train your model by:
 
 ```
-python train.py --preset=presets/deepvoice3_ljspeech.json --data-root=./data/ljspeech/ 
+python train.py --preset=presets/deepvoice3_ljspeech.json --data-root=./data/ljspeech/
 ```
 
 Model checkpoints (.pth) and alignments (.png) are saved in `./checkpoints` directory per 10000 steps by default.
@@ -290,9 +291,9 @@ From my experience, it can get reasonable speech quality very quickly rather tha
 There are two important options used above:
 
 - `--restore-parts=<N>`: It specifies where to load model parameters. The differences from the option `--checkpoint=<N>` are 1) `--restore-parts=<N>` ignores all invalid parameters, while `--checkpoint=<N>` doesn't. 2) `--restore-parts=<N>` tell trainer to start from 0-step, while `--checkpoint=<N>` tell trainer to continue from last step. `--checkpoint=<N>` should be ok if you are using exactly same model and continue to train, but it would be useful if you want to customize your model architecture and take advantages of pre-trained model.
-- `--speaker-id=<N>`: It specifies what speaker of data is used for training. This should only be specified if you are using multi-speaker dataset. As for VCTK, speaker id is automatically assigned incrementally (0, 1, ..., 107) according to the `speaker_info.txt` in the dataset. 
+- `--speaker-id=<N>`: It specifies what speaker of data is used for training. This should only be specified if you are using multi-speaker dataset. As for VCTK, speaker id is automatically assigned incrementally (0, 1, ..., 107) according to the `speaker_info.txt` in the dataset.
 
-If you are training multi-speaker model, speaker adaptation will only work **when `n_speakers` is identical**. 
+If you are training multi-speaker model, speaker adaptation will only work **when `n_speakers` is identical**.
 
 ## Acknowledgements
 
