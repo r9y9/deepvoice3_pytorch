@@ -379,7 +379,7 @@ def prepare_spec_image(spectrogram):
     return np.uint8(cm.magma(spectrogram.T) * 255)
 
 
-def eval_model(global_step, writer, model, checkpoint_dir, ismultispeaker):
+def eval_model(global_step, writer, device, model, checkpoint_dir, ismultispeaker):
     # harded coded
     texts = [
         "Scientists at the CERN laboratory say they have discovered a new particle.",
@@ -395,6 +395,10 @@ def eval_model(global_step, writer, model, checkpoint_dir, ismultispeaker):
     eval_output_dir = join(checkpoint_dir, "eval")
     os.makedirs(eval_output_dir, exist_ok=True)
 
+    # Prepare model for evaluation
+    model_eval = build_model().to(device)
+    model_eval.load_state_dict(model.state_dict())
+
     # hard coded
     speaker_ids = [0, 1, 10] if ismultispeaker else [None]
     for speaker_id in speaker_ids:
@@ -402,7 +406,7 @@ def eval_model(global_step, writer, model, checkpoint_dir, ismultispeaker):
 
         for idx, text in enumerate(texts):
             signal, alignment, _, mel = synthesis.tts(
-                model, text, p=0, speaker_id=speaker_id, fast=False)
+                model_eval, text, p=0, speaker_id=speaker_id, fast=True)
             signal /= np.max(np.abs(signal))
 
             # Alignment
@@ -713,7 +717,7 @@ Please set a larger value for ``max_position`` in hyper parameters.""".format(
                     train_seq2seq, train_postnet)
 
             if global_step > 0 and global_step % hparams.eval_interval == 0:
-                eval_model(global_step, writer, model, checkpoint_dir, ismultispeaker)
+                eval_model(global_step, writer, device, model, checkpoint_dir, ismultispeaker)
 
             # Update
             loss.backward()
