@@ -99,6 +99,7 @@ hparams = tf.contrib.training.HParams(
     adam_beta1=0.5,
     adam_beta2=0.9,
     adam_eps=1e-6,
+    amsgrad=False,
     initial_learning_rate=5e-4,  # 0.001,
     lr_schedule="noam_learning_rate_decay",
     lr_schedule_kwargs={},
@@ -125,14 +126,16 @@ hparams = tf.contrib.training.HParams(
     # Forced garbage collection probability
     # Use only when MemoryError continues in Windows (Disabled by default)
     #gc_probability = 0.001,
-    
+
     # json_meta mode only
     # 0: "use all",
     # 1: "ignore only unmatched_alignment",
     # 2: "fully ignore recognition",
-    ignore_recognition_level = 2,
-    min_text=20, # when dealing with non-dedicated speech dataset(e.g. movie excerpts), setting min_text above 15 is desirable. Can be adjusted by dataset.
-    process_only_htk_aligned = False, # if true, data without phoneme alignment file(.lab) will be ignored
+    ignore_recognition_level=2,
+    # when dealing with non-dedicated speech dataset(e.g. movie excerpts), setting min_text above 15 is desirable. Can be adjusted by dataset.
+    min_text=20,
+    # if true, data without phoneme alignment file(.lab) will be ignored
+    process_only_htk_aligned=False,
 )
 
 

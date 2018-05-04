@@ -7,7 +7,6 @@ from os.path import dirname, join, exists
 from deepvoice3_pytorch.frontend.en import text_to_sequence, n_vocab
 
 import torch
-from torch.autograd import Variable
 from torch import nn
 import numpy as np
 
@@ -36,8 +35,8 @@ def _test_data():
     seqs = np.array([_pad(s, max_len) for s in seqs])
 
     # Test encoder
-    x = Variable(torch.LongTensor(seqs))
-    y = Variable(torch.rand(x.size(0), 12, 80))
+    x = torch.LongTensor(seqs)
+    y = torch.rand(x.size(0), 12, 80)
 
     return x, y
 
@@ -66,8 +65,8 @@ def test_incremental_path_multiple_times():
     r = 1
     mel_dim = 80
 
-    sequence = Variable(torch.LongTensor(seqs))
-    text_positions = Variable(torch.LongTensor(text_positions))
+    sequence = torch.LongTensor(seqs)
+    text_positions = torch.LongTensor(text_positions)
 
     model = nyanko(n_vocab, mel_dim=mel_dim, linear_dim=513, downsample_step=4,
                    r=r, force_monotonic_attention=False)
@@ -103,13 +102,13 @@ def test_incremental_correctness():
         max_target_len += r - max_target_len % r
         assert max_target_len % r == 0
     mel = _pad_2d(mel, max_target_len)
-    mel = Variable(torch.from_numpy(mel))
+    mel = torch.from_numpy(mel)
     mel_reshaped = mel.view(1, -1, mel_dim * r)
     frame_positions = np.arange(1, mel_reshaped.size(1) + 1).reshape(1, mel_reshaped.size(1))
 
-    x = Variable(torch.LongTensor(seqs))
-    text_positions = Variable(torch.LongTensor(text_positions))
-    frame_positions = Variable(torch.LongTensor(frame_positions))
+    x = torch.LongTensor(seqs)
+    text_positions = torch.LongTensor(text_positions)
+    frame_positions = torch.LongTensor(frame_positions)
 
     model = nyanko(n_vocab, mel_dim=mel_dim, linear_dim=513, downsample_step=4,
                    r=r, force_monotonic_attention=False)
@@ -148,13 +147,13 @@ def test_nyanko():
         max_target_len += r - max_target_len % r
         assert max_target_len % r == 0
     mel = _pad_2d(mel, max_target_len)
-    mel = Variable(torch.from_numpy(mel))
+    mel = torch.from_numpy(mel)
     mel_reshaped = mel.view(1, -1, mel_dim * r)
     frame_positions = np.arange(1, mel_reshaped.size(1) + 1).reshape(1, mel_reshaped.size(1))
 
-    x = Variable(torch.LongTensor(seqs))
-    text_positions = Variable(torch.LongTensor(text_positions))
-    frame_positions = Variable(torch.LongTensor(frame_positions))
+    x = torch.LongTensor(seqs)
+    text_positions = torch.LongTensor(text_positions)
+    frame_positions = torch.LongTensor(frame_positions)
 
     model = nyanko(n_vocab, mel_dim=mel_dim, linear_dim=513, downsample_step=4,
                    r=r, force_monotonic_attention=False)

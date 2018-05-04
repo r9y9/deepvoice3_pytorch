@@ -34,8 +34,6 @@ import audio
 import lrschedule
 
 import torch
-from torch.utils import data as data_utils
-from torch.autograd import Variable
 from torch import nn
 from torch import optim
 import torch.backends.cudnn as cudnn
@@ -271,7 +269,6 @@ def sequence_mask(sequence_length, max_len=None):
     batch_size = sequence_length.size(0)
     seq_range = torch.arange(0, max_len).long()
     seq_range_expand = seq_range.unsqueeze(0).expand(batch_size, max_len)
-    seq_range_expand = Variable(seq_range_expand)
     if sequence_length.is_cuda:
         seq_range_expand = seq_range_expand.cuda()
     seq_length_expand = sequence_length.unsqueeze(1) \
@@ -382,7 +379,7 @@ def prepare_spec_image(spectrogram):
     return np.uint8(cm.magma(spectrogram.T) * 255)
 
 
-def eval_model(global_step, writer, model, checkpoint_dir, ismultispeaker):
+def eval_model(global_step, writer, device, model, checkpoint_dir, ismultispeaker):
     # harded coded
     texts = [
         "Scientists at the CERN laboratory say they have discovered a new particle.",
@@ -398,6 +395,10 @@ def eval_model(global_step, writer, model, checkpoint_dir, ismultispeaker):
     eval_output_dir = join(checkpoint_dir, "eval")
     os.makedirs(eval_output_dir, exist_ok=True)
 
+    # Prepare model for evaluation
+    model_eval = build_model().to(device)
+    model_eval.load_state_dict(model.state_dict())
+
     # hard coded
     speaker_ids = [0, 1, 10] if ismultispeaker else [None]
     for speaker_id in speaker_ids:
@@ -405,7 +406,7 @@ def eval_model(global_step, writer, model, checkpoint_dir, ismultispeaker):
 
         for idx, text in enumerate(texts):
             signal, alignment, _, mel = synthesis.tts(
-                model, text, p=0, speaker_id=speaker_id, fast=False)
+                model_eval, text, p=0, speaker_id=speaker_id, fast=True)
             signal /= np.max(np.abs(signal))
 
             # Alignment
@@ -538,10 +539,10 @@ def spec_loss(y_hat, y, mask, priority_bin=None, priority_w=0):
 
     # Binary divergence loss
     if hparams.binary_divergence_weight <= 0:
-        binary_div = Variable(y.data.new(1).zero_())
+        binary_div = y.data.new(1).zero_()
     else:
         y_hat_logits = logit(y_hat)
-        z = -y * y_hat_logits + torch.log(1 + torch.exp(y_hat_logits))
+        z = -y * y_hat_logits + torch.log1p(torch.exp(y_hat_logits))
         if w > 0:
             binary_div = w * masked_mean(z, mask) + (1 - w) * z.mean()
         else:
@@ -569,13 +570,11 @@ def guided_attentions(input_lengths, target_lengths, max_target_len, g=0.2):
     return W
 
 
-def train(model, data_loader, optimizer, writer,
+def train(device, model, data_loader, optimizer, writer,
           init_lr=0.002,
           checkpoint_dir=None, checkpoint_interval=None, nepochs=None,
           clip_thresh=1.0,
           train_seq2seq=True, train_postnet=True):
-    if use_cuda:
-        model = model.cuda()
     linear_dim = model.linear_dim
     r = hparams.outputs_per_step
     downsample_step = hparams.downsample_step
@@ -621,23 +620,16 @@ Input text or decoder targget length exceeded the maximum length.
 Please set a larger value for ``max_position`` in hyper parameters.""".format(
                         max_seq_len, hparams.max_positions))
 
-            # Feed data
-            x, mel, y = Variable(x), Variable(mel), Variable(y)
-            text_positions = Variable(text_positions)
-            frame_positions = Variable(frame_positions)
-            done = Variable(done)
-            target_lengths = Variable(target_lengths)
-            speaker_ids = Variable(speaker_ids) if ismultispeaker else None
-            if use_cuda:
-                if train_seq2seq:
-                    x = x.cuda()
-                    text_positions = text_positions.cuda()
-                    frame_positions = frame_positions.cuda()
-                if train_postnet:
-                    y = y.cuda()
-                mel = mel.cuda()
-                done, target_lengths = done.cuda(), target_lengths.cuda()
-                speaker_ids = speaker_ids.cuda() if ismultispeaker else None
+            # Transform data to CUDA device
+            if train_seq2seq:
+                x = x.to(device)
+                text_positions = text_positions.to(device)
+                frame_positions = frame_positions.to(device)
+            if train_postnet:
+                y = y.to(device)
+            mel, done = mel.to(device), done.to(device)
+            target_lengths = target_lengths.to(device)
+            speaker_ids = speaker_ids.to(device) if ismultispeaker else None
 
             # Create mask if we use masked loss
             if hparams.masked_loss_weight > 0:
@@ -712,8 +704,7 @@ Please set a larger value for ``max_position`` in hyper parameters.""".format(
                 soft_mask = guided_attentions(input_lengths, decoder_lengths,
                                               attn.size(-2),
                                               g=hparams.guided_attention_sigma)
-                soft_mask = Variable(torch.from_numpy(soft_mask))
-                soft_mask = soft_mask.cuda() if use_cuda else soft_mask
+                soft_mask = torch.from_numpy(soft_mask).to(device)
                 attn_loss = (attn * soft_mask).mean()
                 loss += attn_loss
 
@@ -726,7 +717,7 @@ Please set a larger value for ``max_position`` in hyper parameters.""".format(
                     train_seq2seq, train_postnet)
 
             if global_step > 0 and global_step % hparams.eval_interval == 0:
-                eval_model(global_step, writer, model, checkpoint_dir, ismultispeaker)
+                eval_model(global_step, writer, device, model, checkpoint_dir, ismultispeaker)
 
             # Update
             loss.backward()
@@ -945,15 +936,16 @@ if __name__ == "__main__":
         num_workers=hparams.num_workers, sampler=sampler,
         collate_fn=collate_fn, pin_memory=hparams.pin_memory)
 
+    device = torch.device("cuda" if use_cuda else "cpu")
+
     # Model
-    model = build_model()
-    if use_cuda:
-        model = model.cuda()
+    model = build_model().to(device)
 
     optimizer = optim.Adam(model.get_trainable_parameters(),
                            lr=hparams.initial_learning_rate, betas=(
         hparams.adam_beta1, hparams.adam_beta2),
-        eps=hparams.adam_eps, weight_decay=hparams.weight_decay)
+        eps=hparams.adam_eps, weight_decay=hparams.weight_decay,
+        amsgrad=hparams.amsgrad)
 
     if checkpoint_restore_parts is not None:
         restore_parts(checkpoint_restore_parts, model)
@@ -985,7 +977,7 @@ if __name__ == "__main__":
 
     # Train!
     try:
-        train(model, data_loader, optimizer, writer,
+        train(device, model, data_loader, optimizer, writer,
               init_lr=hparams.initial_learning_rate,
               checkpoint_dir=checkpoint_dir,
               checkpoint_interval=hparams.checkpoint_interval,
