@@ -35,4 +35,4 @@ build_script:
   - python -c "import nltk; nltk.download('cmudict')"
 
 test_script:
-  - nosetests -v tests/test_audio.py tests/test_conv.py tests/test_deepvoice3.py tests/test_embedding.py tests/test_frontend.py tests/test_nyanko.py -a '!local_only'
+  - nosetests -v -w tests/ -a "!local_only"
