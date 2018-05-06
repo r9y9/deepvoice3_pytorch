@@ -15,9 +15,10 @@ Audio samples are available at https://r9y9.github.io/deepvoice3_pytorch/.
 
 ## Online TTS demo
 
-A notebook supposed to be executed on https://colab.research.google.com is available:
+Notebooks supposed to be executed on https://colab.research.google.com are available:
 
 - [DeepVoice3: Multi-speaker text-to-speech demo](https://colab.research.google.com/github/r9y9/Colaboratory/blob/master/DeepVoice3_multi_speaker_TTS_en_demo.ipynb)
+- [DeepVoice3: Single-speaker text-to-speech demo](https://colab.research.google.com/github/r9y9/Colaboratory/blob/master/DeepVoice3_single_speaker_TTS_en_demo.ipynb)
 
 ## Highlights
 
