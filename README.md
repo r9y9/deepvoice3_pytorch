@@ -296,6 +296,19 @@ There are two important options used above:
 
 If you are training multi-speaker model, speaker adaptation will only work **when `n_speakers` is identical**.
 
+## Trouble shooting
+
+### [#5](https://github.com/r9y9/deepvoice3_pytorch/issues/5) RuntimeError: main thread is not in main loop
+
+
+This may happen depending on backends you have for matplotlib. Try changing backend for matplotlib and see if it works as follows:
+
+```
+MPLBACKEND=Qt5Agg python train.py ${args...}
+```
+
+In [#78](https://github.com/r9y9/deepvoice3_pytorch/pull/78#issuecomment-385327057), engiecat reported that changing the backend of matplotlib from Tkinter(TkAgg) to PyQt5(Qt5Agg) fixed the problem.
+
 ## Acknowledgements
 
 Part of code was adapted from the following projects:

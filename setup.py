@@ -94,7 +94,6 @@ setup(name='deepvoice3_pytorch',
               "tensorboardX",
               "nnmnkwii >= 0.0.11",
               "requests",
-              "PyQt5",
           ],
           "test": [
               "nose",
