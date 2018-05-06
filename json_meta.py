@@ -108,11 +108,11 @@ def build_from_path(in_dir, out_dir, num_workers=1, tqdm=lambda x: x):
             if num_speakers == 1:
                 # Single-speaker
                 futures.append(executor.submit(
-                    partial(_process_utterance_single, out_dir, text, audio_path)))
+                    partial(_process_utterance_single, out_dir, text, audio_path, hparams=hparams)))
             else:
                 # Multi-speaker
                 futures.append(executor.submit(
-                    partial(_process_utterance, out_dir, text, audio_path, speaker_id)))
+                    partial(_process_utterance, out_dir, text, audio_path, speaker_id, hparams=hparams)))
             queue_count += 1
         print(" [*] Appended {} entries in the queue".format(queue_count))
         
@@ -161,8 +161,8 @@ def end_at(labels):
     assert False
 
 
-def _process_utterance(out_dir, text, wav_path, speaker_id=None):
-
+def _process_utterance(out_dir, text, wav_path, speaker_id=None, hparams=hparams):
+    audio.set_hparams(hparams)
     # check whether singlespeaker_mode
     if speaker_id is None:
         return _process_utterance_single(out_dir,text,wav_path)
@@ -212,9 +212,10 @@ def _process_utterance(out_dir, text, wav_path, speaker_id=None):
     # Return a tuple describing this training example:
     return (spectrogram_filename, mel_filename, n_frames, text, speaker_id)
     
-def _process_utterance_single(out_dir, text, wav_path):
+def _process_utterance_single(out_dir, text, wav_path, hparams=hparams):
     # modified version of LJSpeech _process_utterance
-
+    audio.set_hparams(hparams)
+    
     # Load the audio to a numpy array:
     wav = audio.load_wav(wav_path)
     sr = hparams.sample_rate
