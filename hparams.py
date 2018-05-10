@@ -127,7 +127,7 @@ hparams = tf.contrib.training.HParams(
     # Use only when MemoryError continues in Windows (Disabled by default)
     #gc_probability = 0.001,
 
-    # json_meta mode only
+    # Below are for json_meta mode only
     # 0: "use all",
     # 1: "ignore only unmatched_alignment",
     # 2: "fully ignore recognition",
@@ -136,6 +136,10 @@ hparams = tf.contrib.training.HParams(
     min_text=20,
     # if true, data without phoneme alignment file(.lab) will be ignored
     process_only_htk_aligned=False,
+    # Based on HTK-styled phoneme alignment
+    max_phrase_length=0, # in seconds, inactive when 0
+    min_phrase_length=0, # in seconds, inactive when 0 
+    max_silence_length=0, # in seconds, inactive when 0, 
 )
 
 
