@@ -158,7 +158,7 @@ def end_at(labels):
     for i in range(len(labels) - 2, 0, -1):
         if labels[i][-1] != "pau":
             return labels[i][1]
-    assert False
+    assert False    
 
 
 def _process_utterance(out_dir, text, wav_path, speaker_id=None, hparams=hparams):
@@ -190,6 +190,11 @@ def _process_utterance(out_dir, text, wav_path, speaker_id=None, hparams=hparams
 
     if hparams.rescaling:
         wav = wav / np.abs(wav).max() * hparams.rescaling_max
+    
+    if hparams.max_audio_length != 0 and librosa.core.get_duration(y=wav, sr=sr) > hparams.max_audio_length:
+        return None
+    if hparams.min_audio_length != 0 and librosa.core.get_duration(y=wav, sr=sr) < hparams.min_audio_length:
+        return None
 
     # Compute the linear-scale spectrogram from the wav:
     spectrogram = audio.spectrogram(wav).astype(np.float32)
@@ -239,7 +244,12 @@ def _process_utterance_single(out_dir, text, wav_path, hparams=hparams):
     
     if hparams.rescaling:
         wav = wav / np.abs(wav).max() * hparams.rescaling_max
-
+    
+    if hparams.max_audio_length != 0 and librosa.core.get_duration(y=wav, sr=sr) > hparams.max_audio_length:
+        return None
+    if hparams.min_audio_length != 0 and librosa.core.get_duration(y=wav, sr=sr) < hparams.min_audio_length:
+        return None
+    
     # Compute the linear-scale spectrogram from the wav:
     spectrogram = audio.spectrogram(wav).astype(np.float32)
     n_frames = spectrogram.shape[1]
