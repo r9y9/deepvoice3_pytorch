@@ -136,9 +136,9 @@ hparams = tf.contrib.training.HParams(
     min_text=20,
     # if true, data without phoneme alignment file(.lab) will be ignored
     process_only_htk_aligned=False,
+    max_audio_length=0, # in seconds, inactive when 0. (Before processing)
+    min_audio_length=0, # in seconds, inactive when 0. (Before processing)
     # Based on HTK-styled phoneme alignment
-    max_phrase_length=0, # in seconds, inactive when 0
-    min_phrase_length=0, # in seconds, inactive when 0 
     max_silence_length=0, # in seconds, inactive when 0, 
 )
 
