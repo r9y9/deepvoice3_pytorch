@@ -84,7 +84,7 @@ setup(name='deepvoice3_pytorch',
           "inflect",
           "librosa",
           "numba",
-          "lws <= 1.0",
+          "lws",
           "nltk",
       ],
       extras_require={
