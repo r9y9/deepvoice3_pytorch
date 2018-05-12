@@ -108,11 +108,11 @@ def build_from_path(in_dir, out_dir, num_workers=1, tqdm=lambda x: x):
             if num_speakers == 1:
                 # Single-speaker
                 futures.append(executor.submit(
-                    partial(_process_utterance_single, out_dir, text, audio_path)))
+                    partial(_process_utterance_single, out_dir, text, audio_path, hparams=hparams)))
             else:
                 # Multi-speaker
                 futures.append(executor.submit(
-                    partial(_process_utterance, out_dir, text, audio_path, speaker_id)))
+                    partial(_process_utterance, out_dir, text, audio_path, speaker_id, hparams=hparams)))
             queue_count += 1
         print(" [*] Appended {} entries in the queue".format(queue_count))
         
@@ -158,11 +158,56 @@ def end_at(labels):
     for i in range(len(labels) - 2, 0, -1):
         if labels[i][-1] != "pau":
             return labels[i][1]
-    assert False
+    assert False    
+
+# this cleans the audio segment by - 
+# A. separating the whole audiosegment via segments separated with silences 
+# B. removing silence between each segment (while saving 'silent segment' less than hparams.max_silence_length)
+def clean_by_phoneme(labels, wav, sr):
+    # build segment separation
+    silences = []
+    prev_end = 0
+    sil_start = 0
+    at_silence = False
+    for idx, content in enumerate(labels):
+        # silence start condition
+        start, end, label = content
+        if not at_silence:
+            if label == 'pau' or label == 'silB' or label == 'silE':
+                at_silence = True
+                if start != prev_end and labels[idx-1][2] != 'oov': # oov tends to have bad alignment timing
+                    sil_start = prev_end
+                else:
+                    sil_start = start
+            elif start != prev_end and labels[idx-1][2] != 'oov':
+                # one time silence
+                silences.append((prev_end,start))
+                at_silence = False
+                sil_start = 0
+        # silence end condition
+        else:
+            if label != 'pau' and label != 'silB' and label != 'silE':
+                silences.append((sil_start, start))
+                at_silence = False
+                sil_start = 0
+        prev_end = end # always
+    if at_silence:
+        silences.append((sil_start,labels[-1][1]))
+    
+    # Remove silence
+    prev_end = 0
+    result_wav_list = []
+    for start, end in silences:
+        sil_end = end if end-start < hparams.max_silence_length * 1e7 else start + int(hparams.max_silence_length * 1e7)
+        result_wav_list.append(wav[int(prev_end*1e-7*sr):int(sil_end*1e-7*sr)])
+        prev_end = end
+    result_wav=np.concatenate(result_wav_list, axis=0)
+    
+    return result_wav
 
 
-def _process_utterance(out_dir, text, wav_path, speaker_id=None):
-
+def _process_utterance(out_dir, text, wav_path, speaker_id=None, hparams=hparams):
+    audio.set_hparams(hparams)
     # check whether singlespeaker_mode
     if speaker_id is None:
         return _process_utterance_single(out_dir,text,wav_path)
@@ -179,9 +224,7 @@ def _process_utterance(out_dir, text, wav_path, speaker_id=None):
     # Trim silence from hts labels if available
     if exists(lab_path):
         labels = hts.load(lab_path)
-        b = int(start_at(labels) * 1e-7 * sr)
-        e = int(end_at(labels) * 1e-7 * sr)
-        wav = wav[b:e]
+        wav = clean_by_phoneme(labels, wav, sr)
         wav, _ = librosa.effects.trim(wav, top_db=25)
     else:
         if hparams.process_only_htk_aligned:
@@ -190,6 +233,11 @@ def _process_utterance(out_dir, text, wav_path, speaker_id=None):
 
     if hparams.rescaling:
         wav = wav / np.abs(wav).max() * hparams.rescaling_max
+    
+    if hparams.max_audio_length != 0 and librosa.core.get_duration(y=wav, sr=sr) > hparams.max_audio_length:
+        return None
+    if hparams.min_audio_length != 0 and librosa.core.get_duration(y=wav, sr=sr) < hparams.min_audio_length:
+        return None
 
     # Compute the linear-scale spectrogram from the wav:
     spectrogram = audio.spectrogram(wav).astype(np.float32)
@@ -212,9 +260,10 @@ def _process_utterance(out_dir, text, wav_path, speaker_id=None):
     # Return a tuple describing this training example:
     return (spectrogram_filename, mel_filename, n_frames, text, speaker_id)
     
-def _process_utterance_single(out_dir, text, wav_path):
+def _process_utterance_single(out_dir, text, wav_path, hparams=hparams):
     # modified version of LJSpeech _process_utterance
-
+    audio.set_hparams(hparams)
+    
     # Load the audio to a numpy array:
     wav = audio.load_wav(wav_path)
     sr = hparams.sample_rate
@@ -226,9 +275,7 @@ def _process_utterance_single(out_dir, text, wav_path):
     # Trim silence from hts labels if available
     if exists(lab_path):
         labels = hts.load(lab_path)
-        b = int(start_at(labels) * 1e-7 * sr)
-        e = int(end_at(labels) * 1e-7 * sr)
-        wav = wav[b:e]
+        wav = clean_by_phoneme(labels, wav, sr)
         wav, _ = librosa.effects.trim(wav, top_db=25)
     else:
         if hparams.process_only_htk_aligned:
@@ -238,7 +285,12 @@ def _process_utterance_single(out_dir, text, wav_path):
     
     if hparams.rescaling:
         wav = wav / np.abs(wav).max() * hparams.rescaling_max
-
+    
+    if hparams.max_audio_length != 0 and librosa.core.get_duration(y=wav, sr=sr) > hparams.max_audio_length:
+        return None
+    if hparams.min_audio_length != 0 and librosa.core.get_duration(y=wav, sr=sr) < hparams.min_audio_length:
+        return None
+    
     # Compute the linear-scale spectrogram from the wav:
     spectrogram = audio.spectrogram(wav).astype(np.float32)
     n_frames = spectrogram.shape[1]

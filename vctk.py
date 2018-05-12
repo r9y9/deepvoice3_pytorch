@@ -25,7 +25,7 @@ def build_from_path(in_dir, out_dir, num_workers=1, tqdm=lambda x: x):
     for index, (speaker_id, text, wav_path) in enumerate(
             zip(speaker_ids, transcriptions, wav_paths)):
         futures.append(executor.submit(
-            partial(_process_utterance, out_dir, index + 1, speaker_id, wav_path, text)))
+            partial(_process_utterance, out_dir, index + 1, speaker_id, wav_path, text, hparams=hparams)))
     return [future.result() for future in tqdm(futures)]
 
 
@@ -49,8 +49,9 @@ def end_at(labels):
     assert False
 
 
-def _process_utterance(out_dir, index, speaker_id, wav_path, text):
+def _process_utterance(out_dir, index, speaker_id, wav_path, text, hparams=hparams):
     sr = hparams.sample_rate
+    audio.set_hparams(hparams)
 
     # Load the audio to a numpy array:
     wav = audio.load_wav(wav_path)
