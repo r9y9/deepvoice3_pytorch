@@ -43,11 +43,29 @@ Notebooks supposed to be executed on https://colab.research.google.com are avail
 
  | URL | Model      | Data     | Hyper paramters                                  | Git commit | Steps  |
  |-----|------------|----------|--------------------------------------------------|----------------------|--------|
- | [link](https://www.dropbox.com/s/cs6d070ommy2lmh/20171213_deepvoice3_checkpoint_step000210000.pth?dl=0) | DeepVoice3 | LJSpeech | `builder=deepvoice3,preset=deepvoice3_ljspeech` | [4357976](https://github.com/r9y9/deepvoice3_pytorch/tree/43579764f35de6b8bac2b18b52a06e4e11b705b2)| 210k ~ |
+ | [link](https://www.dropbox.com/s/5ucl9remrwy5oeg/20180505_deepvoice3_checkpoint_step000640000.pth?dl=0) | DeepVoice3 | LJSpeech | [link](https://www.dropbox.com/s/0ck82unm0bo0rxd/20180505_deepvoice3_ljspeech.json?dl=0) | [abf0a21](https://github.com/r9y9/deepvoice3_pytorch/tree/abf0a21f83aeb451b918f867bc23378f1e2e608b)| 640k |
  |  [link](https://www.dropbox.com/s/1y8bt6bnggbzzlp/20171129_nyanko_checkpoint_step000585000.pth?dl=0)   | Nyanko     | LJSpeech | `builder=nyanko,preset=nyanko_ljspeech`     | [ba59dc7](https://github.com/r9y9/deepvoice3_pytorch/tree/ba59dc75374ca3189281f6028201c15066830116) | 585k |
   |  [link](https://www.dropbox.com/s/uzmtzgcedyu531k/20171222_deepvoice3_vctk108_checkpoint_step000300000.pth?dl=0)   | Multi-speaker DeepVoice3     | VCTK | `builder=deepvoice3_multispeaker,preset=deepvoice3_vctk`     | [0421749](https://github.com/r9y9/deepvoice3_pytorch/tree/0421749af908905d181f089f06956fddd0982d47) | 300k + 300k |
 
-See "Synthesize from a checkpoint" section in the README for how to generate speech samples. Please make sure that you are on the specific git commit noted above.
+To use pre-trained models, it's highly recommended that you are on the **specific git commit** noted above. i.e.,
+
+```
+git checkout ${commit_hash}
+```
+
+Then follow the "Synthesize from a checkpoint" section in the README of the specific git commit. Please notice that the latest development version of the repository may not work.
+
+You could try for example:
+
+```
+# pretrained model (20180505_deepvoice3_checkpoint_step000640000.pth)
+# hparams (20180505_deepvoice3_ljspeech.json)
+git checkout 4357976
+python synthesis.py --preset=20180505_deepvoice3_ljspeech.json \
+  20180505_deepvoice3_checkpoint_step000640000.pth \
+  sentences.txt \
+  output_dir
+```
 
 ## Notes on hyper parameters
 
@@ -134,7 +152,7 @@ python preprocess.py --preset=presets/deepvoice3_ljspeech.json ljspeech ~/data/L
 When this is done, you will see extracted features (mel-spectrograms and linear spectrograms) in `./data/ljspeech`.
 
 #### 1-1. Building custom dataset. (using json_meta)
-Building your own dataset, with metadata in JSON format (compatible with [carpedm20/multi-speaker-tacotron-tensorflow](https://github.com/carpedm20/multi-Speaker-tacotron-tensorflow)) is currently supported.  
+Building your own dataset, with metadata in JSON format (compatible with [carpedm20/multi-speaker-tacotron-tensorflow](https://github.com/carpedm20/multi-Speaker-tacotron-tensorflow)) is currently supported.
 Usage:
 
 ```
