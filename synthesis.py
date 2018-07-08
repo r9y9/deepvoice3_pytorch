@@ -145,7 +145,6 @@ if __name__ == "__main__":
             plot_alignment(alignment.T, dst_alignment_path,
                            info="{}, {}".format(hparams.builder, basename(checkpoint_path)))
             audio.save_wav(waveform, dst_wav_path)
-            from os.path import basename, splitext
             name = splitext(basename(text_list_file_path))[0]
             if output_html:
                 print("""
