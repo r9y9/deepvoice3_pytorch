@@ -6,12 +6,12 @@ from random import random
 
 n_vocab = len(symbols)
 
-_arphabet = nltk.corpus.cmudict.dict()
+_arpabet = nltk.corpus.cmudict.dict()
 
 
 def _maybe_get_arpabet(word, p):
     try:
-        phonemes = _arphabet[word][0]
+        phonemes = _arpabet[word][0]
         phonemes = " ".join(phonemes)
     except KeyError:
         return word
