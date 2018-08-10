@@ -237,10 +237,10 @@ class Decoder(nn.Module):
         x = x.transpose(1, 2)
 
         # Mel
-        outputs = F.sigmoid(x)
+        outputs = torch.sigmoid(x)
 
         # Done prediction
-        done = F.sigmoid(self.fc(x))
+        done = torch.sigmoid(self.fc(x))
 
         # Adding extra dim for convenient
         alignments = alignments.unsqueeze(0)
@@ -310,8 +310,8 @@ class Decoder(nn.Module):
             x = self.last_conv.incremental_forward(x)
 
             # Ooutput & done flag predictions
-            output = F.sigmoid(x)
-            done = F.sigmoid(self.fc(x))
+            output = torch.sigmoid(x)
+            done = torch.sigmoid(self.fc(x))
 
             decoder_states += [decoder_state]
             outputs += [output]

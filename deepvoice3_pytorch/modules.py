@@ -160,7 +160,7 @@ class Conv1dGLU(nn.Module):
             # Since conv layer assumes BCT, we need to transpose
             softsign = softsign if is_incremental else softsign.transpose(1, 2)
             a = a + softsign
-        x = a * F.sigmoid(b)
+        x = a * torch.sigmoid(b)
         return (x + residual) * math.sqrt(0.5) if self.residual else x
 
     def clear_buffer(self):
@@ -222,7 +222,7 @@ class HighwayConv1d(nn.Module):
             return (x + residual) * math.sqrt(0.5)
         else:
             a, b = x.split(x.size(splitdim) // 2, dim=splitdim)
-            T = F.sigmoid(b)
+            T = torch.sigmoid(b)
             return (T * a + (1 - T) * residual)
 
     def clear_buffer(self):
