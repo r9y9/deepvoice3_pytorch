@@ -276,7 +276,7 @@ def sequence_mask(sequence_length, max_len=None):
 class MaskedL1Loss(nn.Module):
     def __init__(self):
         super(MaskedL1Loss, self).__init__()
-        self.criterion = nn.L1Loss(size_average=False)
+        self.criterion = nn.L1Loss(reduction="sum")
 
     def forward(self, input, target, lengths=None, mask=None, max_len=None):
         if lengths is None and mask is None:
