@@ -16,7 +16,7 @@ VERSION=${TAG/v/}
 
 DEEPVOICE3_PYTORCH_BUILD_VERSION=$VERSION python setup.py develop sdist
 echo "*** Ready to release! deepvoice3_pytorch $TAG ***"
-echo "Please run the following command manually:"
-echo DEEPVOICE3_PYTORCH_BUILD_VERSION=$VERSION python setup.py sdist upload
 echo "Please make sure that release verion is correct."
 cat deepvoice3_pytorch/version.py
+echo "Please run the following command manually:"
+echo twine upload dist/deepvoice3_pytorch-${VERSION}.tar.gz --repository-url https://upload.pypi.org/legacy/

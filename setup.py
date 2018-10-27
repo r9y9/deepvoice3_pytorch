@@ -7,7 +7,7 @@ import os
 import subprocess
 from os.path import exists
 
-version = '0.0.6'
+version = '0.1.0'
 
 # Adapted from https://github.com/pytorch/pytorch
 cwd = os.path.dirname(os.path.abspath(__file__))
