@@ -5,6 +5,7 @@
 [![PyPI](https://img.shields.io/pypi/v/deepvoice3_pytorch.svg)](https://pypi.python.org/pypi/deepvoice3_pytorch)
 [![Build Status](https://travis-ci.org/r9y9/deepvoice3_pytorch.svg?branch=master)](https://travis-ci.org/r9y9/deepvoice3_pytorch)
 [![Build status](https://ci.appveyor.com/api/projects/status/8eurjakfaofbr24k?svg=true)](https://ci.appveyor.com/project/r9y9/deepvoice3-pytorch)
+[![DOI](https://zenodo.org/badge/108992863.svg)](https://zenodo.org/badge/latestdoi/108992863)
 
 PyTorch implementation of convolutional networks-based text-to-speech synthesis models:
 
