@@ -23,10 +23,10 @@ import re
 
 import six
 
-from tensorflow.contrib.training.python.training import hparam_pb2
-from tensorflow.python.framework import ops
-from tensorflow.python.util import compat
-from tensorflow.python.util import deprecation
+## from tensorflow.contrib.training.python.training import hparam_pb2
+## from tensorflow.python.framework import ops
+## from tensorflow.python.util import compat
+## from tensorflow.python.util import deprecation
 
 # Define the regular expression for parsing a single clause of the input
 # (delimited by commas).  A legal clause looks like:
@@ -415,48 +415,49 @@ class HParams(object):
     self._hparam_types = {}
     self._model_structure = model_structure
     if hparam_def:
-      self._init_from_proto(hparam_def)
-      if kwargs:
-        raise ValueError('hparam_def and initialization values are '
-                         'mutually exclusive')
+##       self._init_from_proto(hparam_def)
+##       if kwargs:
+##         raise ValueError('hparam_def and initialization values are '
+##                          'mutually exclusive')
+      raise ValueError('hparam_def has been disabled in this version')
     else:
       for name, value in six.iteritems(kwargs):
         self.add_hparam(name, value)
 
-  def _init_from_proto(self, hparam_def):
-    """Creates a new HParams from `HParamDef` protocol buffer.
-
-    Args:
-      hparam_def: `HParamDef` protocol buffer.
-    """
-    assert isinstance(hparam_def, hparam_pb2.HParamDef)
-    for name, value in hparam_def.hparam.items():
-      kind = value.WhichOneof('kind')
-      if kind.endswith('_value'):
-        # Single value.
-        if kind.startswith('int64'):
-          # Setting attribute value to be 'int' to ensure the type is compatible
-          # with both Python2 and Python3.
-          self.add_hparam(name, int(getattr(value, kind)))
-        elif kind.startswith('bytes'):
-          # Setting attribute value to be 'str' to ensure the type is compatible
-          # with both Python2 and Python3. UTF-8 encoding is assumed.
-          self.add_hparam(name, compat.as_str(getattr(value, kind)))
-        else:
-          self.add_hparam(name, getattr(value, kind))
-      else:
-        # List of values.
-        if kind.startswith('int64'):
-          # Setting attribute value to be 'int' to ensure the type is compatible
-          # with both Python2 and Python3.
-          self.add_hparam(name, [int(v) for v in getattr(value, kind).value])
-        elif kind.startswith('bytes'):
-          # Setting attribute value to be 'str' to ensure the type is compatible
-          # with both Python2 and Python3. UTF-8 encoding is assumed.
-          self.add_hparam(
-              name, [compat.as_str(v) for v in getattr(value, kind).value])
-        else:
-          self.add_hparam(name, [v for v in getattr(value, kind).value])
+##   def _init_from_proto(self, hparam_def):
+##     """Creates a new HParams from `HParamDef` protocol buffer.
+## 
+##     Args:
+##       hparam_def: `HParamDef` protocol buffer.
+##     """
+##     assert isinstance(hparam_def, hparam_pb2.HParamDef)
+##     for name, value in hparam_def.hparam.items():
+##       kind = value.WhichOneof('kind')
+##       if kind.endswith('_value'):
+##         # Single value.
+##         if kind.startswith('int64'):
+##           # Setting attribute value to be 'int' to ensure the type is compatible
+##           # with both Python2 and Python3.
+##           self.add_hparam(name, int(getattr(value, kind)))
+##         elif kind.startswith('bytes'):
+##           # Setting attribute value to be 'str' to ensure the type is compatible
+##           # with both Python2 and Python3. UTF-8 encoding is assumed.
+##           self.add_hparam(name, compat.as_str(getattr(value, kind)))
+##         else:
+##           self.add_hparam(name, getattr(value, kind))
+##       else:
+##         # List of values.
+##         if kind.startswith('int64'):
+##           # Setting attribute value to be 'int' to ensure the type is compatible
+##           # with both Python2 and Python3.
+##           self.add_hparam(name, [int(v) for v in getattr(value, kind).value])
+##         elif kind.startswith('bytes'):
+##           # Setting attribute value to be 'str' to ensure the type is compatible
+##           # with both Python2 and Python3. UTF-8 encoding is assumed.
+##           self.add_hparam(
+##               name, [compat.as_str(v) for v in getattr(value, kind).value])
+##         else:
+##           self.add_hparam(name, [v for v in getattr(value, kind).value])
 
   def add_hparam(self, name, value):
     """Adds {name, value} pair to hyperparameters.
@@ -558,7 +559,7 @@ class HParams(object):
       self.set_hparam(name, value)
     return self
 
-  @deprecation.deprecated(None, 'Use `override_from_dict`.')
+##   @deprecation.deprecated(None, 'Use `override_from_dict`.')
   def set_from_map(self, values_map):
     """DEPRECATED. Use override_from_dict."""
     return self.override_from_dict(values_dict=values_map)
@@ -684,42 +685,42 @@ class HParams(object):
     suffix = 'list' if is_list else 'value'
     return '_'.join([typename, suffix])
 
-  def to_proto(self, export_scope=None):  # pylint: disable=unused-argument
-    """Converts a `HParams` object to a `HParamDef` protocol buffer.
+##   def to_proto(self, export_scope=None):  # pylint: disable=unused-argument
+##     """Converts a `HParams` object to a `HParamDef` protocol buffer.
+## 
+##     Args:
+##       export_scope: Optional `string`. Name scope to remove.
+## 
+##     Returns:
+##       A `HParamDef` protocol buffer.
+##     """
+##     hparam_proto = hparam_pb2.HParamDef()
+##     for name in self._hparam_types:
+##       # Parse the values.
+##       param_type, is_list = self._hparam_types.get(name, (None, None))
+##       kind = HParams._get_kind_name(param_type, is_list)
+## 
+##       if is_list:
+##         if kind.startswith('bytes'):
+##           v_list = [compat.as_bytes(v) for v in getattr(self, name)]
+##         else:
+##           v_list = [v for v in getattr(self, name)]
+##         getattr(hparam_proto.hparam[name], kind).value.extend(v_list)
+##       else:
+##         v = getattr(self, name)
+##         if kind.startswith('bytes'):
+##           v = compat.as_bytes(getattr(self, name))
+##         setattr(hparam_proto.hparam[name], kind, v)
+## 
+##     return hparam_proto
 
-    Args:
-      export_scope: Optional `string`. Name scope to remove.
-
-    Returns:
-      A `HParamDef` protocol buffer.
-    """
-    hparam_proto = hparam_pb2.HParamDef()
-    for name in self._hparam_types:
-      # Parse the values.
-      param_type, is_list = self._hparam_types.get(name, (None, None))
-      kind = HParams._get_kind_name(param_type, is_list)
-
-      if is_list:
-        if kind.startswith('bytes'):
-          v_list = [compat.as_bytes(v) for v in getattr(self, name)]
-        else:
-          v_list = [v for v in getattr(self, name)]
-        getattr(hparam_proto.hparam[name], kind).value.extend(v_list)
-      else:
-        v = getattr(self, name)
-        if kind.startswith('bytes'):
-          v = compat.as_bytes(getattr(self, name))
-        setattr(hparam_proto.hparam[name], kind, v)
-
-    return hparam_proto
-
-  @staticmethod
-  def from_proto(hparam_def, import_scope=None):  # pylint: disable=unused-argument
-    return HParams(hparam_def=hparam_def)
+##   @staticmethod
+##   def from_proto(hparam_def, import_scope=None):  # pylint: disable=unused-argument
+##     return HParams(hparam_def=hparam_def)
 
 
-ops.register_proto_function(
-    'hparams',
-    proto_type=hparam_pb2.HParamDef,
-    to_proto=HParams.to_proto,
-    from_proto=HParams.from_proto)
+## ops.register_proto_function(
+##     'hparams',
+##     proto_type=hparam_pb2.HParamDef,
+##     to_proto=HParams.to_proto,
+##     from_proto=HParams.from_proto)
