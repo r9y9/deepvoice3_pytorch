@@ -91,7 +91,7 @@ setup(name='deepvoice3_pytorch',
           "bin": [
               "docopt",
               "tqdm",
-              "tensorboardX",
+              "tensorboardX <= 1.2",
               "nnmnkwii >= 0.0.11",
               "requests",
           ],
