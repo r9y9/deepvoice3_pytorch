@@ -55,9 +55,9 @@ def test_conv1d_incremental():
 
         assert (output_conv == output_conv_online).all()
 
-    for B in [1, 16]:
-        for T in [10, 20, 30]:
+    for B in [1, 4]:
+        for T in [5, 10]:
             for C in [1, 2, 4]:
-                for kernel_size in [2, 3, 4, 5, 6, 7, 8, 9]:
-                    for dilation in [1, 2, 3, 4, 5, 6, 7, 8, 9, 27]:
+                for kernel_size in [2, 3]:
+                    for dilation in [1, 2, 3, 4, 5, 9, 27]:
                         yield __test, kernel_size, dilation, T, B, C
