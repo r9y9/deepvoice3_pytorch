@@ -12,15 +12,6 @@ PyTorch implementation of convolutional networks-based text-to-speech synthesis 
 1. [arXiv:1710.07654](https://arxiv.org/abs/1710.07654): Deep Voice 3: Scaling Text-to-Speech with Convolutional Sequence Learning.
 2. [arXiv:1710.08969](https://arxiv.org/abs/1710.08969): Efficiently Trainable Text-to-Speech System Based on Deep Convolutional Networks with Guided Attention.
 
-Audio samples are available at https://r9y9.github.io/deepvoice3_pytorch/.
-
-## Online TTS demo
-
-Notebooks supposed to be executed on https://colab.research.google.com are available:
-
-- [DeepVoice3: Multi-speaker text-to-speech demo](https://colab.research.google.com/github/r9y9/Colaboratory/blob/master/DeepVoice3_multi_speaker_TTS_en_demo.ipynb)
-- [DeepVoice3: Single-speaker text-to-speech demo](https://colab.research.google.com/github/r9y9/Colaboratory/blob/master/DeepVoice3_single_speaker_TTS_en_demo.ipynb)
-
 ## Highlights
 
 - Convolutional sequence-to-sequence model with attention for text-to-speech synthesis
@@ -29,7 +20,13 @@ Notebooks supposed to be executed on https://colab.research.google.com are avail
 - Preprocessor for [LJSpeech (en)](https://keithito.com/LJ-Speech-Dataset/), [JSUT (jp)](https://sites.google.com/site/shinnosuketakamichi/publication/jsut) and [VCTK](http://homepages.inf.ed.ac.uk/jyamagis/page3/page58/page58.html) datasets, as well as [carpedm20/multi-speaker-tacotron-tensorflow](https://github.com/carpedm20/multi-Speaker-tacotron-tensorflow) compatible custom dataset (in JSON format)
 - Language-dependent frontend text processor for English and Japanese
 
-### Samples
+## Samples and demo
+
+### English samples
+
+Audio samples are available at https://r9y9.github.io/deepvoice3_pytorch/.
+
+### Japanese and Korean Samples
 
 - [Ja Step000380000 Predicted](https://soundcloud.com/user-623907374/ja-step000380000-predicted)
 - [Ja Step000370000 Predicted](https://soundcloud.com/user-623907374/ja-step000370000-predicted)
@@ -38,13 +35,82 @@ Notebooks supposed to be executed on https://colab.research.google.com are avail
 - [Ko_multi Step001680000 Predicted](https://soundcloud.com/user-623907374/step001680000-predicted)
 - [Ko_multi Step001700000 Predicted](https://soundcloud.com/user-623907374/step001700000-predicted)
 
+### Online TTS demo
+
+Notebooks supposed to be executed on https://colab.research.google.com are available:
+
+- [DeepVoice3: Multi-speaker text-to-speech demo](https://colab.research.google.com/github/r9y9/Colaboratory/blob/master/DeepVoice3_multi_speaker_TTS_en_demo.ipynb)
+- [DeepVoice3: Single-speaker text-to-speech demo](https://colab.research.google.com/github/r9y9/Colaboratory/blob/master/DeepVoice3_single_speaker_TTS_en_demo.ipynb)
+
+## Installation and test of version v0.1.0
+
+Tested on a Linux mint 18.3 live-DVD.
+
+```
+cd ~
+
+# # Required to be able to pip install: lws, nnmnkwii, bandmat (from nnmnkwii), pysptk (from nnmnkwii)
+# sudo apt update
+# sudo apt install build-essential
+# sudo apt install python3-dev
+
+git clone -b v0.1.0 https://github.com/r9y9/deepvoice3_pytorch.git ~/r9y9_deepvoice3_pytorch_v0.1.0
+cd ~/r9y9_deepvoice3_pytorch_v0.1.0
+
+virtualenv -p python3 ~/r9y9_deepvoice3_pytorch_v0.1.0_env/
+source ~/r9y9_deepvoice3_pytorch_v0.1.0_env/bin/activate
+
+pip install numpy # Required because nnmnkwii setup has it as dependency and else pip install nnmnkwii (within next command) fails
+pip install -e ".[bin]"
+pip install matplotlib # This is not installed by previous command. Maybe it should be added to the bin target
+pip install tensorflow # No special nn routines are used. A proposed patch gets rid of this requirement
+# pip install "tensorboardX<=1.2" # Necessary fix for training in this release
+
+python -c "import nltk; nltk.download('cmudict')"
+python -c "import nltk; nltk.download('punkt')"
+
+# # Preprocess dataset
+# # (omitted)
+# 
+# # Train the models
+# 
+# MPLBACKEND=Agg python train.py --preset=presets/deepvoice3_ljspeech.json --data-root=$HOME/PREPROCESSED/ljspeech_dv3/ --checkpoint-dir=checkpoints_deepvoice3 --log-event-path=log_deepvoice3
+# MPLBACKEND=Agg python train.py --preset=presets/nyanko_ljspeech.json --data-root=$HOME/PREPROCESSED/ljspeech_nyanko/ --checkpoint-dir=checkpoints_nyanko --log-event-path=log_nyanko
+# 
+# cp checkpoints_deepvoice3/checkpoint_step001000000.pth ./deepvoice3_pytorch_v0.1.0_ljspeech_deepvoice3_checkpoint_step001000000.pth
+# cp checkpoints_nyanko/checkpoint_step001000000.pth ./deepvoice3_pytorch_v0.1.0_ljspeech_nyanko_checkpoint_step001000000.pth
+
+# # Download the models
+# 
+# wget http://hostingservice/deepvoice3_pytorch_v0.1.0_ljspeech_deepvoice3_checkpoint_step001000000.pth
+# wget http://hostingservice/deepvoice3_pytorch_v0.1.0_ljspeech_nyanko_checkpoint_step001000000.pth
+
+echo -e "Scientists at the CERN laboratory say they have discovered a new particle.\nThere's a way to measure the acute emotional intelligence that has never gone out of style.\nPresident Trump met with other leaders at the Group of 20 conference.\nGenerative adversarial network or variational auto-encoder.\nPlease call Stella.\nSome have accepted this as a miracle without any physical explanation." > sentences.txt
+mkdir out_deepvoice3
+MPLBACKEND=Agg python synthesis.py deepvoice3_pytorch_v0.1.0_ljspeech_deepvoice3_checkpoint_step001000000.pth sentences.txt out_deepvoice3 --preset=presets/deepvoice3_ljspeech.json 
+mkdir out_nyanko
+MPLBACKEND=Agg python synthesis.py deepvoice3_pytorch_v0.1.0_ljspeech_nyanko_checkpoint_step001000000.pth sentences.txt out_nyanko --preset=presets/nyanko_ljspeech.json 
+
+deactivate
+cd ~
+```
+
 ## Pretrained models
+
+ | URL | Model      | Data     | Hyper paramters                                  | Git commit | Steps  |
+ |-----|------------|----------|--------------------------------------------------|----------------------|--------|
+ | [link](https://drive.google.com/open?id=1FauMlx2OPpVC5cSgdfT86_eWJksCfd2C) | DeepVoice3 | LJSpeech 1.1 | presets/deepvoice3_ljspeech.json | [v0.1.0](https://github.com/r9y9/deepvoice3_pytorch/tree/v0.1.0) | 1000k |
+ | [link](https://drive.google.com/open?id=1eZglEroWcU5-HpRwjebNGRDp_CEfQxUe) | Nyanko     | LJSpeech 1.1 | presets/nyanko_ljspeech.json |  [v0.1.0](https://github.com/r9y9/deepvoice3_pytorch/tree/v0.1.0) | 1000k |
+
+These models were trained by @Martin-Laclaustra at the Supercomputing Centre of Aragon / Centro de Supercomputación de Aragón [(CESAR)](http://cesar.unizar.es/)
+
+### Models for older versions
 
 **NOTE**: pretrained models are not compatible to master. To be updated soon.
 
  | URL | Model      | Data     | Hyper paramters                                  | Git commit | Steps  |
  |-----|------------|----------|--------------------------------------------------|----------------------|--------|
- | [link](https://www.dropbox.com/s/5ucl9remrwy5oeg/20180505_deepvoice3_checkpoint_step000640000.pth?dl=0) | DeepVoice3 | LJSpeech | [link](https://www.dropbox.com/s/0ck82unm0bo0rxd/20180505_deepvoice3_ljspeech.json?dl=0) | [abf0a21](https://github.com/r9y9/deepvoice3_pytorch/tree/abf0a21f83aeb451b918f867bc23378f1e2e608b)| 640k |
+ | [link](https://www.dropbox.com/s/5ucl9remrwy5oeg/20180505_deepvoice3_checkpoint_step000640000.pth?dl=0) | DeepVoice3 | LJSpeech | [link](https://www.dropbox.com/s/0ck82unm0bo0rxd/20180505_deepvoice3_ljspeech.json?dl=0) | [abf0a21](https://github.com/r9y9/deepvoice3_pytorch/tree/abf0a21f83aeb451b918f867bc23378f1e2e608b) | 640k |
  |  [link](https://www.dropbox.com/s/1y8bt6bnggbzzlp/20171129_nyanko_checkpoint_step000585000.pth?dl=0)   | Nyanko     | LJSpeech | `builder=nyanko,preset=nyanko_ljspeech`     | [ba59dc7](https://github.com/r9y9/deepvoice3_pytorch/tree/ba59dc75374ca3189281f6028201c15066830116) | 585k |
   |  [link](https://www.dropbox.com/s/uzmtzgcedyu531k/20171222_deepvoice3_vctk108_checkpoint_step000300000.pth?dl=0)   | Multi-speaker DeepVoice3     | VCTK | `builder=deepvoice3_multispeaker,preset=deepvoice3_vctk`     | [0421749](https://github.com/r9y9/deepvoice3_pytorch/tree/0421749af908905d181f089f06956fddd0982d47) | 300k + 300k |
 
@@ -71,7 +137,7 @@ python synthesis.py --preset=20180505_deepvoice3_ljspeech.json \
 ## Notes on hyper parameters
 
 - Default hyper parameters, used during preprocessing/training/synthesis stages, are turned for English TTS using LJSpeech dataset. You will have to change some of parameters if you want to try other datasets. See `hparams.py` for details.
-- `builder` specifies which model you want to use. `deepvoice3`, `deepvoice3_multispeaker` [1] and `nyanko` [2] are surpprted.
+- `builder` specifies which model you want to use. `deepvoice3`, `deepvoice3_multispeaker` [1] and `nyanko` [2] are surpported.
 - Hyper parameters described in DeepVoice3 paper for single speaker didn't work for LJSpeech dataset, so I changed a few things. Add dilated convolution, more channels, more layers and add guided attention loss, etc. See code for details. The changes are also applied for multi-speaker model.
 - Multiple attention layers are hard to learn. Empirically, one or two (first and last) attention layers seems enough.
 - With guided attention (see https://arxiv.org/abs/1710.08969), alignments get monotonic more quickly and reliably if we use multiple attention layers. With guided attention, I can confirm five attention layers get monotonic, though I cannot get speech quality improvements.
@@ -81,44 +147,35 @@ python synthesis.py --preset=20180505_deepvoice3_ljspeech.json \
 ## Requirements
 
 - Python 3
-- CUDA >= 8.0
+- CUDA >= 8.0 (optional)
 - PyTorch >= v0.4.0
-- TensorFlow >= v1.3
+- TensorFlow >= v1.3 (this requirement may not be needed in future versions)
 - [nnmnkwii](https://github.com/r9y9/nnmnkwii) >= v0.0.11
 - [MeCab](http://taku910.github.io/mecab/) (Japanese only)
-
-## Installation
-
-Please install packages listed above first, and then
-
-```
-git clone https://github.com/r9y9/deepvoice3_pytorch && cd deepvoice3_pytorch
-pip install -e ".[bin]"
-```
 
 ## Getting started
 
 ### Preset parameters
 
-There are many hyper parameters to be turned depends on what model and data you are working on. For typical datasets and models, parameters that known to work good (**preset**) are provided in the repository. See `presets` directory for details. Notice that
+There are many hyper parameters to be tuned which depend on what model and data you are working on. For typical datasets and models, parameters that are known to work good (**preset**) are provided in the repository. See `presets` directory for details. Notice that
 
 1. `preprocess.py`
 2. `train.py`
 3. `synthesis.py`
 
-accepts `--preset=<json>` optional parameter, which specifies where to load preset parameters. If you are going to use preset parameters, then you must use same `--preset=<json>` throughout preprocessing, training and evaluation. e.g.,
+accepts `--preset=<json>` optional parameter, which specifies from where to load preset parameters. If you are going to use preset parameters, then you must use same `--preset=<json>` throughout preprocessing, training and evaluation. e.g.,
 
 ```
-python preprocess.py --preset=presets/deepvoice3_ljspeech.json ljspeech ~/data/LJSpeech-1.0
-python train.py --preset=presets/deepvoice3_ljspeech.json --data-root=./data/ljspeech
+python preprocess.py --preset=presets/deepvoice3_ljspeech.json ljspeech ~/CORPUS/LJSpeech-1.1 ~/PREPROCESSED/ljspeech_dv3
+MPLBACKEND=Agg python train.py --preset=presets/deepvoice3_ljspeech.json --data-root=$HOME/PREPROCESSED/ljspeech_dv3/
 ```
 
 instead of
 
 ```
-python preprocess.py ljspeech ~/data/LJSpeech-1.0
-# warning! this may use different hyper parameters used at preprocessing stage
-python train.py --preset=presets/deepvoice3_ljspeech.json --data-root=./data/ljspeech
+python preprocess.py ljspeech ~/CORPUS/LJSpeech-1.1 ~/PREPROCESSED/ljspeech_dv3
+# warning! this may use different hyper parameters at preprocessing stage
+MPLBACKEND=Agg python train.py --preset=presets/deepvoice3_ljspeech.json --data-root=$HOME/PREPROCESSED/ljspeech_dv3/
 ```
 
 ### 0. Download dataset
@@ -325,6 +382,12 @@ This may happen depending on backends you have for matplotlib. Try changing back
 
 ```
 MPLBACKEND=Qt5Agg python train.py ${args...}
+```
+
+Or even better:
+
+```
+MPLBACKEND=Agg python train.py ${args...}
 ```
 
 In [#78](https://github.com/r9y9/deepvoice3_pytorch/pull/78#issuecomment-385327057), engiecat reported that changing the backend of matplotlib from Tkinter(TkAgg) to PyQt5(Qt5Agg) fixed the problem.
