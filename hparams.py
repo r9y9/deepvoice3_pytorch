@@ -1,9 +1,9 @@
-import tensorflow as tf
+import hparam_tf.hparam
 # NOTE: If you want full control for model architecture. please take a look
 # at the code and change whatever you want. Some hyper parameters are hardcoded.
 
 # Default hyperparameters:
-hparams = tf.contrib.training.HParams(
+hparams = hparam_tf.hparam.HParams(
     name="deepvoice3",
 
     # Text:

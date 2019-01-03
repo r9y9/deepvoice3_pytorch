@@ -83,7 +83,6 @@ python synthesis.py --preset=20180505_deepvoice3_ljspeech.json \
 - Python 3
 - CUDA >= 8.0
 - PyTorch >= v0.4.0
-- TensorFlow >= v1.3
 - [nnmnkwii](https://github.com/r9y9/nnmnkwii) >= v0.0.11
 - [MeCab](http://taku910.github.io/mecab/) (Japanese only)
 
