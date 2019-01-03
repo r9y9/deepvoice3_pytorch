@@ -94,6 +94,7 @@ setup(name='deepvoice3_pytorch',
               "tensorboardX <= 1.2",
               "nnmnkwii >= 0.0.11",
               "requests",
+              "matplotlib",
           ],
           "test": [
               "nose",
