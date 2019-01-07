@@ -9,7 +9,6 @@ checkpoints*
 log
 generated
 data
-text
 datasets
 testout
 
