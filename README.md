@@ -80,7 +80,7 @@ python synthesis.py --preset=20180505_deepvoice3_ljspeech.json \
 
 ## Requirements
 
-- Python 3
+- Python 3 (<= 3.6)
 - CUDA >= 8.0
 - PyTorch >= v0.4.0
 - [nnmnkwii](https://github.com/r9y9/nnmnkwii) >= v0.0.11
