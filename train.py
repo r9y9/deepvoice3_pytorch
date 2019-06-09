@@ -967,7 +967,7 @@ if __name__ == "__main__":
                 str(datetime.now()).replace(" ", "_").replace(":", "_")
         else:
             log_event_path = "log/run-test" + str(datetime.now()).replace(" ", "_")
-    print("Los event path: {}".format(log_event_path))
+    print("Log event path: {}".format(log_event_path))
     writer = SummaryWriter(log_dir=log_event_path)
 
     # Train!
