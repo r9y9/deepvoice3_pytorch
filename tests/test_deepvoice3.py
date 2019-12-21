@@ -26,7 +26,7 @@ padding_idx = 0
 
 def _get_model(n_speakers=1, speaker_embed_dim=None,
                force_monotonic_attention=False,
-               use_decoder_state_for_postnet_input=False):
+               use_decoder_state_for_postnet_input=False, use_memory_mask=False):
     model = deepvoice3(n_vocab=n_vocab,
                        embed_dim=32,
                        mel_dim=num_mels,
@@ -42,6 +42,7 @@ def _get_model(n_speakers=1, speaker_embed_dim=None,
                        converter_channels=32,
                        force_monotonic_attention=force_monotonic_attention,
                        use_decoder_state_for_postnet_input=use_decoder_state_for_postnet_input,
+                       use_memory_mask=use_memory_mask,
                        )
     return model
 
@@ -62,7 +63,7 @@ def _test_data():
     x = torch.LongTensor(seqs)
     y = torch.rand(x.size(0), 12, 80)
 
-    return x, y
+    return x, y, input_lengths
 
 
 def _deepvoice3(n_vocab, embed_dim=256, mel_dim=80,
@@ -110,11 +111,14 @@ def _deepvoice3(n_vocab, embed_dim=256, mel_dim=80,
 
 
 def test_single_speaker_deepvoice3():
-    x, y = _test_data()
+    x, y, lengths = _test_data()
 
     for v in [False, True]:
         model = _get_model(use_decoder_state_for_postnet_input=v)
-        mel_outputs, linear_outputs, alignments, done = model(x, y)
+        mel_outputs, linear_outputs, alignments, done = model(x, y, input_lengths=lengths)
+
+    model = _get_model(use_memory_mask=True)
+    mel_outputs, linear_outputs, alignments, done = model(x, y, input_lengths=lengths)
 
 
 def _pad_2d(x, max_len, b_pad=0):
@@ -192,7 +196,7 @@ def test_incremental_correctness():
         assert max_target_len % r == 0
     mel = _pad_2d(mel, max_target_len)
     mel = torch.from_numpy(mel)
-    mel_reshaped = mel.view(1, -1, mel_dim * r)
+    mel_reshaped = mel.contiguous().view(1, -1, mel_dim * r)
     frame_positions = np.arange(1, mel_reshaped.size(1) + 1).reshape(1, mel_reshaped.size(1))
 
     x = torch.LongTensor(seqs)
@@ -269,7 +273,7 @@ def test_incremental_forward():
         assert max_target_len % r == 0
     mel = _pad_2d(mel, max_target_len)
     mel = torch.from_numpy(mel)
-    mel_reshaped = mel.view(1, -1, mel_dim * r)
+    mel_reshaped = mel.contiguous().view(1, -1, mel_dim * r)
 
     frame_positions = np.arange(1, mel_reshaped.size(1) + 1).reshape(1, mel_reshaped.size(1))
 
