@@ -340,8 +340,10 @@ def collate_fn(batch):
     s, e = 1, max_decoder_target_len + 1
     # if b_pad > 0:
     #    s, e = s - 1, e - 1
+    # NOTE: needs clone to supress RuntimeError in dataloarder...
+    # ref: https://github.com/pytorch/pytorch/issues/10756
     frame_positions = torch.arange(s, e).long().unsqueeze(0).expand(
-        len(batch), max_decoder_target_len)
+        len(batch), max_decoder_target_len).clone()
 
     # done flags
     done = np.array([_pad(np.zeros(len(x[1]) // r // downsample_step - 1),
@@ -963,7 +965,7 @@ if __name__ == "__main__":
     data_loader = data_utils.DataLoader(
         dataset, batch_size=hparams.batch_size,
         num_workers=hparams.num_workers, sampler=sampler,
-        collate_fn=collate_fn, pin_memory=hparams.pin_memory)
+        collate_fn=collate_fn, pin_memory=hparams.pin_memory, drop_last=True)
 
     device = torch.device("cuda" if use_cuda else "cpu")
 
