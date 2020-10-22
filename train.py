@@ -397,7 +397,7 @@ def eval_model(global_step, writer, device, model, checkpoint_dir, ismultispeake
     model_eval.load_state_dict(model.state_dict())
 
     # hard coded
-    speaker_ids = [0, 1, 10] if ismultispeaker else [None]
+    speaker_ids = [0, 1, hparams.n_speakers-1] if ismultispeaker else [None]
     for speaker_id in speaker_ids:
         speaker_str = "multispeaker{}".format(speaker_id) if speaker_id is not None else "single"
 
@@ -666,7 +666,7 @@ Please set a larger value for ``max_position`` in hyper parameters.""".format(
             if hparams.masked_loss_weight > 0:
                 # decoder output domain mask
                 decoder_target_mask = sequence_mask(
-                    target_lengths / (r * downsample_step),
+                    target_lengths // (r * downsample_step),
                     max_len=mel.size(1)).unsqueeze(-1)
                 if downsample_step > 1:
                     # spectrogram-domain mask
