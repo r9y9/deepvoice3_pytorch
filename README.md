@@ -332,6 +332,10 @@ MPLBACKEND=Qt5Agg python train.py ${args...}
 
 In [#78](https://github.com/r9y9/deepvoice3_pytorch/pull/78#issuecomment-385327057), engiecat reported that changing the backend of matplotlib from Tkinter(TkAgg) to PyQt5(Qt5Agg) fixed the problem.
 
+## Sponsers
+
+- https://github.com/echelon
+
 ## Acknowledgements
 
 Part of code was adapted from the following projects:
