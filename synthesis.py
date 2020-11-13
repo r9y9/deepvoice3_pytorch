@@ -33,6 +33,7 @@ from deepvoice3_pytorch import frontend
 from hparams import hparams, hparams_debug_string
 
 from tqdm import tqdm
+nltk.download('popular')
 
 use_cuda = torch.cuda.is_available()
 device = torch.device("cuda" if use_cuda else "cpu")
