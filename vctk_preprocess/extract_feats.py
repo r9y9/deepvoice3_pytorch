@@ -120,9 +120,8 @@ def pe(cmd, shell=False):
 
 # from merlin
 def load_binary_file(file_name, dimension):
-    fid_lab = open(file_name, 'rb')
-    features = np.fromfile(fid_lab, dtype=np.float32)
-    fid_lab.close()
+    with open(file_name, 'rb') as fid_lab:
+        features = np.fromfile(fid_lab, dtype=np.float32)
     assert features.size % float(
         dimension) == 0.0, 'specified dimension %s not compatible with data' % (dimension)
     features = features[:(dimension * (features.size / dimension))]
