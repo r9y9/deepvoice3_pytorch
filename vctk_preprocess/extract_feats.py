@@ -660,7 +660,7 @@ def extract_intermediate_features(wav_path, txt_path, keep_silences=False,
             ex_line_replace = n
             break
 
-    ex_lines[ex_line_replace] = 'merlin_dir="%s"' % merlin_dir
+    ex_lines[ex_line_replace] = f'merlin_dir="{merlin_dir}"'
 
     ex_line_replace = None
     for n, l in enumerate(ex_lines):
